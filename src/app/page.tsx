@@ -166,11 +166,11 @@ export default async function Home({ searchParams }: HomeProps) {
             <ButtonLink href="/disclosures" variant="secondary">
               공시
             </ButtonLink>
-            <ButtonLink href="/intents">
-              의향서 작성
-            </ButtonLink>
             <ButtonLink href="/simulation" variant="secondary">
               투자 시뮬레이션
+            </ButtonLink>
+            <ButtonLink href="/intents">
+              의향서 작성
             </ButtonLink>
           </>
         }
