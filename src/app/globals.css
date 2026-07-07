@@ -529,7 +529,12 @@ button.full,
   stroke-width: 1;
 }
 
-.chart-axis-label {
+.chart-axis-tick line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-axis-tick text {
   fill: var(--muted);
   font-size: 12px;
   font-weight: 700;
@@ -565,7 +570,7 @@ button.full,
   stroke-width: 1;
 }
 
-.candle rect {
+.candle .candle-body {
   stroke-width: 0;
 }
 
@@ -576,13 +581,13 @@ button.full,
 }
 
 .candle.up line,
-.candle.up rect {
+.candle.up .candle-body {
   fill: var(--danger);
   stroke: var(--danger);
 }
 
 .candle.down line,
-.candle.down rect {
+.candle.down .candle-body {
   fill: var(--accent);
   stroke: var(--accent);
 }

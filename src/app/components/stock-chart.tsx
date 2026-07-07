@@ -17,6 +17,22 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatExactDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  }).format(new Date(value));
+}
+
+function formatAxisDate(value: string, showYear: boolean) {
+  const date = new Date(value);
+  if (showYear) {
+    return `${String(date.getFullYear()).slice(2)}.${date.getMonth() + 1}`;
+  }
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("ko-KR", {
     maximumFractionDigits: 2
@@ -127,7 +143,14 @@ export function CandleChart({
 
   const activeX =
     activeIndex !== null ? x(activeIndex) + metrics.candleWidth / 2 : 0;
-  const axisLabelX = Math.min(metrics.width - 36, Math.max(36, activeX));
+  const axisY = metrics.height - metrics.bottomPadding;
+  const spansMultipleYears =
+    new Date(candles.at(-1)!.date).getFullYear() !== new Date(candles[0].date).getFullYear();
+  const axisTickIndices = [...new Set(
+    candles.length <= 4
+      ? candles.map((_, index) => index)
+      : [0, Math.floor((candles.length - 1) / 3), Math.floor(((candles.length - 1) * 2) / 3), candles.length - 1]
+  )];
   const className = [
     "candle-chart",
     size === "detail" && "detail",
@@ -149,8 +172,8 @@ export function CandleChart({
               className="chart-grid"
               x1="0"
               x2={metrics.width}
-              y1={metrics.height - metrics.bottomPadding}
-              y2={metrics.height - metrics.bottomPadding}
+              y1={axisY}
+              y2={axisY}
             />
           </>
         ) : null}
@@ -177,10 +200,30 @@ export function CandleChart({
                 height={metrics.height}
               />
               <line x1={center} x2={center} y1={y(candle.high)} y2={y(candle.low)} />
-              <rect x={itemX} y={bodyY} width={metrics.candleWidth} height={bodyHeight} rx={metrics.dense ? 0.8 : 2} />
+              <rect
+                className="candle-body"
+                x={itemX}
+                y={bodyY}
+                width={metrics.candleWidth}
+                height={bodyHeight}
+                rx={metrics.dense ? 0.8 : 2}
+              />
             </g>
           );
         })}
+        {size === "detail"
+          ? axisTickIndices.map((index) => {
+              const tickX = Math.min(metrics.width - 34, Math.max(34, x(index) + metrics.candleWidth / 2));
+              return (
+                <g className="chart-axis-tick" key={`${candles[index].date}-${index}`}>
+                  <line x1={tickX} x2={tickX} y1={axisY} y2={axisY + 5} />
+                  <text x={tickX} y={metrics.height - 8}>
+                    {formatAxisDate(candles[index].date, spansMultipleYears)}
+                  </text>
+                </g>
+              );
+            })
+          : null}
         {size === "detail" && activeIndex !== null && activeCandle ? (
           <>
             <line
@@ -188,17 +231,14 @@ export function CandleChart({
               x1={activeX}
               x2={activeX}
               y1={metrics.topPadding}
-              y2={metrics.height - metrics.bottomPadding}
+              y2={axisY}
             />
-            <text className="chart-axis-label" x={axisLabelX} y={metrics.height - 8}>
-              {formatDate(activeCandle.date)}
-            </text>
           </>
         ) : null}
       </svg>
       {size === "detail" && activeCandle ? (
         <div className="chart-tooltip">
-          <strong>{formatDate(activeCandle.date)}</strong>
+          <strong>{formatExactDate(activeCandle.date)}</strong>
           <span>시가 {formatValue(activeCandle.open, valueFormat)}</span>
           <span>고가 {formatValue(activeCandle.high, valueFormat)}</span>
           <span>저가 {formatValue(activeCandle.low, valueFormat)}</span>
