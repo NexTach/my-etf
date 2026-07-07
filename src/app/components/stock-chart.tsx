@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { formatCurrency } from "@/lib/format";
 import type { MarketCandle } from "@/lib/market-data";
 
@@ -10,23 +10,6 @@ type ChartPoint = {
 };
 
 type ValueFormat = "number" | "krw" | "usd" | "percent";
-
-type PortfolioSlice = {
-  symbol: string;
-  name: string;
-  valueKrw: number;
-};
-
-const portfolioPalette = [
-  "#2563eb",
-  "#059669",
-  "#dc2626",
-  "#ca8a04",
-  "#7c3aed",
-  "#0891b2",
-  "#db2777",
-  "#4b5563"
-];
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -62,10 +45,6 @@ function formatValue(value: number, format: ValueFormat) {
   if (format === "usd") return formatCurrency(value, "USD");
   if (format === "percent") return `${formatNumber(value * 100)}%`;
   return formatNumber(value);
-}
-
-function formatPercent(value: number) {
-  return `${formatNumber(value * 100)}%`;
 }
 
 export function CandleChart({
@@ -352,86 +331,6 @@ export function SparkLineChart({
           {formatDate(activePoint.date)} · {formatValue(activePoint.value, valueFormat)}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-export function PortfolioPieChart({
-  slices,
-  label = "포트폴리오 구성 종목 비중"
-}: {
-  slices: PortfolioSlice[];
-  label?: string;
-}) {
-  const visibleSlices = slices.filter((slice) => slice.valueKrw > 0);
-  const total = visibleSlices.reduce((sum, slice) => sum + slice.valueKrw, 0);
-
-  if (total <= 0 || visibleSlices.length === 0) {
-    return <div className="portfolio-pie-chart empty-chart">포트폴리오 데이터 없음</div>;
-  }
-
-  const size = 168;
-  const center = size / 2;
-  const radius = 58;
-  const circumference = 2 * Math.PI * radius;
-  let offset = 0;
-
-  const chartSlices = visibleSlices.map((slice, index) => {
-    const ratio = slice.valueKrw / total;
-    const dashLength = ratio * circumference;
-    const item = {
-      ...slice,
-      color: portfolioPalette[index % portfolioPalette.length],
-      dashLength,
-      dashOffset: -offset,
-      ratio
-    };
-    offset += dashLength;
-    return item;
-  });
-  const largestSlice = chartSlices.reduce((largest, slice) => (slice.valueKrw > largest.valueKrw ? slice : largest), chartSlices[0]);
-
-  return (
-    <div className="portfolio-pie-chart" aria-label={label}>
-      <div className="portfolio-pie-visual">
-        <svg role="img" viewBox={`0 0 ${size} ${size}`}>
-          <circle className="portfolio-pie-track" cx={center} cy={center} r={radius} />
-          {chartSlices.map((slice) => (
-            <circle
-              className="portfolio-pie-slice"
-              cx={center}
-              cy={center}
-              key={slice.symbol}
-              r={radius}
-              stroke={slice.color}
-              strokeDasharray={`${slice.dashLength} ${circumference - slice.dashLength}`}
-              strokeDashoffset={slice.dashOffset}
-            >
-              <title>{`${slice.name} ${formatPercent(slice.ratio)}`}</title>
-            </circle>
-          ))}
-        </svg>
-        <div className="portfolio-pie-center">
-          <span>최대 비중</span>
-          <strong>{largestSlice.symbol}</strong>
-          <em>{formatPercent(largestSlice.ratio)}</em>
-        </div>
-      </div>
-      <div className="portfolio-pie-legend">
-        {chartSlices.map((slice) => (
-          <div className="portfolio-pie-legend-row" key={slice.symbol}>
-            <span
-              className="portfolio-pie-dot"
-              style={{ "--slice-color": slice.color } as CSSProperties}
-            />
-            <div>
-              <strong>{slice.symbol}</strong>
-              <span>{slice.name}</span>
-            </div>
-            <em>{formatPercent(slice.ratio)}</em>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

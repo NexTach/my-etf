@@ -1,4 +1,4 @@
-import type { ElementType, FormHTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, ElementType, FormHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
 
 type WithChildren = {
@@ -6,8 +6,39 @@ type WithChildren = {
   className?: string;
 };
 
+export type CompositionChartItem = {
+  id: string;
+  label: string;
+  description?: string;
+  value: number;
+  color?: string;
+};
+
+type CssVars = CSSProperties & Record<"--tds-chart-color", string>;
+
+const compositionChartPalette = [
+  "var(--tds-chart-1)",
+  "var(--tds-chart-2)",
+  "var(--tds-chart-3)",
+  "var(--tds-chart-4)",
+  "var(--tds-chart-5)",
+  "var(--tds-chart-6)",
+  "var(--tds-chart-7)",
+  "var(--tds-chart-8)"
+];
+
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function formatTdsNumber(value: number) {
+  return new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
+function formatTdsPercent(value: number) {
+  return `${formatTdsNumber(value * 100)}%`;
 }
 
 export function AppShell({ children, className }: WithChildren) {
@@ -267,4 +298,83 @@ export function TableSurface({ children, className }: WithChildren) {
 
 export function Stack({ children, className }: WithChildren) {
   return <div className={cx("stack", className)}>{children}</div>;
+}
+
+export function CompositionChart({
+  items,
+  label,
+  emptyText = "데이터 없음",
+  className
+}: {
+  items: CompositionChartItem[];
+  label: string;
+  emptyText?: string;
+  className?: string;
+}) {
+  const visibleItems = items.filter((item) => item.value > 0);
+  const total = visibleItems.reduce((sum, item) => sum + item.value, 0);
+
+  if (total <= 0 || visibleItems.length === 0) {
+    return <div className={cx("tds-composition-chart", "empty-chart", className)}>{emptyText}</div>;
+  }
+
+  const size = 168;
+  const center = size / 2;
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  const chartItems = visibleItems.map((item, index) => {
+    const ratio = item.value / total;
+    const dashLength = ratio * circumference;
+    const color = item.color ?? compositionChartPalette[index % compositionChartPalette.length];
+    const chartItem = {
+      ...item,
+      color,
+      dashLength,
+      dashOffset: -offset,
+      ratio
+    };
+    offset += dashLength;
+    return chartItem;
+  });
+
+  return (
+    <div className={cx("tds-composition-chart", className)} aria-label={label}>
+      <div className="tds-composition-visual">
+        <svg role="img" viewBox={`0 0 ${size} ${size}`}>
+          <circle className="tds-composition-track" cx={center} cy={center} r={radius} />
+          {chartItems.map((item) => (
+            <circle
+              className="tds-composition-slice"
+              cx={center}
+              cy={center}
+              key={item.id}
+              r={radius}
+              stroke={item.color}
+              strokeDasharray={`${item.dashLength} ${circumference - item.dashLength}`}
+              strokeDashoffset={item.dashOffset}
+            >
+              <title>{`${item.label} ${formatTdsPercent(item.ratio)}`}</title>
+            </circle>
+          ))}
+        </svg>
+      </div>
+      <div className="tds-composition-legend">
+        {chartItems.map((item) => (
+          <div className="tds-composition-legend-row" key={item.id}>
+            <span
+              className="tds-composition-dot"
+              style={{ "--tds-chart-color": item.color } as CssVars}
+            />
+            <div>
+              <strong>{item.label}</strong>
+              {item.description ? <span>{item.description}</span> : null}
+            </div>
+            <em>{formatTdsPercent(item.ratio)}</em>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

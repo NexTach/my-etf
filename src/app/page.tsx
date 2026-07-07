@@ -1,13 +1,14 @@
 import { ArrowDownToLine, ArrowUpRight, CircleDollarSign, LogOut, RefreshCw, ShieldAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { DividendForecastView } from "@/app/components/dividend-forecast-view";
-import { PortfolioPieChart, SparkLineChart } from "@/app/components/stock-chart";
+import { SparkLineChart } from "@/app/components/stock-chart";
 import { ToastStack, type ToastMessage } from "@/app/components/toast";
 import {
   AppShell,
   Badge,
   ButtonLink,
   CheckboxField,
+  CompositionChart,
   CtaPanel,
   Empty,
   Field,
@@ -134,9 +135,10 @@ export default async function Home({ searchParams }: HomeProps) {
     .filter((holding) => holding.marketValueKrw > 0)
     .sort((a, b) => b.marketValueKrw - a.marketValueKrw)
     .map((holding) => ({
-      symbol: holding.symbol,
-      name: stockFullLabel(holding),
-      valueKrw: holding.marketValueKrw
+      id: holding.symbol,
+      label: holding.symbol,
+      description: stockFullLabel(holding),
+      value: holding.marketValueKrw
     }));
   const myInvestments = store.investmentIntents.filter((intent) => intent.userId === user.id);
   const myWithdrawals = store.withdrawalIntents.filter((intent) => intent.userId === user.id);
@@ -270,9 +272,13 @@ export default async function Home({ searchParams }: HomeProps) {
         description={`마지막 갱신 ${formatDateTime(portfolio.fetchedAt)} · USD/KRW ${formatNumber(portfolio.exchangeRate, 2)}원`}
       />
 
-      <Panel className="portfolio-allocation-panel">
+      <Panel className="tds-composition-panel">
         <h2>구성 종목 비중</h2>
-        <PortfolioPieChart slices={portfolioAllocation} />
+        <CompositionChart
+          emptyText="포트폴리오 데이터 없음"
+          items={portfolioAllocation}
+          label="포트폴리오 구성 종목 비중"
+        />
       </Panel>
 
       <List>
