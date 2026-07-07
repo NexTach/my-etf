@@ -285,12 +285,14 @@ export function SparkLineChart({
   points,
   label,
   valueFormat = "number",
-  interactive = true
+  interactive = true,
+  trendValue
 }: {
   points: ChartPoint[];
   label?: string;
   valueFormat?: ValueFormat;
   interactive?: boolean;
+  trendValue?: number;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -317,7 +319,7 @@ export function SparkLineChart({
     .map((point, index) => `${index === 0 ? "M" : "L"} ${x(index).toFixed(2)} ${y(point.value).toFixed(2)}`)
     .join(" ");
 
-  const isUp = points.at(-1)!.value >= points[0]!.value;
+  const isUp = trendValue === undefined ? points.at(-1)!.value >= points[0]!.value : trendValue >= 0;
 
   return (
     <div className="sparkline-chart" aria-label={label} onMouseLeave={() => interactive && setActiveIndex(null)}>

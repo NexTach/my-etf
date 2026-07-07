@@ -187,6 +187,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <TextLink className="chart-link" href="/metrics/daily-change">
                 <SparkLineChart
                   interactive={false}
+                  trendValue={portfolioDailyChangeRate}
                   label="포트폴리오 1년 등락 추세"
                   points={samplePoints(portfolioDailyPoints)}
                   valueFormat="krw"
@@ -203,6 +204,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <TextLink className="chart-link" href="/metrics/holding-return">
                 <SparkLineChart
                   interactive={false}
+                  trendValue={portfolioDividend.totalReturnRate}
                   label="보유 수익률 추세"
                   points={holdingReturnPoints}
                   valueFormat="percent"
@@ -219,6 +221,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <TextLink className="chart-link" href="/metrics/dividend-yield">
                 <SparkLineChart
                   interactive={false}
+                  trendValue={portfolioDividend.dividendYield}
                   label="배당수익률 추세"
                   points={yieldPoints}
                   valueFormat="percent"
