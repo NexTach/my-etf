@@ -1,13 +1,13 @@
 import AdmZip from "adm-zip";
 import { XMLParser } from "fast-xml-parser";
-import type { DividendRecord } from "./types";
+import type { DividendRecord, MarketCode } from "./types";
 
 export type SymbolSearchResult = {
   symbol: string;
   name: string;
   exchange?: string;
   currency?: "KRW" | "USD";
-  marketCountry?: "KR" | "US";
+  marketCountry?: MarketCode;
   source: "opendart" | "fmp" | "yahoo" | "local";
 };
 
@@ -26,7 +26,7 @@ export type MarketCandle = {
 export type MarketChart = {
   symbol: string;
   currency: "KRW" | "USD";
-  marketCountry: "KR" | "US";
+  marketCountry: MarketCode;
   candles: MarketCandle[];
   previousClose?: number;
   regularMarketPrice?: number;
@@ -135,8 +135,18 @@ function inferCurrency(symbol: string, currency?: string): "KRW" | "USD" {
   return "USD";
 }
 
-function inferMarketCountry(symbol: string, currency?: string): "KR" | "US" {
-  return inferCurrency(symbol, currency) === "KRW" ? "KR" : "US";
+function inferMarketCode(symbol: string, currency?: string, exchange?: string): MarketCode {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const normalizedExchange = (exchange ?? "").toUpperCase();
+
+  if (inferCurrency(symbol, currency) === "KRW") {
+    if (normalizedSymbol.endsWith(".KQ") || normalizedExchange.includes("KOSDAQ")) return "KOSDAQ";
+    return "KOSPI";
+  }
+
+  if (normalizedExchange.includes("NYSE") || normalizedExchange.includes("NEW YORK")) return "NYSE";
+  if (normalizedExchange.includes("AMEX") || normalizedExchange.includes("AMERICAN")) return "AMEX";
+  return "NASDAQ";
 }
 
 function normalizeKrStockCode(symbol: string) {
@@ -146,7 +156,9 @@ function normalizeKrStockCode(symbol: string) {
 
 function normalizeSymbolForStorage(symbol: string, currency?: string) {
   const normalizedKr = normalizeKrStockCode(symbol);
-  if (normalizedKr && inferCurrency(symbol, currency) === "KRW") return normalizedKr;
+  if (normalizedKr && inferCurrency(symbol, currency) === "KRW") {
+    return symbol.trim().toUpperCase().endsWith(".KQ") ? `${normalizedKr}.KQ` : normalizedKr;
+  }
   return symbol.trim().toUpperCase();
 }
 
@@ -209,7 +221,7 @@ async function searchOpenDartSymbols(query: string): Promise<SymbolSearchResult[
       name: String(row.corp_name ?? row.stock_code ?? ""),
       exchange: "KRX",
       currency: "KRW" as const,
-      marketCountry: "KR" as const,
+      marketCountry: "KOSPI" as const,
       source: "opendart" as const
     }));
 }
@@ -233,7 +245,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
         name: row.name ?? row.symbol ?? "",
         exchange: row.exchangeShortName ?? row.stockExchange,
         currency: inferCurrency(row.symbol ?? "", row.currency),
-        marketCountry: inferMarketCountry(row.symbol ?? "", row.currency),
+        marketCountry: inferMarketCode(row.symbol ?? "", row.currency, row.exchangeShortName ?? row.stockExchange),
         source: "fmp" as const
       }));
       return mergeSearchResults(openDartResults, fmpResults);
@@ -260,7 +272,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
       name: quote.longname ?? quote.shortname ?? quote.symbol ?? "",
       exchange: quote.exchDisp ?? quote.exchange,
       currency: inferCurrency(quote.symbol ?? ""),
-      marketCountry: inferMarketCountry(quote.symbol ?? ""),
+      marketCountry: inferMarketCode(quote.symbol ?? "", quote.currency, quote.exchDisp ?? quote.exchange),
       source: "yahoo" as const
     }));
   return mergeSearchResults(openDartResults, yahooResults);
@@ -290,7 +302,7 @@ export async function fetchMarketQuote(symbol: string): Promise<MarketQuote | nu
     name: quote.longName ?? quote.shortName ?? quote.symbol,
     exchange: quote.fullExchangeName ?? quote.exchangeName,
     currency,
-    marketCountry: inferMarketCountry(quote.symbol, quote.currency),
+    marketCountry: inferMarketCode(quote.symbol, quote.currency, quote.fullExchangeName ?? quote.exchangeName),
     lastPrice: quote.regularMarketPrice ?? quote.chartPreviousClose,
     source: "yahoo"
   };
@@ -368,7 +380,7 @@ export async function fetchMarketCandles(
   return {
     symbol: normalizeSymbolForStorage(meta.symbol, meta.currency),
     currency: inferCurrency(meta.symbol, meta.currency),
-    marketCountry: inferMarketCountry(meta.symbol, meta.currency),
+    marketCountry: inferMarketCode(meta.symbol, meta.currency, meta.fullExchangeName ?? meta.exchangeName),
     candles,
     previousClose,
     regularMarketPrice: meta.regularMarketPrice,

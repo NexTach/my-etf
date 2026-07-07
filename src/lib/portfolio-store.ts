@@ -1,4 +1,4 @@
-import type { Holding, ManualPortfolioStore, PortfolioOverview } from "./types";
+import type { Holding, ManualPortfolioStore, MarketCode, PortfolioOverview } from "./types";
 import { fetchUsdKrwExchangeRate } from "./exchange-rate";
 import { prisma } from "./prisma";
 
@@ -56,6 +56,14 @@ function normalizeStore(store: ManualPortfolioStore): ManualPortfolioStore {
   };
 }
 
+function normalizeStoredMarketCode(value: string, currency: "KRW" | "USD", symbol: string): MarketCode {
+  if (value === "NASDAQ" || value === "NYSE" || value === "AMEX" || value === "KOSPI" || value === "KOSDAQ") {
+    return value;
+  }
+  if (currency === "KRW") return symbol.toUpperCase().endsWith(".KQ") ? "KOSDAQ" : "KOSPI";
+  return "NASDAQ";
+}
+
 export async function readManualPortfolioStore(): Promise<ManualPortfolioStore> {
   const [exchangeRateSnapshot, holdings] = await Promise.all([
     fetchUsdKrwExchangeRate(),
@@ -75,8 +83,8 @@ export async function readManualPortfolioStore(): Promise<ManualPortfolioStore> 
     holdings: holdings.map((holding) => ({
       symbol: holding.symbol,
       name: holding.name,
-      marketCountry: holding.marketCountry as "KR" | "US",
       currency: holding.currency as "KRW" | "USD",
+      marketCountry: normalizeStoredMarketCode(holding.marketCountry, holding.currency as "KRW" | "USD", holding.symbol),
       quantity: holding.quantity,
       lastPrice: holding.lastPrice,
       averagePurchasePrice: holding.averagePurchasePrice ?? undefined,

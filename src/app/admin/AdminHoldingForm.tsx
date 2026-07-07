@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ComputedValue, Field, Form, InlineFields } from "@/app/components/tds";
-import type { Holding } from "@/lib/types";
+import type { Holding, MarketCode } from "@/lib/types";
 
 type SearchResult = {
   symbol: string;
   name: string;
   exchange?: string;
   currency?: "KRW" | "USD";
-  marketCountry?: "KR" | "US";
+  marketCountry?: MarketCode;
   lastPrice?: number;
   source: string;
 };
@@ -38,6 +38,26 @@ function formatHoldingNumber(value?: number, digits = 4) {
   }).format(value);
 }
 
+function normalizeMarketCode(value?: string, currency?: "KRW" | "USD", symbol?: string): MarketCode {
+  if (value === "NASDAQ" || value === "NYSE" || value === "AMEX" || value === "KOSPI" || value === "KOSDAQ") {
+    return value;
+  }
+  if (currency === "KRW") return symbol?.toUpperCase().endsWith(".KQ") ? "KOSDAQ" : "KOSPI";
+  return "NASDAQ";
+}
+
+function currencyFromMarket(market: MarketCode): "KRW" | "USD" {
+  return market === "KOSPI" || market === "KOSDAQ" ? "KRW" : "USD";
+}
+
+function marketLabel(market?: MarketCode) {
+  if (market === "NYSE") return "뉴욕증권거래소";
+  if (market === "AMEX") return "아메리칸증권거래소";
+  if (market === "KOSPI") return "유가증권시장";
+  if (market === "KOSDAQ") return "코스닥시장";
+  return "나스닥";
+}
+
 export function AdminHoldingForm({
   symbol,
   name,
@@ -55,8 +75,8 @@ export function AdminHoldingForm({
   const [form, setForm] = useState({
     symbol: symbol ?? "",
     name: name ?? "",
-    marketCountry: marketCountry ?? "US",
-    currency: currency ?? "USD",
+    marketCountry: normalizeMarketCode(marketCountry, currency, symbol),
+    currency: currency ?? currencyFromMarket(normalizeMarketCode(marketCountry, currency, symbol)),
     quantity: quantity?.toString() ?? "",
     lastPrice: lastPrice?.toString() ?? "",
     averagePurchasePrice: averagePurchasePrice?.toString() ?? "",
@@ -151,7 +171,7 @@ export function AdminHoldingForm({
       symbol: next.symbol,
       name: next.name,
       marketCountry: next.marketCountry ?? current.marketCountry,
-      currency: next.currency ?? current.currency,
+      currency: next.currency ?? (next.marketCountry ? currencyFromMarket(next.marketCountry) : current.currency),
       lastPrice: next.lastPrice ? String(next.lastPrice) : current.lastPrice
     }));
     setQuery("");
@@ -189,7 +209,7 @@ export function AdminHoldingForm({
               >
                 <strong>{result.symbol}</strong>
                 <span>{result.name}</span>
-                <em>{[result.exchange, result.currency].filter(Boolean).join(" · ")}</em>
+                <em>{[marketLabel(result.marketCountry), result.exchange, result.currency].filter(Boolean).join(" · ")}</em>
               </button>
             ))}
           </div>
@@ -220,12 +240,20 @@ export function AdminHoldingForm({
             id={`market-${symbol ?? "new"}`}
             name="marketCountry"
             value={form.marketCountry}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, marketCountry: event.target.value as "KR" | "US" }))
-            }
+            onChange={(event) => {
+              const marketCountry = event.target.value as MarketCode;
+              setForm((current) => ({
+                ...current,
+                marketCountry,
+                currency: currencyFromMarket(marketCountry)
+              }));
+            }}
           >
-            <option value="US">미국</option>
-            <option value="KR">국내</option>
+            <option value="NASDAQ">나스닥</option>
+            <option value="NYSE">뉴욕증권거래소</option>
+            <option value="AMEX">아메리칸증권거래소</option>
+            <option value="KOSPI">유가증권시장</option>
+            <option value="KOSDAQ">코스닥시장</option>
           </select>
         </Field>
         <Field htmlFor={`currency-${symbol ?? "new"}`} label="통화">

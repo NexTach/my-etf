@@ -899,8 +899,16 @@ tbody tr:last-child td {
 }
 
 .inline-fields.holding {
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  min-width: 0;
+  grid-template-columns:
+    minmax(100px, 0.75fr)
+    minmax(240px, 1.8fr)
+    minmax(170px, 1.1fr)
+    minmax(92px, 0.7fr)
+    repeat(4, minmax(110px, 0.8fr))
+    minmax(92px, 0.7fr)
+    auto
+    auto;
+  min-width: 1220px;
 }
 
 .inline-fields.exchange {

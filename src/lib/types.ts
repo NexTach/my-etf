@@ -69,10 +69,12 @@ export type AppStore = {
   withdrawalIntents: WithdrawalIntent[];
 };
 
+export type MarketCode = "NASDAQ" | "NYSE" | "AMEX" | "KOSPI" | "KOSDAQ";
+
 export type Holding = {
   symbol: string;
   name: string;
-  marketCountry: "KR" | "US";
+  marketCountry: MarketCode;
   currency: "KRW" | "USD";
   quantity: number;
   lastPrice: number;

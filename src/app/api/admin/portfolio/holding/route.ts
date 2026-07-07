@@ -9,7 +9,7 @@ import { getUserSession } from "@/lib/session";
 const schema = z.object({
   symbol: z.string().trim().min(1).max(20),
   name: z.string().trim().min(1).max(120),
-  marketCountry: z.enum(["KR", "US"]),
+  marketCountry: z.enum(["NASDAQ", "NYSE", "AMEX", "KOSPI", "KOSDAQ"]),
   currency: z.enum(["KRW", "USD"]),
   quantity: z.coerce.number().positive(),
   lastPrice: z.coerce.number().positive(),
@@ -20,8 +20,11 @@ const schema = z.object({
   )
 });
 
-function normalizeHoldingSymbol(symbol: string, currency: "KRW" | "USD") {
+function normalizeHoldingSymbol(symbol: string, currency: "KRW" | "USD", marketCountry: string) {
   const normalized = symbol.trim().toUpperCase();
+  if (currency === "KRW" && marketCountry === "KOSDAQ") {
+    return `${normalized.replace(/\.(KS|KQ)$/, "")}.KQ`;
+  }
   if (currency === "KRW") return normalized.replace(/\.(KS|KQ)$/, "");
   return normalized;
 }
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const symbol = normalizeHoldingSymbol(parsed.data.symbol, parsed.data.currency);
+  const symbol = normalizeHoldingSymbol(parsed.data.symbol, parsed.data.currency, parsed.data.marketCountry);
 
   await upsertManualHolding({
     ...parsed.data,

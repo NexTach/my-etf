@@ -62,9 +62,11 @@ function formatPaymentMonths(months?: number[]) {
 }
 
 function formatMarket(holding: Holding) {
-  if (holding.marketCountry === "US") return "나스닥(NASDAQ)";
-  if (holding.symbol.toUpperCase().endsWith(".KQ")) return "코스닥시장(KOSDAQ)";
-  return "유가증권시장(KOSPI)";
+  if (holding.marketCountry === "NYSE") return "뉴욕증권거래소(NYSE)";
+  if (holding.marketCountry === "AMEX") return "아메리칸증권거래소(AMEX)";
+  if (holding.marketCountry === "KOSDAQ") return "코스닥시장(KOSDAQ)";
+  if (holding.marketCountry === "KOSPI") return "유가증권시장(KOSPI)";
+  return "나스닥(NASDAQ)";
 }
 
 export default async function StockDetailPage({ params }: StockDetailProps) {
