@@ -17,7 +17,14 @@ type SearchResult = {
 
 type AdminHoldingFormProps = Partial<Pick<
   Holding,
-  "symbol" | "name" | "marketCountry" | "currency" | "quantity" | "lastPrice" | "averagePurchasePrice"
+  | "symbol"
+  | "name"
+  | "marketCountry"
+  | "currency"
+  | "quantity"
+  | "lastPrice"
+  | "averagePurchasePrice"
+  | "purchaseExchangeRate"
 >>;
 
 function profitLossRate(lastPrice?: number, averagePurchasePrice?: number) {
@@ -32,7 +39,8 @@ export function AdminHoldingForm({
   currency,
   quantity,
   lastPrice,
-  averagePurchasePrice
+  averagePurchasePrice,
+  purchaseExchangeRate
 }: AdminHoldingFormProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -44,7 +52,8 @@ export function AdminHoldingForm({
     currency: currency ?? "USD",
     quantity: quantity?.toString() ?? "",
     lastPrice: lastPrice?.toString() ?? "",
-    averagePurchasePrice: averagePurchasePrice?.toString() ?? ""
+    averagePurchasePrice: averagePurchasePrice?.toString() ?? "",
+    purchaseExchangeRate: purchaseExchangeRate?.toString() ?? ""
   });
 
   const computedRate = useMemo(
@@ -211,6 +220,21 @@ export function AdminHoldingForm({
             value={form.averagePurchasePrice}
             onChange={(event) =>
               setForm((current) => ({ ...current, averagePurchasePrice: event.target.value }))
+            }
+          />
+        </Field>
+        <Field htmlFor={`purchase-fx-${symbol ?? "new"}`} label="매입환율">
+          <input
+            id={`purchase-fx-${symbol ?? "new"}`}
+            name="purchaseExchangeRate"
+            type="number"
+            step="0.01"
+            min="500"
+            max="3000"
+            value={form.purchaseExchangeRate}
+            disabled={form.currency !== "USD"}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, purchaseExchangeRate: event.target.value }))
             }
           />
         </Field>

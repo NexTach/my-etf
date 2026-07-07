@@ -15,6 +15,7 @@ model PortfolioHolding {
   quantity             Float
   lastPrice            Float
   averagePurchasePrice Float?
+  purchaseExchangeRate Float?
   profitLossRate       Float?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

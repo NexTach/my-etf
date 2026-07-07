@@ -218,7 +218,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <List>
           <ListRow
             title="연 예상 배당"
-            description="세금, 환율 변동은 반영되지 않습니다."
+            description="현재 USD/KRW 기준이며 세금과 향후 환율 변동은 반영되지 않습니다."
             value={formatKrw(forecast.annualDividendKrw)}
           />
           <ListRow
@@ -234,7 +234,11 @@ export default async function Home({ searchParams }: HomeProps) {
         </List>
       </Grid>
 
-      <SectionHeader id="portfolio-section" title="현재 포트폴리오" description={`마지막 갱신 ${formatDateTime(portfolio.fetchedAt)}`} />
+      <SectionHeader
+        id="portfolio-section"
+        title="현재 포트폴리오"
+        description={`마지막 갱신 ${formatDateTime(portfolio.fetchedAt)} · USD/KRW ${formatNumber(portfolio.exchangeRate, 2)}원`}
+      />
 
       <List>
         {portfolio.holdings.map((holding) => {
@@ -245,7 +249,7 @@ export default async function Home({ searchParams }: HomeProps) {
             <ListRow
               key={holding.symbol}
               title={<TextLink href={href}>{holding.symbol}</TextLink>}
-              description={`${holding.name} · ${formatNumber(holding.quantity, 4)}주 · 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
+              description={`${holding.name} · ${formatNumber(holding.quantity, 4)}주 · 원화 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
               value={
                 <div className="holding-row-value">
                   <TextLink className="chart-link" href={href}>

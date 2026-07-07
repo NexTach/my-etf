@@ -120,7 +120,11 @@ function holdingMarketValue(price: number, holding: Holding, exchangeRate: numbe
 
 export function holdingReturnCandles(candles: MarketCandle[], holding: Holding, exchangeRate: number) {
   if (!holding.averagePurchasePrice || holding.averagePurchasePrice <= 0) return [];
-  const costBasis = holding.averagePurchasePrice * holding.quantity * (holding.currency === "USD" ? exchangeRate : 1);
+  const purchaseExchangeRate = holding.purchaseExchangeRate ?? exchangeRate;
+  const costBasis =
+    holding.averagePurchasePrice *
+    holding.quantity *
+    (holding.currency === "USD" ? purchaseExchangeRate : 1);
   if (costBasis <= 0) return [];
 
   return candles.map((candle) => ({

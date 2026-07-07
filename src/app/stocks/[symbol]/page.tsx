@@ -153,7 +153,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
       <Grid columns={2}>
         <Panel className="metric-detail-panel">
           <h2 id="holding-return-chart">보유 수익률 추세</h2>
-          <p className="lede">5년 월봉 현재가와 평균 매수가 기준</p>
+          <p className="lede">5년 월봉 현재가와 매입환율 반영 원가 기준</p>
           <CandleChart
             label={`${holding.symbol} 보유 수익률 월봉 캔들`}
             candles={returnCandles}
@@ -182,7 +182,21 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
         <ListRow title="통화" value={holding.currency} />
         <ListRow title="보유 수량" value={`${formatNumber(holding.quantity, 4)}주`} />
         <ListRow title="현재가" value={formatPrice(holding)} />
-        <ListRow title="보유 수익률" value={<RatePill value={holding.profitLossRate} />} />
+        <ListRow title="원화 보유 수익률" value={<RatePill value={holding.profitLossRate} />} />
+        <ListRow title="가격 수익률" value={<RatePill value={holding.priceProfitLossRate} />} />
+        <ListRow title="원화 손익" value={holding.profitLossKrw !== undefined ? formatKrw(holding.profitLossKrw) : "-"} />
+        {holding.currency === "USD" ? (
+          <>
+            <ListRow
+              title="매입환율"
+              value={holding.purchaseExchangeRate ? `${formatNumber(holding.purchaseExchangeRate, 2)}원` : "-"}
+            />
+            <ListRow
+              title="환차손익"
+              value={holding.fxGainLossKrw !== undefined ? formatKrw(holding.fxGainLossKrw) : "-"}
+            />
+          </>
+        ) : null}
         <ListRow
           title="평균 매수가"
           value={

@@ -192,9 +192,11 @@ export async function summarizePortfolioDividend(portfolio: PortfolioOverview) {
   }, 0);
 
   const costBasisKrw = portfolio.holdings.reduce((sum, holding) => {
+    if (holding.costBasisKrw !== undefined) return sum + holding.costBasisKrw;
     if (!holding.averagePurchasePrice || holding.averagePurchasePrice <= 0) return sum;
+    const purchaseExchangeRate = holding.purchaseExchangeRate ?? portfolio.exchangeRate;
     const cost = holding.averagePurchasePrice * holding.quantity;
-    return sum + (holding.currency === "USD" ? cost * portfolio.exchangeRate : cost);
+    return sum + (holding.currency === "USD" ? cost * purchaseExchangeRate : cost);
   }, 0);
 
   return {

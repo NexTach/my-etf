@@ -5,10 +5,7 @@ import {
   Badge,
   ButtonLink,
   CtaPanel,
-  Field,
-  Form,
   Grid,
-  InlineFields,
   Metric,
   MutedText,
   Navigation,
@@ -153,28 +150,20 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         <Metric label="대기 중 출금 의향" value={formatKrw(pendingWithdrawal)} />
       </Grid>
 
-      <SectionHeader title="운영 포트폴리오" description="보유 종목, 수량, 현재가, USD 환율을 관리합니다." />
+      <SectionHeader title="운영 포트폴리오" description="보유 종목, 수량, 현재가, USD 매입환율을 관리합니다." />
+
+      <Grid columns={3}>
+        <Metric label="실시간 USD/KRW" value={`${formatNumber(portfolio.exchangeRate, 2)}원`} />
+        <Metric label="환율 갱신" value={formatDateTime(portfolio.exchangeRateFetchedAt)} />
+        <Metric
+          label="환율 출처"
+          value={portfolio.exchangeRateSource === "open.er-api.com" ? "ExchangeRate-API" : "기본값"}
+        />
+      </Grid>
 
       <Panel>
         <h2>운영 포트폴리오 관리</h2>
-        <Form action="/api/admin/portfolio/exchange-rate" compact method="post">
-          <InlineFields variant="exchange">
-            <Field htmlFor="exchangeRate" label="USD/KRW 환율">
-              <input
-                id="exchangeRate"
-                name="exchangeRate"
-                type="number"
-                step="0.01"
-                min="500"
-                max="3000"
-                defaultValue={portfolio.exchangeRate}
-                required
-              />
-            </Field>
-            <button type="submit">환율 저장</button>
-          </InlineFields>
-        </Form>
-        <TableSurface className="mt-16">
+        <TableSurface className="portfolio-table mt-16">
           <table>
             <thead>
               <tr>

@@ -36,7 +36,7 @@ const METRIC_LABELS = {
   },
   "holding-return": {
     title: "보유 수익률",
-    description: "최근 5년 월봉 평가금액을 평균 매입원금 대비 수익률 캔들로 변환합니다."
+    description: "최근 5년 월봉 평가금액을 매입환율이 반영된 원화 매입원금 대비 수익률 캔들로 변환합니다."
   },
   "dividend-yield": {
     title: "배당수익률",
@@ -158,7 +158,7 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
       <List>
         <ListRow
           title="보유 수익률"
-          description="현재 평가금액과 평균 매입원금 기준"
+          description="현재 평가금액과 매입환율이 반영된 원화 매입원금 기준"
           value={<RatePill value={portfolioDividend.totalReturnRate} />}
         />
         <ListRow

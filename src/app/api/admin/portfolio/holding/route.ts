@@ -13,7 +13,11 @@ const schema = z.object({
   currency: z.enum(["KRW", "USD"]),
   quantity: z.coerce.number().positive(),
   lastPrice: z.coerce.number().positive(),
-  averagePurchasePrice: z.coerce.number().nonnegative().optional()
+  averagePurchasePrice: z.coerce.number().nonnegative().optional(),
+  purchaseExchangeRate: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().min(500).max(3000).optional()
+  )
 });
 
 function normalizeHoldingSymbol(symbol: string, currency: "KRW" | "USD") {
@@ -38,12 +42,18 @@ export async function POST(request: Request) {
   await upsertManualHolding({
     ...parsed.data,
     symbol,
-    averagePurchasePrice: parsed.data.averagePurchasePrice || undefined
+    averagePurchasePrice: parsed.data.averagePurchasePrice || undefined,
+    purchaseExchangeRate:
+      parsed.data.currency === "USD" ? parsed.data.purchaseExchangeRate || undefined : undefined
   });
 
-  const dividendRecord = await fetchDividendRecordFromMarket(symbol);
-  if (dividendRecord) {
-    await upsertDividendRecord(dividendRecord);
+  try {
+    const dividendRecord = await fetchDividendRecordFromMarket(symbol);
+    if (dividendRecord) {
+      await upsertDividendRecord(dividendRecord);
+    }
+  } catch (error) {
+    console.error(`Dividend sync failed after holding update: ${symbol}`, error);
   }
 
   return NextResponse.redirect(new URL("/admin?portfolio=updated", request.url), { status: 303 });

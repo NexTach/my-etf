@@ -77,8 +77,13 @@ export type Holding = {
   quantity: number;
   lastPrice: number;
   averagePurchasePrice?: number;
+  purchaseExchangeRate?: number;
   marketValue: number;
   marketValueKrw: number;
+  costBasisKrw?: number;
+  priceProfitLossRate?: number;
+  fxGainLossKrw?: number;
+  profitLossKrw?: number;
   profitLossRate?: number;
 };
 
@@ -86,12 +91,16 @@ export type PortfolioOverview = {
   source: "manual";
   fetchedAt: string;
   exchangeRate: number;
+  exchangeRateFetchedAt: string;
+  exchangeRateSource: string;
   totalMarketValueKrw: number;
   holdings: Holding[];
 };
 
 export type ManualPortfolioStore = {
   exchangeRate: number;
+  exchangeRateFetchedAt?: string;
+  exchangeRateSource?: string;
   updatedAt: string;
   holdings: Holding[];
 };
