@@ -98,10 +98,26 @@ export function CandleChart({
     const max = Math.max(...candles.map((candle) => candle.high));
     const range = max - min || 1;
     const dense = candles.length > (size === "detail" ? 90 : 40);
-    const gap = dense ? (size === "detail" ? 0.7 : 0.6) : size === "detail" ? 7 : 4;
-    const sidePadding = dense ? (size === "detail" ? 8 : 2) : gap;
-    const availableWidth = Math.max(1, width - sidePadding * 2 - gap * Math.max(0, candles.length - 1));
-    const candleWidth = Math.max(dense ? 0.45 : size === "detail" ? 5 : 3, availableWidth / candles.length);
+    const desiredGap = dense ? (size === "detail" ? 0.7 : 0.6) : size === "detail" ? 7 : 4;
+    const sidePadding = dense ? (size === "detail" ? 8 : 2) : desiredGap;
+    const plotWidth = Math.max(1, width - sidePadding * 2);
+    const minCandleWidth = dense ? 0.45 : size === "detail" ? 5 : 3;
+    let gap = desiredGap;
+    let candleWidth = (plotWidth - gap * Math.max(0, candles.length - 1)) / candles.length;
+
+    if (candleWidth < minCandleWidth && candles.length > 1) {
+      const maxGapForMinWidth = (plotWidth - minCandleWidth * candles.length) / (candles.length - 1);
+      if (maxGapForMinWidth >= 0) {
+        gap = Math.min(desiredGap, maxGapForMinWidth);
+        candleWidth = minCandleWidth;
+      } else {
+        gap = 0;
+        candleWidth = plotWidth / candles.length;
+      }
+    } else {
+      candleWidth = Math.max(minCandleWidth, candleWidth);
+    }
+
     const topPadding = size === "detail" ? 18 : 6;
     const bottomPadding = size === "detail" ? 34 : 6;
     const plotHeight = height - topPadding - bottomPadding;
@@ -143,7 +159,10 @@ export function CandleChart({
   function handleMouseMove(event: MouseEvent<SVGSVGElement>) {
     if (candles.length === 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const svgX = ((event.clientX - rect.left) / rect.width) * metrics.width;
+    const scale = Math.min(rect.width / metrics.width, rect.height / metrics.height);
+    const renderedWidth = metrics.width * scale;
+    const renderedLeft = rect.left + (rect.width - renderedWidth) / 2;
+    const svgX = Math.min(metrics.width, Math.max(0, (event.clientX - renderedLeft) / scale));
     const rawIndex = Math.round((svgX - metrics.sidePadding - metrics.candleWidth / 2) / (metrics.candleWidth + metrics.gap));
     setActiveIndex(Math.min(candles.length - 1, Math.max(0, rawIndex)));
   }
