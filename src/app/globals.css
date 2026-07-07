@@ -411,6 +411,10 @@ button.full,
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.scheduled-dividend-summary {
+  margin-bottom: var(--tds-space-4);
+}
+
 .panel {
   background: var(--surface);
   border: 0;

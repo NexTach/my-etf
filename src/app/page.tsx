@@ -278,7 +278,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
       <SectionHeader title="예정 배당" description="현재 펀드 보유 수량 기준으로 예정 배당을 월별 또는 종목별로 확인합니다." />
 
-      <Grid columns={3}>
+      <Grid columns={3} className="scheduled-dividend-summary">
         <Metric label="연 예정 배당" value={formatKrw(scheduledDividend.annualDividendKrw)} />
         <Metric label="월평균 예정 배당" value={formatKrw(scheduledDividend.monthlyAverageKrw)} />
         <Metric label="현재 배당수익률" value={formatPercent(portfolioDividend.dividendYield)} />
