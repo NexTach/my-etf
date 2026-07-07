@@ -1,4 +1,5 @@
 import type { DividendForecast, DividendForecastLine, DividendRecord, PortfolioOverview } from "./types";
+import { fetchDividendRecordFromMarket } from "./market-data";
 import { prisma } from "./prisma";
 
 const DEFAULT_DIVIDENDS: DividendRecord[] = [
@@ -37,6 +38,8 @@ const DEFAULT_DIVIDENDS: DividendRecord[] = [
     memo: "국내 배당은 기준일, 주주총회, 지급일 확정 공시에 따라 달라집니다."
   }
 ];
+
+const DIVIDEND_RECORD_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getNextPaymentMonth(months: number[]) {
   const currentMonth = new Date().getMonth() + 1;
@@ -88,10 +91,16 @@ async function ensureDividendSeed() {
   });
 }
 
-export async function readDividendRecords(): Promise<DividendRecord[]> {
-  await ensureDividendSeed();
-  const rows = await prisma.dividendRecord.findMany({ orderBy: { symbol: "asc" } });
-  return rows.map((row) => ({
+function mapDividendRecord(row: {
+  symbol: string;
+  currency: string;
+  annualDividendPerShare: number;
+  trailingYield: number | null;
+  expectedPaymentMonths: string;
+  lastDividendPerShare: number | null;
+  memo: string | null;
+}): DividendRecord {
+  return {
     symbol: row.symbol,
     currency: row.currency as "KRW" | "USD",
     annualDividendPerShare: row.annualDividendPerShare,
@@ -99,7 +108,33 @@ export async function readDividendRecords(): Promise<DividendRecord[]> {
     expectedPaymentMonths: parsePaymentMonths(row.expectedPaymentMonths),
     lastDividendPerShare: row.lastDividendPerShare ?? undefined,
     memo: row.memo ?? undefined
-  }));
+  };
+}
+
+async function refreshStaleDividendRecords() {
+  const staleSince = new Date(Date.now() - DIVIDEND_RECORD_STALE_MS);
+  const staleRows = await prisma.dividendRecord.findMany({
+    where: { updatedAt: { lt: staleSince } },
+    select: { symbol: true }
+  });
+
+  if (staleRows.length === 0) return;
+
+  await Promise.allSettled(
+    staleRows.map(async ({ symbol }) => {
+      const record = await fetchDividendRecordFromMarket(symbol);
+      if (record) {
+        await upsertDividendRecord(record);
+      }
+    })
+  );
+}
+
+export async function readDividendRecords(): Promise<DividendRecord[]> {
+  await ensureDividendSeed();
+  await refreshStaleDividendRecords();
+  const rows = await prisma.dividendRecord.findMany({ orderBy: { symbol: "asc" } });
+  return rows.map(mapDividendRecord);
 }
 
 export async function upsertDividendRecord(record: DividendRecord) {

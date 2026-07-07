@@ -239,6 +239,11 @@ function normalizeKrStockCode(symbol: string) {
   return /^\d{6}$/.test(cleaned) ? cleaned : null;
 }
 
+function normalizeKrSecurityCode(symbol: string) {
+  const cleaned = symbol.trim().toUpperCase().replace(/\.(KS|KQ)$/, "");
+  return /^(?=.*\d)[0-9A-Z]{6}$/.test(cleaned) ? cleaned : null;
+}
+
 function normalizeSearchText(value: string) {
   return value.trim().toUpperCase().replace(/[^\p{L}\p{N}]+/gu, "");
 }
@@ -258,7 +263,7 @@ function normalizeSymbolForStorage(symbol: string, currency?: string) {
 
 function yahooLookupSymbol(symbol: string) {
   const trimmed = symbol.trim().toUpperCase();
-  if (/^\d{6}$/.test(trimmed)) return `${trimmed}.KS`;
+  if (normalizeKrSecurityCode(trimmed)) return `${trimmed.replace(/\.(KS|KQ)$/, "")}.KS`;
   return trimmed;
 }
 
@@ -667,9 +672,84 @@ function monthsFromDates(dates: string[]) {
   return [...new Set(months)].sort((a, b) => a - b);
 }
 
+function yahooDividendSymbols(symbol: string) {
+  const normalized = symbol.trim().toUpperCase();
+  const symbols = [normalized];
+  const krSecurityCode = normalizeKrSecurityCode(normalized);
+  if (krSecurityCode) {
+    symbols.push(`${krSecurityCode}.KS`, `${krSecurityCode}.KQ`);
+  }
+
+  return [...new Set(symbols)];
+}
+
+function annualDividendFromYahooRows(rows: YahooDividendEvent[]) {
+  const months = [
+    ...new Set(rows.map((row) => new Date(Number(row.date) * 1000).getMonth() + 1))
+  ];
+  const dividendCount = months.length >= 8 ? 12 : 4;
+  return rows
+    .slice(0, dividendCount)
+    .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+}
+
+async function fetchYahooDividendRecord(symbol: string): Promise<DividendRecord | null> {
+  const normalized = symbol.trim().toUpperCase();
+  const period2 = Math.floor(Date.now() / 1000);
+  const period1 = period2 - 60 * 60 * 24 * 365 * 5;
+
+  for (const yahooSymbol of yahooDividendSymbols(normalized)) {
+    const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}`);
+    url.searchParams.set("period1", String(period1));
+    url.searchParams.set("period2", String(period2));
+    url.searchParams.set("interval", "1d");
+    url.searchParams.set("events", "div");
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cache: "no-store"
+    });
+    if (!response.ok) continue;
+
+    const json = await response.json() as { chart?: { result?: Array<{ meta?: YahooChartMeta; events?: { dividends?: Record<string, YahooDividendEvent> } }> } };
+    const result = json.chart?.result?.[0];
+    const dividends = result?.events?.dividends;
+    const rows = Object.values(dividends ?? {})
+      .filter((event) => event.date && event.amount)
+      .sort((a, b) => Number(b.date) - Number(a.date))
+      .slice(0, 12);
+
+    if (rows.length === 0) continue;
+
+    const annualDividendPerShare = annualDividendFromYahooRows(rows);
+    const regularMarketPrice = result?.meta?.regularMarketPrice ?? result?.meta?.chartPreviousClose;
+
+    return {
+      symbol: normalizeKrSecurityCode(normalized) ? normalizeKrSecurityCode(normalized) ?? normalized : normalized,
+      currency: inferCurrency(yahooSymbol, result?.meta?.currency),
+      annualDividendPerShare,
+      trailingYield:
+        typeof regularMarketPrice === "number" && regularMarketPrice > 0
+          ? annualDividendPerShare / regularMarketPrice
+          : undefined,
+      expectedPaymentMonths: [
+        ...new Set(rows.map((row) => new Date(Number(row.date) * 1000).getMonth() + 1))
+      ].sort((a, b) => a - b),
+      lastDividendPerShare: Number(rows[0]?.amount ?? 0),
+      memo: "Yahoo Finance 배당 이력에서 추정됨. 지급일/기준일은 별도 검증 필요"
+    };
+  }
+
+  return null;
+}
+
 export async function fetchDividendRecordFromMarket(symbol: string): Promise<DividendRecord | null> {
   const normalized = symbol.trim().toUpperCase();
   if (!normalized) return null;
+
+  if (normalizeKrSecurityCode(normalized)) {
+    const yahooRecord = await fetchYahooDividendRecord(normalized);
+    if (yahooRecord) return yahooRecord;
+  }
 
   const openDartRecord = await fetchOpenDartDividendRecord(normalized);
   if (openDartRecord) return openDartRecord;
@@ -701,41 +781,7 @@ export async function fetchDividendRecordFromMarket(symbol: string): Promise<Div
     }
   }
 
-  const period2 = Math.floor(Date.now() / 1000);
-  const period1 = period2 - 60 * 60 * 24 * 365 * 5;
-  const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(normalized)}`);
-  url.searchParams.set("period1", String(period1));
-  url.searchParams.set("period2", String(period2));
-  url.searchParams.set("interval", "1d");
-  url.searchParams.set("events", "div");
-  const response = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    cache: "no-store"
-  });
-  if (!response.ok) return null;
-
-  const json = await response.json();
-  const dividends = json.chart?.result?.[0]?.events?.dividends as
-    | Record<string, YahooDividendEvent>
-    | undefined;
-  const rows = Object.values(dividends ?? {})
-    .filter((event) => event.date && event.amount)
-    .sort((a, b) => Number(b.date) - Number(a.date))
-    .slice(0, 12);
-
-  if (rows.length === 0) return null;
-
-  const recentFour = rows.slice(0, 4);
-  return {
-    symbol: normalized,
-    currency: inferCurrency(normalized),
-    annualDividendPerShare: recentFour.reduce((sum, row) => sum + Number(row.amount ?? 0), 0),
-    expectedPaymentMonths: [
-      ...new Set(rows.map((row) => new Date(Number(row.date) * 1000).getMonth() + 1))
-    ].sort((a, b) => a - b),
-    lastDividendPerShare: Number(rows[0]?.amount ?? 0),
-    memo: "Yahoo Finance 배당 이력에서 추정됨. 지급일/기준일은 별도 검증 필요"
-  };
+  return fetchYahooDividendRecord(normalized);
 }
 
 async function fetchOpenDartDividendRecord(symbol: string): Promise<DividendRecord | null> {
