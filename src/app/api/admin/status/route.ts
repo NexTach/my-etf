@@ -6,7 +6,7 @@ import { updateIntentStatus } from "@/lib/store";
 
 const schema = z.object({
   type: z.enum(["INVESTMENT", "WITHDRAWAL"]),
-  id: z.string().uuid(),
+  id: z.string().cuid(),
   status: z.enum(["PENDING", "ACCEPTED", "REJECTED"])
 });
 
