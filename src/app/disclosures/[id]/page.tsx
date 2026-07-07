@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import { DisclosureTradeDetails } from "@/app/components/disclosure-trades";
 import {
   AppShell,
-  ButtonLink,
   Navigation,
   Notice,
   Panel,
@@ -43,16 +42,11 @@ export default async function DisclosureDetailPage({ params }: DisclosureDetailP
         title="T-ETF 공시"
         description={`${user.name} · 공시 상세`}
         actions={
-          <>
-            <ButtonLink href="/disclosures" variant="secondary">
-              공시 목록
-            </ButtonLink>
-            <form action="/api/auth/logout" method="post">
-              <button className="ghost" type="submit" title="로그아웃">
-                <LogOut size={18} />
-              </button>
-            </form>
-          </>
+          <form action="/api/auth/logout" method="post">
+            <button className="ghost" type="submit" title="로그아웃">
+              <LogOut size={18} />
+            </button>
+          </form>
         }
       />
 
