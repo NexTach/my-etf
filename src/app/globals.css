@@ -1088,6 +1088,10 @@ tbody tr:last-child td {
   padding-right: 72px;
 }
 
+.search-control input.search-input-failed {
+  animation: search-failure-shake 420ms ease, search-failure-border 520ms ease;
+}
+
 .search-status {
   color: var(--muted);
   font-size: var(--tds-text-xs);
@@ -1095,6 +1099,54 @@ tbody tr:last-child td {
   pointer-events: none;
   position: absolute;
   right: var(--tds-space-3);
+}
+
+.search-status.failed {
+  animation: search-failure-text 520ms ease;
+  color: #dc2626;
+}
+
+@keyframes search-failure-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20%,
+  60% {
+    transform: translateX(-5px);
+  }
+
+  40%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes search-failure-border {
+  0%,
+  100% {
+    border-color: var(--line);
+    box-shadow: none;
+  }
+
+  12%,
+  72% {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  }
+}
+
+@keyframes search-failure-text {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  12%,
+  72% {
+    opacity: 1;
+  }
 }
 
 .search-results {

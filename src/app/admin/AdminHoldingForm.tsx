@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ComputedValue, Field, Form } from "@/app/components/tds";
 import { currencySymbol, formatCurrency } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
@@ -119,6 +119,8 @@ export function AdminHoldingForm({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const searchFailureTimeoutRef = useRef<number | null>(null);
   const initialForm = useMemo(
     () =>
       createHoldingFormState({
@@ -140,10 +142,41 @@ export function AdminHoldingForm({
     [form.averagePurchasePrice, form.lastPrice]
   );
 
+  function clearSearchFailure() {
+    if (searchFailureTimeoutRef.current) {
+      window.clearTimeout(searchFailureTimeoutRef.current);
+      searchFailureTimeoutRef.current = null;
+    }
+    setSearchFailed(false);
+  }
+
+  function showSearchFailure() {
+    if (searchFailureTimeoutRef.current) {
+      window.clearTimeout(searchFailureTimeoutRef.current);
+    }
+    setSearchFailed(false);
+    window.requestAnimationFrame(() => {
+      setSearchFailed(true);
+      searchFailureTimeoutRef.current = window.setTimeout(() => {
+        setSearchFailed(false);
+        searchFailureTimeoutRef.current = null;
+      }, 520);
+    });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (searchFailureTimeoutRef.current) {
+        window.clearTimeout(searchFailureTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       setResults([]);
       setIsSearching(false);
+      clearSearchFailure();
       return;
     }
 
@@ -151,9 +184,11 @@ export function AdminHoldingForm({
     if (!keyword) {
       setResults([]);
       setIsSearching(false);
+      clearSearchFailure();
       return;
     }
 
+    clearSearchFailure();
     const controller = new AbortController();
     let cancelled = false;
     const timeout = window.setTimeout(async () => {
@@ -165,14 +200,20 @@ export function AdminHoldingForm({
         });
         if (!response.ok) {
           setResults([]);
+          if (!cancelled) showSearchFailure();
           return;
         }
 
         const json = (await response.json()) as { results?: SearchResult[] };
-        setResults(json.results ?? []);
+        const nextResults = json.results ?? [];
+        setResults(nextResults);
+        if (nextResults.length === 0 && !cancelled) {
+          showSearchFailure();
+        }
       } catch (error) {
         if (!cancelled || !isAbortError(error)) {
           setResults([]);
+          showSearchFailure();
         }
       } finally {
         window.clearTimeout(requestTimeout);
@@ -194,6 +235,7 @@ export function AdminHoldingForm({
     setQuery("");
     setResults([]);
     setIsSearching(false);
+    clearSearchFailure();
     setForm(initialForm);
   }
 
@@ -249,6 +291,7 @@ export function AdminHoldingForm({
     }));
     setQuery("");
     setResults([]);
+    clearSearchFailure();
   }
 
   const modalTitle = symbol ? "운영 종목 수정" : "운영 종목 추가";
@@ -274,11 +317,15 @@ export function AdminHoldingForm({
             <Field htmlFor={`search-${symbol ?? "new"}`} label="종목 검색">
               <div className="search-control">
                 <input
+                  className={searchFailed ? "search-input-failed" : undefined}
                   autoComplete="off"
                   id={`search-${symbol ?? "new"}`}
                   value={query}
                   placeholder="종목명 또는 심볼"
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    clearSearchFailure();
+                    setQuery(event.target.value);
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
@@ -289,6 +336,7 @@ export function AdminHoldingForm({
                   }}
                 />
                 {isSearching ? <span className="search-status">검색 중</span> : null}
+                {!isSearching && searchFailed ? <span className="search-status failed">검색 실패</span> : null}
               </div>
             </Field>
             {results.length > 0 ? (

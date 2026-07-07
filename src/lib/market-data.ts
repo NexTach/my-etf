@@ -129,6 +129,18 @@ type KrxOpenApiResponse = {
   respMsg?: string;
 };
 
+type KrxOpenApiSource = {
+  path: string;
+  exchange: string;
+  marketCountry: MarketCode;
+  requiresBasDd?: boolean;
+};
+
+type KrxOpenApiRowsResult = {
+  rows: KrxOpenApiRow[];
+  unauthorized?: boolean;
+};
+
 const DART_REPORTS = [
   { code: "11011", paymentMonth: 4, label: "사업보고서" },
   { code: "11013", paymentMonth: 5, label: "1분기보고서" },
@@ -141,11 +153,14 @@ let cachedKrxSymbols: SymbolSearchResult[] | null = null;
 let cachedKrxSymbolsAt = 0;
 
 const KRX_SYMBOL_CACHE_MS = 60 * 60 * 1000;
+const KRX_OPENAPI_TIMEOUT_MS = 4000;
+const KRX_DAILY_LOOKBACK_DAYS = 10;
+const OPENDART_SEARCH_TIMEOUT_MS = 1500;
 const KRX_OPENAPI_BASE_URL = "https://data-dbg.krx.co.kr/svc/apis";
-const KRX_OPENAPI_PATHS = [
-  { path: "sto/stk_isu_base_info.json", exchange: "KOSPI", marketCountry: "KOSPI" as const },
-  { path: "sto/ksq_isu_base_info.json", exchange: "KOSDAQ", marketCountry: "KOSDAQ" as const },
-  { path: "etp/etf_bydd_trd.json", exchange: "ETF", marketCountry: "KOSPI" as const }
+const KRX_OPENAPI_PATHS: KrxOpenApiSource[] = [
+  { path: "sto/stk_isu_base_info", exchange: "KOSPI", marketCountry: "KOSPI" },
+  { path: "sto/ksq_isu_base_info", exchange: "KOSDAQ", marketCountry: "KOSDAQ" },
+  { path: "etp/etf_bydd_trd", exchange: "ETF", marketCountry: "KOSPI", requiresBasDd: true }
 ];
 
 function fmpApiKey() {
@@ -260,14 +275,55 @@ function toArray<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-async function readOpenDartCorpCodes() {
+function krxOpenApiUrl(path: string, params: Record<string, string> = {}) {
+  const url = new URL(`${KRX_OPENAPI_BASE_URL}/${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  return url;
+}
+
+function seoulDateAtUtcMidnight() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
+}
+
+function formatKrxBaseDate(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function recentKrxBusinessDates() {
+  const dates: string[] = [];
+  const cursor = seoulDateAtUtcMidnight();
+
+  while (dates.length < KRX_DAILY_LOOKBACK_DAYS) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) {
+      dates.push(formatKrxBaseDate(cursor));
+    }
+  }
+
+  return dates;
+}
+
+async function readOpenDartCorpCodes(timeoutMs = 8000) {
   const apiKey = openDartApiKey();
   if (!apiKey) return [];
   if (cachedCorpCodes) return cachedCorpCodes;
 
   const url = new URL("https://opendart.fss.or.kr/api/corpCode.xml");
   url.searchParams.set("crtfc_key", apiKey);
-  const response = await fetchWithTimeout(url, { cache: "no-store" });
+  const response = await fetchWithTimeout(url, { cache: "no-store" }, timeoutMs);
   if (!response.ok) return [];
 
   const zip = new AdmZip(Buffer.from(await response.arrayBuffer()));
@@ -283,11 +339,12 @@ async function readOpenDartCorpCodes() {
   return cachedCorpCodes;
 }
 
-async function searchOpenDartSymbols(query: string): Promise<SymbolSearchResult[]> {
+async function searchOpenDartSymbols(query: string, timeoutMs = 8000): Promise<SymbolSearchResult[]> {
   const normalized = query.trim().toUpperCase().replace(/\.(KS|KQ)$/, "");
   if (!openDartApiKey() || !normalized) return [];
+  if (!cachedCorpCodes && timeoutMs < 8000) return [];
 
-  const rows = await readOpenDartCorpCodes();
+  const rows = await readOpenDartCorpCodes(timeoutMs);
   return rows
     .filter((row) => {
       const stockCode = String(row.stock_code ?? "").padStart(6, "0");
@@ -305,23 +362,43 @@ async function searchOpenDartSymbols(query: string): Promise<SymbolSearchResult[
     }));
 }
 
-async function fetchKrxOpenApiRows(path: string) {
+async function fetchKrxOpenApiRows(path: string, params: Record<string, string> = {}): Promise<KrxOpenApiRowsResult> {
   const authKey = krxOpenApiKey();
-  if (!authKey) return [];
+  if (!authKey) return { rows: [] };
 
-  const response = await fetchWithTimeout(`${KRX_OPENAPI_BASE_URL}/${path}`, {
+  const response = await fetchWithTimeout(krxOpenApiUrl(path, params), {
     cache: "no-store",
     headers: { AUTH_KEY: authKey }
-  });
-  if (!response.ok) return [];
+  }, KRX_OPENAPI_TIMEOUT_MS);
+  if (!response.ok) {
+    if (response.status === 401) {
+      console.warn(`KRX OpenAPI unauthorized: ${path}`);
+      return { rows: [], unauthorized: true };
+    }
+    return { rows: [] };
+  }
 
   const json = (await response.json()) as KrxOpenApiResponse;
   if (json.respCode && json.respCode !== "0000") {
     console.warn(`KRX OpenAPI failed: ${json.respCode} ${json.respMsg ?? ""}`.trim());
-    return [];
+    return { rows: [], unauthorized: json.respCode === "401" };
   }
 
-  return json.OutBlock_1 ?? [];
+  return { rows: json.OutBlock_1 ?? [] };
+}
+
+async function readKrxOpenApiRows(source: KrxOpenApiSource) {
+  if (!source.requiresBasDd) {
+    return (await fetchKrxOpenApiRows(source.path)).rows;
+  }
+
+  for (const basDd of recentKrxBusinessDates()) {
+    const result = await fetchKrxOpenApiRows(source.path, { basDd });
+    if (result.unauthorized) return [];
+    if (result.rows.length > 0) return result.rows;
+  }
+
+  return [];
 }
 
 async function readKrxSymbols() {
@@ -335,7 +412,7 @@ async function readKrxSymbols() {
   const groups = await Promise.all(
     KRX_OPENAPI_PATHS.map(async (source) => {
       try {
-        const rows = await fetchKrxOpenApiRows(source.path);
+        const rows = await readKrxOpenApiRows(source);
         return rows
           .map((row): SymbolSearchResult | null => {
             const symbol = normalizeKrStockCode(row.ISU_SRT_CD ?? row.ISU_CD ?? "");
@@ -403,7 +480,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
   let openDartResults: SymbolSearchResult[] = [];
   if (shouldSearchOpenDart(trimmed)) {
     try {
-      openDartResults = await searchOpenDartSymbols(trimmed);
+      openDartResults = await searchOpenDartSymbols(trimmed, OPENDART_SEARCH_TIMEOUT_MS);
     } catch (error) {
       console.warn(`OpenDART search failed: ${trimmed}`, error);
     }
@@ -426,7 +503,8 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
         marketCountry: inferMarketCode(row.symbol ?? "", row.currency, row.exchangeShortName ?? row.stockExchange),
         source: "fmp" as const
       }));
-      return mergeSearchResults(primaryResults, fmpResults);
+      const mergedResults = mergeSearchResults(primaryResults, fmpResults);
+      if (mergedResults.length > 0) return mergedResults;
     }
   }
 
