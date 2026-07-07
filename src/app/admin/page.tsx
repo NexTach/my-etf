@@ -21,6 +21,7 @@ import { formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/form
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
+import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { IntentStatus } from "@/lib/types";
 
 type AdminProps = {
@@ -249,12 +250,13 @@ export default async function AdminPage({ searchParams }: AdminProps) {
             <tbody>
               {portfolio.holdings.map((holding) => {
                 const record = dividendRecordsBySymbol.get(holding.symbol.toUpperCase());
+                const secondaryLabel = stockSecondaryLabel(holding);
                 return (
                   <tr key={holding.symbol}>
                     <td>
-                      <strong>{holding.symbol}</strong>
+                      <strong>{stockPrimaryLabel(holding)}</strong>
                       <br />
-                      <MutedText>{holding.name}</MutedText>
+                      {secondaryLabel ? <MutedText>{secondaryLabel}</MutedText> : null}
                     </td>
                     <td>{record ? formatDividendAmount(record.annualDividendPerShare, record.currency) : "-"}</td>
                     <td>{record?.trailingYield ? `${formatNumber(record.trailingYield * 100, 2)}%` : "-"}</td>

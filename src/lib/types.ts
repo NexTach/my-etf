@@ -120,6 +120,8 @@ export type DividendRecord = {
 export type DividendForecastLine = {
   symbol: string;
   name: string;
+  marketCountry: MarketCode;
+  currency: "KRW" | "USD";
   allocationKrw: number;
   estimatedQuantity: number;
   annualDividendKrw: number;

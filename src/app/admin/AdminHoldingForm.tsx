@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ComputedValue, Field, Form, InlineFields } from "@/app/components/tds";
+import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { Holding, MarketCode } from "@/lib/types";
 
 type SearchResult = {
@@ -58,6 +59,10 @@ function marketLabel(market?: MarketCode) {
   return "나스닥";
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 export function AdminHoldingForm({
   symbol,
   name,
@@ -97,8 +102,10 @@ export function AdminHoldingForm({
     }
 
     const controller = new AbortController();
+    let cancelled = false;
     const timeout = window.setTimeout(async () => {
       setIsSearching(true);
+      const requestTimeout = window.setTimeout(() => controller.abort(), 8000);
       try {
         const response = await fetch(`/api/market/search?q=${encodeURIComponent(keyword)}`, {
           signal: controller.signal
@@ -111,17 +118,19 @@ export function AdminHoldingForm({
         const json = (await response.json()) as { results?: SearchResult[] };
         setResults(json.results ?? []);
       } catch (error) {
-        if ((error as DOMException).name !== "AbortError") {
+        if (!cancelled || !isAbortError(error)) {
           setResults([]);
         }
       } finally {
-        if (!controller.signal.aborted) {
+        window.clearTimeout(requestTimeout);
+        if (!cancelled) {
           setIsSearching(false);
         }
       }
     }, 250);
 
     return () => {
+      cancelled = true;
       controller.abort();
       window.clearTimeout(timeout);
     };
@@ -136,11 +145,14 @@ export function AdminHoldingForm({
   }
 
   if (symbol && !isOpen) {
+    const stock = { symbol, name, marketCountry, currency };
+    const secondaryLabel = stockSecondaryLabel(stock);
+
     return (
       <div className="holding-summary">
         <div>
-          <strong>{symbol}</strong>
-          <span>{name}</span>
+          <strong>{stockPrimaryLabel(stock)}</strong>
+          {secondaryLabel ? <span>{secondaryLabel}</span> : null}
           <em>
             {formatHoldingNumber(quantity)}주 · 현재가 {formatHoldingNumber(lastPrice, 6)} · 평단{" "}
             {formatHoldingNumber(averagePurchasePrice, 6)}
@@ -207,8 +219,8 @@ export function AdminHoldingForm({
                 type="button"
                 onClick={() => void selectResult(result)}
               >
-                <strong>{result.symbol}</strong>
-                <span>{result.name}</span>
+                <strong>{stockPrimaryLabel(result)}</strong>
+                {stockSecondaryLabel(result) ? <span>{stockSecondaryLabel(result)}</span> : null}
                 <em>{[marketLabel(result.marketCountry), result.exchange, result.currency].filter(Boolean).join(" · ")}</em>
               </button>
             ))}

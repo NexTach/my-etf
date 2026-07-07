@@ -37,6 +37,7 @@ import { fetchMarketCandles } from "@/lib/market-data";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
+import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 
 type HomeProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -264,18 +265,19 @@ export default async function Home({ searchParams }: HomeProps) {
         {portfolio.holdings.map((holding) => {
           const chart = dailyCharts.get(holding.symbol);
           const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
+          const secondaryLabel = stockSecondaryLabel(holding);
 
           return (
             <ListRow
               key={holding.symbol}
-              title={<TextLink href={href}>{holding.symbol}</TextLink>}
-              description={`${holding.name} · ${formatNumber(holding.quantity, 4)}주 · 원화 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
+              title={<TextLink href={href}>{stockPrimaryLabel(holding)}</TextLink>}
+              description={`${secondaryLabel ? `${secondaryLabel} · ` : ""}${formatNumber(holding.quantity, 4)}주 · 원화 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
               value={
                 <div className="holding-row-value">
                   <TextLink className="chart-link" href={href}>
                     <SparkLineChart
                       interactive={false}
-                      label={`${holding.symbol} 최근 1년 가격 추세`}
+                      label={`${stockFullLabel(holding)} 최근 1년 가격 추세`}
                       points={samplePoints(pointsFromCandles(chart?.candles ?? []))}
                       valueFormat={holding.currency === "USD" ? "usd" : "krw"}
                     />
@@ -294,21 +296,24 @@ export default async function Home({ searchParams }: HomeProps) {
       <SectionHeader title="종목별 예상 배당" description="배정금액, 예상수량, 다음 예상 지급월을 함께 확인합니다." />
 
       <List>
-        {forecast.lines.map((line) => (
-          <ListRow
-            key={line.symbol}
-            title={line.symbol}
-            description={`${line.name} · 배정 ${formatKrw(line.allocationKrw)} · 예상 ${formatNumber(line.estimatedQuantity, 5)}주`}
-            value={
-              <>
-                {formatKrw(line.monthlyAverageKrw)}
-                <RowMeta>
-                  연 {formatKrw(line.annualDividendKrw)} · {line.nextPaymentMonth ? `${line.nextPaymentMonth}월` : "지급월 없음"}
-                </RowMeta>
-              </>
-            }
-          />
-        ))}
+        {forecast.lines.map((line) => {
+          const secondaryLabel = stockSecondaryLabel(line);
+          return (
+            <ListRow
+              key={line.symbol}
+              title={stockPrimaryLabel(line)}
+              description={`${secondaryLabel ? `${secondaryLabel} · ` : ""}배정 ${formatKrw(line.allocationKrw)} · 예상 ${formatNumber(line.estimatedQuantity, 5)}주`}
+              value={
+                <>
+                  {formatKrw(line.monthlyAverageKrw)}
+                  <RowMeta>
+                    연 {formatKrw(line.annualDividendKrw)} · {line.nextPaymentMonth ? `${line.nextPaymentMonth}월` : "지급월 없음"}
+                  </RowMeta>
+                </>
+              }
+            />
+          );
+        })}
       </List>
 
       <SectionHeader id="intent-section" title="의향서 제출" description="제출된 내용은 관리자가 검토한 뒤 상태를 변경합니다." />

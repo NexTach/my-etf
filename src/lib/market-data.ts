@@ -130,6 +130,20 @@ function openDartApiKey() {
   return process.env.OPENDART_API_KEY?.trim() ?? process.env.DART_API_KEY?.trim();
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function inferCurrency(symbol: string, currency?: string): "KRW" | "USD" {
   if (currency === "KRW" || symbol.endsWith(".KS") || symbol.endsWith(".KQ")) return "KRW";
   return "USD";
@@ -188,7 +202,7 @@ async function readOpenDartCorpCodes() {
 
   const url = new URL("https://opendart.fss.or.kr/api/corpCode.xml");
   url.searchParams.set("crtfc_key", apiKey);
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetchWithTimeout(url, { cache: "no-store" });
   if (!response.ok) return [];
 
   const zip = new AdmZip(Buffer.from(await response.arrayBuffer()));
@@ -237,7 +251,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
     const url = new URL("https://financialmodelingprep.com/stable/search-symbol");
     url.searchParams.set("query", trimmed);
     url.searchParams.set("apikey", fmpApiKey() ?? "");
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetchWithTimeout(url, { cache: "no-store" });
     if (response.ok) {
       const rows = (await response.json()) as FmpSearchRow[];
       const fmpResults = rows.slice(0, 15).map((row) => ({
@@ -256,7 +270,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
   url.searchParams.set("q", trimmed);
   url.searchParams.set("quotesCount", "15");
   url.searchParams.set("newsCount", "0");
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { "User-Agent": "Mozilla/5.0" },
     cache: "no-store"
   });
@@ -285,7 +299,7 @@ export async function fetchMarketQuote(symbol: string): Promise<MarketQuote | nu
   const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooLookupSymbol(trimmed))}`);
   url.searchParams.set("range", "1d");
   url.searchParams.set("interval", "1d");
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { "User-Agent": "Mozilla/5.0" },
     cache: "no-store"
   });

@@ -23,6 +23,7 @@ import { formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles } from "@/lib/market-data";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
+import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { DividendRecord, Holding } from "@/lib/types";
 
 type StockDetailProps = {
@@ -110,6 +111,9 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
     holding,
     portfolio.exchangeRate
   );
+  const primaryLabel = stockPrimaryLabel(holding);
+  const secondaryLabel = stockSecondaryLabel(holding);
+  const fullLabel = stockFullLabel(holding);
 
   return (
     <AppShell>
@@ -123,7 +127,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
         }
       />
 
-      <Top title={holding.symbol} description={holding.name} />
+      <Top title={primaryLabel} description={secondaryLabel} />
 
       <Grid columns={4} className="mt-16">
         <Metric label="평가금액" value={formatKrw(holding.marketValueKrw)} />
@@ -145,7 +149,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
 
       <CandleChart
         candles={weeklyChart?.candles ?? []}
-        label={`${holding.symbol} 최근 1년 주봉 캔들 차트`}
+        label={`${fullLabel} 최근 1년 주봉 캔들 차트`}
         size="detail"
         valueFormat={holding.currency === "USD" ? "usd" : "krw"}
       />
@@ -157,7 +161,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
           <h2 id="holding-return-chart">보유 수익률 추세</h2>
           <p className="lede">5년 월봉 현재가와 매입환율 반영 원가 기준</p>
           <CandleChart
-            label={`${holding.symbol} 보유 수익률 월봉 캔들`}
+            label={`${fullLabel} 보유 수익률 월봉 캔들`}
             candles={returnCandles}
             size="detail"
             valueFormat="percent"
@@ -167,7 +171,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
           <h2 id="dividend-yield-chart">배당수익률 추세</h2>
           <p className="lede">5년 월봉 평가금액과 연 예상 배당 기준</p>
           <CandleChart
-            label={`${holding.symbol} 배당수익률 월봉 캔들`}
+            label={`${fullLabel} 배당수익률 월봉 캔들`}
             candles={yieldCandles}
             size="detail"
             valueFormat="percent"
