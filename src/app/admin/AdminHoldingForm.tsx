@@ -1,7 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ComputedValue, Field, Form, InlineFields } from "@/app/components/tds";
 import type { Holding } from "@/lib/types";
 
@@ -69,6 +68,45 @@ export function AdminHoldingForm({
     [form.averagePurchasePrice, form.lastPrice]
   );
 
+  useEffect(() => {
+    const keyword = query.trim();
+    if (!keyword) {
+      setResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/market/search?q=${encodeURIComponent(keyword)}`, {
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          setResults([]);
+          return;
+        }
+
+        const json = (await response.json()) as { results?: SearchResult[] };
+        setResults(json.results ?? []);
+      } catch (error) {
+        if ((error as DOMException).name !== "AbortError") {
+          setResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [query]);
+
   if (!symbol && !isOpen) {
     return (
       <button className="secondary" type="button" onClick={() => setIsOpen(true)}>
@@ -93,20 +131,6 @@ export function AdminHoldingForm({
         </button>
       </div>
     );
-  }
-
-  async function search() {
-    const keyword = query.trim();
-    if (!keyword) return;
-
-    setIsSearching(true);
-    try {
-      const response = await fetch(`/api/market/search?q=${encodeURIComponent(keyword)}`);
-      const json = (await response.json()) as { results?: SearchResult[] };
-      setResults(json.results ?? []);
-    } finally {
-      setIsSearching(false);
-    }
   }
 
   async function selectResult(result: SearchResult) {
@@ -140,6 +164,7 @@ export function AdminHoldingForm({
         <Field htmlFor={`search-${symbol ?? "new"}`} label="종목 검색">
           <div className="search-control">
             <input
+              autoComplete="off"
               id={`search-${symbol ?? "new"}`}
               value={query}
               placeholder="종목명 또는 심볼"
@@ -147,14 +172,10 @@ export function AdminHoldingForm({
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  void search();
                 }
               }}
             />
-            <button className="secondary" type="button" onClick={() => void search()}>
-              <Search size={16} />
-              {isSearching ? "검색 중" : "검색"}
-            </button>
+            {isSearching ? <span className="search-status">검색 중</span> : null}
           </div>
         </Field>
         {results.length > 0 ? (
