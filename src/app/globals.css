@@ -24,7 +24,7 @@
   --tds-chart-6: #0ea5b7;
   --tds-chart-7: #e04f9f;
   --tds-chart-8: #6b7684;
-  --shadow: 0 1px 2px rgba(25, 31, 40, 0.04), 0 8px 24px rgba(25, 31, 40, 0.06);
+  --shadow: 0 1px 2px rgba(25, 31, 40, 0.04), 0 6px 18px rgba(25, 31, 40, 0.05);
   --tds-radius-sm: 8px;
   --tds-radius-md: 12px;
   --tds-radius-lg: 16px;
@@ -42,7 +42,7 @@
   --tds-text-md: 14px;
   --tds-text-lg: 16px;
   --tds-title-sm: 18px;
-  --tds-title-md: 24px;
+  --tds-title-md: 28px;
 }
 
 * {
@@ -147,8 +147,13 @@ button.full,
 
 .shell {
   margin: 0 auto;
-  max-width: 1120px;
-  padding: 0 var(--tds-space-5) 44px;
+  max-width: 1280px;
+  padding: 0 clamp(var(--tds-space-5), 3vw, 36px) 48px;
+  width: 100%;
+}
+
+.home-shell {
+  max-width: 1480px;
 }
 
 .topbar {
@@ -158,9 +163,9 @@ button.full,
   display: flex;
   gap: var(--tds-space-3);
   justify-content: space-between;
-  margin: 0 calc(var(--tds-space-5) * -1) 0;
+  margin: 0 calc(clamp(var(--tds-space-5), 3vw, 36px) * -1) 0;
   min-height: 56px;
-  padding: var(--tds-space-2) var(--tds-space-5);
+  padding: var(--tds-space-2) clamp(var(--tds-space-5), 3vw, 36px);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -341,8 +346,8 @@ button.full,
   background: var(--surface);
   border-bottom-left-radius: var(--tds-radius-xl);
   border-bottom-right-radius: var(--tds-radius-xl);
-  margin: 0 calc(var(--tds-space-5) * -1) var(--tds-space-2);
-  padding: 24px var(--tds-space-5) var(--tds-space-5);
+  margin: 0 calc(clamp(var(--tds-space-5), 3vw, 36px) * -1) var(--tds-space-2);
+  padding: 28px clamp(var(--tds-space-5), 3vw, 36px) 24px;
 }
 
 .hero-band h2,
@@ -391,6 +396,47 @@ button.full,
 
 .hero-actions .button {
   border-radius: var(--tds-radius-md);
+}
+
+.home-shell .hero-band {
+  align-items: end;
+  display: grid;
+  gap: var(--tds-space-5);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.home-shell .hero-band h2,
+.home-shell .hero-band p {
+  grid-column: 1;
+}
+
+.home-shell .hero-band .hero-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-content: flex-end;
+  margin-top: 0;
+  max-width: 520px;
+}
+
+.home-portfolio-grid,
+.home-secondary-grid {
+  display: grid;
+  gap: var(--tds-space-3);
+  grid-template-columns: minmax(0, 0.92fr) minmax(520px, 1.08fr);
+}
+
+.home-secondary-grid {
+  align-items: start;
+  grid-template-columns: minmax(420px, 0.9fr) minmax(0, 1.1fr);
+  margin-top: var(--tds-space-2);
+}
+
+.home-secondary-grid > section {
+  min-width: 0;
+}
+
+.home-holdings-list {
+  align-self: stretch;
 }
 
 .section-title {
@@ -468,6 +514,18 @@ button.full,
 .panel h3 {
   font-size: var(--tds-text-lg);
   font-weight: 800;
+}
+
+.admin-panel-header {
+  align-items: center;
+  display: flex;
+  gap: var(--tds-space-3);
+  justify-content: space-between;
+  margin-bottom: var(--tds-space-3);
+}
+
+.admin-panel-header h2 {
+  margin-bottom: 0;
 }
 
 .markdown-panel {
@@ -587,9 +645,10 @@ button.full,
 
 .metric {
   background: var(--surface);
+  border: 1px solid rgba(229, 232, 235, 0.78);
   border-radius: var(--tds-radius-lg);
   min-width: 0;
-  padding: var(--tds-space-4);
+  padding: var(--tds-space-5);
 }
 
 .metric span {
@@ -602,7 +661,7 @@ button.full,
 .metric strong {
   color: var(--text);
   display: block;
-  font-size: 20px;
+  font-size: clamp(20px, 1.7vw, 26px);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.18;
@@ -654,8 +713,8 @@ button.full,
   display: grid;
   gap: var(--tds-space-3);
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 56px;
-  padding: 13px var(--tds-space-4);
+  min-height: 64px;
+  padding: var(--tds-space-4) var(--tds-space-5);
 }
 
 .list-row + .list-row {
@@ -685,6 +744,7 @@ button.full,
   align-items: end;
   display: grid;
   gap: var(--tds-space-2);
+  min-width: 188px;
 }
 
 .holding-row-price {
@@ -837,7 +897,7 @@ button.full,
 .sparkline-chart {
   height: 42px;
   position: relative;
-  width: 160px;
+  width: 176px;
 }
 
 .sparkline-chart svg {
@@ -896,7 +956,7 @@ button.full,
   align-items: center;
   display: grid;
   gap: var(--tds-space-4);
-  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1fr);
+  grid-template-columns: minmax(188px, 0.36fr) minmax(0, 1fr);
   min-height: 200px;
 }
 
@@ -1476,6 +1536,56 @@ button.holding-modal-close {
   gap: var(--tds-space-4);
 }
 
+.disclosure-modal {
+  width: min(980px, calc(100vw - 40px));
+}
+
+.disclosure-form-grid,
+.disclosure-trade-form-grid {
+  display: grid;
+  gap: var(--tds-space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.disclosure-form-grid .field.wide,
+.disclosure-trade-form-grid .field.wide {
+  grid-column: 1 / -1;
+}
+
+.trade-editor-list {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--tds-space-3);
+  padding-top: var(--tds-space-4);
+}
+
+.trade-editor-list-header,
+.trade-editor-header {
+  align-items: center;
+  display: flex;
+  gap: var(--tds-space-2);
+  justify-content: space-between;
+}
+
+.trade-editor-list-header strong,
+.trade-editor-header strong {
+  font-size: var(--tds-text-md);
+  font-weight: 800;
+}
+
+.trade-editor-card {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--tds-radius-lg);
+  display: grid;
+  gap: var(--tds-space-3);
+  padding: var(--tds-space-3);
+}
+
+.disclosure-modal-actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .holding-modal-grid {
   display: grid;
   gap: var(--tds-space-3);
@@ -1668,6 +1778,163 @@ button.terms-modal-close {
   color: var(--danger);
 }
 
+.disclosure-list .list-row {
+  align-items: start;
+}
+
+.disclosure-body {
+  color: var(--muted);
+  font-size: var(--tds-text-md);
+  line-height: 1.78;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.trade-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tds-space-2);
+  margin-top: var(--tds-space-2);
+}
+
+.trade-chip {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 3px var(--tds-space-2) 3px 4px;
+}
+
+.trade-chip strong,
+.trade-chip span,
+.trade-chip em {
+  font-size: var(--tds-text-xs);
+  line-height: 1;
+}
+
+.trade-chip strong {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.trade-chip em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.trade-side {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: var(--tds-text-xs);
+  font-weight: 900;
+  line-height: 1;
+  min-height: 22px;
+  padding: 4px 7px;
+}
+
+.trade-side.buy {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.trade-side.sell {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.profit-rate {
+  font-weight: 900;
+}
+
+.profit-rate.up {
+  color: var(--danger);
+}
+
+.profit-rate.down {
+  color: var(--accent-dark);
+}
+
+.profit-rate.flat {
+  color: var(--muted);
+}
+
+.disclosure-trade-detail-grid {
+  display: grid;
+  gap: var(--tds-space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.disclosure-trade-detail {
+  background: var(--surface);
+  border-radius: var(--tds-radius-lg);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: var(--tds-space-3);
+  padding: var(--tds-space-4);
+}
+
+.disclosure-trade-detail header {
+  align-items: center;
+  display: flex;
+  gap: var(--tds-space-2);
+}
+
+.disclosure-trade-detail h3,
+.disclosure-trade-detail p {
+  margin: 0;
+}
+
+.disclosure-trade-detail h3 {
+  font-size: var(--tds-text-lg);
+  font-weight: 800;
+}
+
+.disclosure-trade-detail p {
+  color: var(--muted);
+  font-size: var(--tds-text-xs);
+}
+
+.disclosure-trade-detail dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.disclosure-trade-detail dl div {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: var(--tds-space-3);
+  justify-content: space-between;
+  min-height: 42px;
+}
+
+.disclosure-trade-detail dt,
+.disclosure-trade-detail dd {
+  font-size: var(--tds-text-sm);
+  margin: 0;
+}
+
+.disclosure-trade-detail dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.disclosure-trade-detail dd {
+  color: var(--text);
+  font-weight: 800;
+  text-align: right;
+}
+
+.cost-highlight {
+  color: var(--accent-dark) !important;
+}
+
 .notice {
   align-items: flex-start;
   background: var(--accent-soft);
@@ -1835,10 +2102,43 @@ button.tds-toast-close:hover {
   text-align: center;
 }
 
+@media (min-width: 1200px) {
+  .home-shell .metric .sparkline-chart {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1180px) {
+  .grid.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .home-shell .hero-band {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .home-shell .hero-band .hero-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .home-portfolio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .grid.two,
-  .grid.three,
-  .grid.four {
+  .grid.three {
     grid-template-columns: 1fr;
   }
 
@@ -1858,6 +2158,16 @@ button.tds-toast-close:hover {
 
   .tds-composition-legend {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .grid.four {
+    grid-template-columns: 1fr;
+  }
+
+  .home-secondary-grid {
+    margin-top: 0;
   }
 }
 
@@ -1893,6 +2203,12 @@ button.tds-toast-close:hover {
     font-size: 22px;
   }
 
+  .hero-actions .button,
+  .nav-actions .button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .panel,
   .metric,
   .cta-panel {
@@ -1907,10 +2223,24 @@ button.tds-toast-close:hover {
   .list-row {
     align-items: start;
     grid-template-columns: 1fr;
+    padding: var(--tds-space-4);
   }
 
   .list-row-value {
     text-align: left;
+  }
+
+  .holding-row-value {
+    align-items: start;
+    min-width: 0;
+  }
+
+  .holding-row-price {
+    justify-content: flex-start;
+  }
+
+  .sparkline-chart {
+    width: min(220px, calc(100vw - 64px));
   }
 
   .inline-fields.exchange {
@@ -1932,6 +2262,9 @@ button.tds-toast-close:hover {
   }
 
   .holding-modal-grid,
+  .disclosure-form-grid,
+  .disclosure-trade-form-grid,
+  .disclosure-trade-detail-grid,
   .holding-modal-actions {
     grid-template-columns: 1fr;
   }

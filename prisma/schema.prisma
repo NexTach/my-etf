@@ -40,6 +40,41 @@ model DividendRecord {
   updatedAt              DateTime @updatedAt
 }
 
+model Disclosure {
+  id        String            @id @default(cuid())
+  title     String            @db.VarChar(160)
+  body      String            @db.Text
+  trades    DisclosureTrade[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([createdAt])
+}
+
+model DisclosureTrade {
+  id            String     @id @default(cuid())
+  disclosureId  String
+  disclosure    Disclosure @relation(fields: [disclosureId], references: [id], onDelete: Cascade)
+  side          String
+  symbol        String     @db.VarChar(20)
+  name          String
+  alias         String?    @db.VarChar(80)
+  marketCountry String
+  currency      String
+  quantity      Float
+  orderPrice    Float
+  exchangeRate  Float?
+  profitRate    Float
+  feeKrw        Int        @default(0)
+  taxKrw        Int        @default(0)
+  orderedAt     DateTime
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([disclosureId])
+  @@index([symbol])
+}
+
 model InvestmentIntent {
   id                String   @id @default(cuid())
   userId            String

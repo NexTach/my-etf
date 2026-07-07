@@ -71,6 +71,8 @@ export type AppStore = {
 
 export type MarketCode = "NASDAQ" | "NYSE" | "AMEX" | "KOSPI" | "KOSDAQ";
 
+export type TradeSide = "BUY" | "SELL";
+
 export type Holding = {
   symbol: string;
   name: string;
@@ -138,4 +140,33 @@ export type DividendForecast = {
   annualDividendKrw: number;
   monthlyAverageKrw: number;
   lines: DividendForecastLine[];
+};
+
+export type DisclosureTrade = {
+  id: string;
+  disclosureId: string;
+  side: TradeSide;
+  symbol: string;
+  name: string;
+  alias?: string;
+  marketCountry: MarketCode;
+  currency: "KRW" | "USD";
+  quantity: number;
+  orderPrice: number;
+  exchangeRate?: number;
+  profitRate: number;
+  feeKrw: number;
+  taxKrw: number;
+  orderedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Disclosure = {
+  id: string;
+  title: string;
+  body: string;
+  trades: DisclosureTrade[];
+  createdAt: string;
+  updatedAt: string;
 };

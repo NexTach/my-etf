@@ -1,6 +1,7 @@
 import { LogOut, ShieldAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { DividendForecastView } from "@/app/components/dividend-forecast-view";
+import { DisclosureTradeSummary } from "@/app/components/disclosure-trades";
 import { SparkLineChart } from "@/app/components/stock-chart";
 import { ToastStack, type ToastMessage } from "@/app/components/toast";
 import {
@@ -14,6 +15,7 @@ import {
   Navigation,
   Notice,
   Panel,
+  RowMeta,
   SectionHeader,
   TextLink,
   Top
@@ -27,6 +29,7 @@ import {
   samplePoints
 } from "@/lib/chart-metrics";
 import { isAdminUser } from "@/lib/admin";
+import { readDisclosures } from "@/lib/disclosures";
 import { forecastDividend, summarizePortfolioDividend } from "@/lib/dividends";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles } from "@/lib/market-data";
@@ -79,9 +82,10 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const params = (await searchParams) ?? {};
   const portfolio = await getManualPortfolioOverview();
-  const [scheduledDividend, portfolioDividend] = await Promise.all([
+  const [scheduledDividend, portfolioDividend, disclosures] = await Promise.all([
     forecastDividend(portfolio, portfolio.totalMarketValueKrw),
-    summarizePortfolioDividend(portfolio)
+    summarizePortfolioDividend(portfolio),
+    readDisclosures({ take: 3 })
   ]);
   const [dailyChartEntries, monthlyChartEntries] = await Promise.all([
     Promise.all(
@@ -125,7 +129,7 @@ export default async function Home({ searchParams }: HomeProps) {
       value: holding.marketValueKrw
     }));
   return (
-    <AppShell>
+    <AppShell className="home-shell">
       <ToastStack messages={homeToastMessages(params)} />
 
       <Navigation
@@ -153,6 +157,9 @@ export default async function Home({ searchParams }: HomeProps) {
           <>
             <ButtonLink href="/product" variant="secondary">
               상품 설명
+            </ButtonLink>
+            <ButtonLink href="/disclosures" variant="secondary">
+              공시
             </ButtonLink>
             <ButtonLink href="/intents">
               의향서 작성
@@ -225,56 +232,83 @@ export default async function Home({ searchParams }: HomeProps) {
         description={`마지막 갱신 ${formatDateTime(portfolio.fetchedAt)} · USD/KRW ${formatNumber(portfolio.exchangeRate, 2)}원`}
       />
 
-      <Panel className="tds-composition-panel">
-        <h2>구성 종목 비중</h2>
-        <CompositionChart
-          emptyText="포트폴리오 데이터 없음"
-          items={portfolioAllocation}
-          label="포트폴리오 구성 종목 비중"
-        />
-      </Panel>
+      <div className="home-portfolio-grid">
+        <Panel className="tds-composition-panel">
+          <h2>구성 종목 비중</h2>
+          <CompositionChart
+            emptyText="포트폴리오 데이터 없음"
+            items={portfolioAllocation}
+            label="포트폴리오 구성 종목 비중"
+          />
+        </Panel>
 
-      <List>
-        {portfolio.holdings.map((holding) => {
-          const chart = dailyCharts.get(holding.symbol);
-          const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
-          const secondaryLabel = stockSecondaryLabel(holding);
+        <List className="home-holdings-list">
+          {portfolio.holdings.map((holding) => {
+            const chart = dailyCharts.get(holding.symbol);
+            const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
+            const secondaryLabel = stockSecondaryLabel(holding);
 
-          return (
-            <ListRow
-              key={holding.symbol}
-              title={<TextLink href={href}>{stockPrimaryLabel(holding)}</TextLink>}
-              description={`${secondaryLabel ? `${secondaryLabel} · ` : ""}${formatNumber(holding.quantity, 4)}주 · 원화 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
-              value={
-                <div className="holding-row-value">
-                  <TextLink className="chart-link" href={href}>
-                    <SparkLineChart
-                      interactive={false}
-                      label={`${stockFullLabel(holding)} 최근 1년 가격 추세`}
-                      points={samplePoints(pointsFromCandles(chart?.candles ?? []))}
-                      valueFormat={holding.currency === "USD" ? "usd" : "krw"}
-                    />
-                  </TextLink>
-                  <div className="holding-row-price">
-                    <span>{formatKrw(holding.marketValueKrw)}</span>
-                    <RatePill value={changeRateFromCandles(chart?.candles ?? [])} />
+            return (
+              <ListRow
+                key={holding.symbol}
+                title={<TextLink href={href}>{stockPrimaryLabel(holding)}</TextLink>}
+                description={`${secondaryLabel ? `${secondaryLabel} · ` : ""}${formatNumber(holding.quantity, 4)}주 · 원화 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
+                value={
+                  <div className="holding-row-value">
+                    <TextLink className="chart-link" href={href}>
+                      <SparkLineChart
+                        interactive={false}
+                        label={`${stockFullLabel(holding)} 최근 1년 가격 추세`}
+                        points={samplePoints(pointsFromCandles(chart?.candles ?? []))}
+                        valueFormat={holding.currency === "USD" ? "usd" : "krw"}
+                      />
+                    </TextLink>
+                    <div className="holding-row-price">
+                      <span>{formatKrw(holding.marketValueKrw)}</span>
+                      <RatePill value={changeRateFromCandles(chart?.candles ?? [])} />
+                    </div>
                   </div>
-                </div>
-              }
-            />
-          );
-        })}
-      </List>
+                }
+              />
+            );
+          })}
+        </List>
+      </div>
 
-      <SectionHeader title="예정 배당" description="현재 펀드 보유 수량 기준으로 예정 배당을 월별 또는 종목별로 확인합니다." />
+      <div className="home-secondary-grid">
+        <section>
+          <SectionHeader title="최근 공시" description="운영 변경과 첨부 거래 이력을 확인합니다." />
 
-      <Grid columns={3} className="scheduled-dividend-summary">
-        <Metric label="연 예정 배당" value={formatKrw(scheduledDividend.annualDividendKrw)} />
-        <Metric label="월평균 예정 배당" value={formatKrw(scheduledDividend.monthlyAverageKrw)} />
-        <Metric label="현재 배당수익률" value={formatPercent(portfolioDividend.dividendYield)} />
-      </Grid>
+          <List className="disclosure-list">
+            {disclosures.map((disclosure) => (
+              <ListRow
+                key={disclosure.id}
+                title={<TextLink href={`/disclosures/${disclosure.id}`}>{disclosure.title}</TextLink>}
+                description={disclosure.body.slice(0, 96) + (disclosure.body.length > 96 ? "..." : "")}
+                value={<TextLink href={`/disclosures/${disclosure.id}`}>상세</TextLink>}
+              >
+                <RowMeta>{formatDateTime(disclosure.createdAt)}</RowMeta>
+                <DisclosureTradeSummary trades={disclosure.trades} />
+              </ListRow>
+            ))}
+            {disclosures.length === 0 ? (
+              <ListRow title="등록된 공시가 없습니다." description="공시가 등록되면 이 영역에 표시됩니다." />
+            ) : null}
+          </List>
+        </section>
 
-      <DividendForecastView lines={scheduledDividend.lines} mode="holding" />
+        <section>
+          <SectionHeader title="예정 배당" description="현재 펀드 보유 수량 기준으로 예정 배당을 월별 또는 종목별로 확인합니다." />
+
+          <Grid columns={3} className="scheduled-dividend-summary">
+            <Metric label="연 예정 배당" value={formatKrw(scheduledDividend.annualDividendKrw)} />
+            <Metric label="월평균 예정 배당" value={formatKrw(scheduledDividend.monthlyAverageKrw)} />
+            <Metric label="현재 배당수익률" value={formatPercent(portfolioDividend.dividendYield)} />
+          </Grid>
+
+          <DividendForecastView lines={scheduledDividend.lines} mode="holding" />
+        </section>
+      </div>
 
       <Notice className="mt-18">
         <ShieldAlert size={17} /> 이 서비스는 투자 권유, 투자자문, 자동매매, 금전 보관 기능을 제공하지 않는 의향서

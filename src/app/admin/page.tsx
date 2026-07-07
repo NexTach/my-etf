@@ -1,5 +1,6 @@
-import { LockKeyhole, UsersRound } from "lucide-react";
+import { LockKeyhole, Megaphone, UsersRound } from "lucide-react";
 import { AdminHoldingForm } from "./AdminHoldingForm";
+import { DisclosureForm } from "./DisclosureForm";
 import { ToastStack, type ToastMessage } from "@/app/components/toast";
 import {
   AppShell,
@@ -15,6 +16,7 @@ import {
   Top
 } from "@/app/components/tds";
 import { isAdminUser } from "@/lib/admin";
+import { readDisclosures } from "@/lib/disclosures";
 import { readDividendRecords } from "@/lib/dividends";
 import { formatCurrency, formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
@@ -41,6 +43,7 @@ function adminToastMessages(params: Record<string, string | string[] | undefined
   const messages: ToastMessage[] = [];
   const portfolio = firstParam(params.portfolio);
   const dividend = firstParam(params.dividend);
+  const disclosure = firstParam(params.disclosure);
   const error = firstParam(params.error);
 
   if (params.updated) {
@@ -62,6 +65,15 @@ function adminToastMessages(params: Record<string, string | string[] | undefined
           : "배당 데이터가 저장되었습니다";
     messages.push({ id: `dividend-${dividend}`, title, tone: "success" });
   }
+  if (disclosure) {
+    const title =
+      disclosure === "deleted"
+        ? "공시가 삭제되었습니다"
+        : disclosure === "updated"
+          ? "공시가 수정되었습니다"
+          : "공시가 등록되었습니다";
+    messages.push({ id: `disclosure-${disclosure}`, title, tone: "success" });
+  }
   if (error) {
     const errorMessages: Record<string, string> = {
       invalid_status: "상태 값을 다시 확인해주세요",
@@ -72,7 +84,10 @@ function adminToastMessages(params: Record<string, string | string[] | undefined
       invalid_dividend_months: "배당 지급월을 다시 확인해주세요",
       invalid_dividend_delete: "삭제할 배당 데이터를 다시 확인해주세요",
       invalid_dividend_sync: "동기화할 종목을 다시 확인해주세요",
-      dividend_sync_failed: "외부 배당 데이터를 가져오지 못했습니다"
+      dividend_sync_failed: "외부 배당 데이터를 가져오지 못했습니다",
+      invalid_disclosure: "공시 입력값을 다시 확인해주세요",
+      invalid_disclosure_trade: "공시 거래 이력 입력값을 다시 확인해주세요",
+      invalid_disclosure_delete: "삭제할 공시를 다시 확인해주세요"
     };
     messages.push({
       id: `error-${error}`,
@@ -151,10 +166,11 @@ export default async function AdminPage({ searchParams }: AdminProps) {
   const user = await getUserSession();
   if (!isAdminUser(user)) return <AdminGate signedIn={Boolean(user)} />;
 
-  const [store, portfolio, dividendRecords] = await Promise.all([
+  const [store, portfolio, dividendRecords, disclosures] = await Promise.all([
     readStore(),
     getManualPortfolioOverview(),
-    readDividendRecords()
+    readDividendRecords(),
+    readDisclosures()
   ]);
   const acceptedInvestment = store.investmentIntents
     .filter((intent) => intent.status === "ACCEPTED")
@@ -189,6 +205,61 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         <Metric label="대기 중 투자 의향" value={formatKrw(pendingInvestment)} />
         <Metric label="대기 중 출금 의향" value={formatKrw(pendingWithdrawal)} />
       </Grid>
+
+      <SectionHeader title="공시" description="사용자에게 노출되는 공시와 첨부 거래 이력을 관리합니다." />
+
+      <Panel>
+        <div className="admin-panel-header">
+          <h2>
+            <Megaphone size={18} /> 공시 관리
+          </h2>
+          <DisclosureForm />
+        </div>
+        <TableSurface>
+          <table>
+            <thead>
+              <tr>
+                <th>제목</th>
+                <th>첨부 거래</th>
+                <th>등록일</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {disclosures.map((disclosure) => (
+                <tr key={disclosure.id}>
+                  <td>
+                    <strong>{disclosure.title}</strong>
+                    <br />
+                    <MutedText>
+                      {disclosure.body.slice(0, 80)}
+                      {disclosure.body.length > 80 ? "..." : ""}
+                    </MutedText>
+                  </td>
+                  <td>{disclosure.trades.length}건</td>
+                  <td>{formatDateTime(disclosure.createdAt)}</td>
+                  <td>
+                    <div className="split-actions">
+                      <DisclosureForm disclosure={disclosure} />
+                      <form action="/api/admin/disclosures/delete" method="post">
+                        <input type="hidden" name="id" value={disclosure.id} />
+                        <button className="ghost" type="submit">
+                          삭제
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {disclosures.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>등록된 공시가 없습니다.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </TableSurface>
+      </Panel>
 
       <SectionHeader title="운영 포트폴리오" description="보유 종목, 수량, 현재가, USD 매입환율을 관리합니다." />
 
