@@ -1,0 +1,394 @@
+import AdmZip from "adm-zip";
+import { XMLParser } from "fast-xml-parser";
+import type { DividendRecord } from "./types";
+
+export type SymbolSearchResult = {
+  symbol: string;
+  name: string;
+  exchange?: string;
+  currency?: "KRW" | "USD";
+  marketCountry?: "KR" | "US";
+  source: "opendart" | "fmp" | "yahoo" | "local";
+};
+
+type FmpSearchRow = {
+  symbol?: string;
+  name?: string;
+  exchangeShortName?: string;
+  stockExchange?: string;
+  currency?: string;
+};
+
+type FmpDividendRow = {
+  date?: string;
+  label?: string;
+  adjDividend?: number;
+  dividend?: number;
+  recordDate?: string;
+  paymentDate?: string;
+  declarationDate?: string;
+};
+
+type YahooQuote = {
+  symbol?: string;
+  shortname?: string;
+  longname?: string;
+  exchDisp?: string;
+  exchange?: string;
+  quoteType?: string;
+};
+
+type YahooDividendEvent = {
+  amount?: number;
+  date?: number;
+};
+
+type OpenDartCorpCodeRow = {
+  corp_code?: string;
+  corp_name?: string;
+  stock_code?: string;
+  modify_date?: string;
+};
+
+type OpenDartAlotMatterRow = {
+  corp_name?: string;
+  se?: string;
+  stock_knd?: string;
+  thstrm?: string;
+  stlm_dt?: string;
+};
+
+type OpenDartAlotMatterResponse = {
+  status?: string;
+  message?: string;
+  list?: OpenDartAlotMatterRow[];
+};
+
+const DART_REPORTS = [
+  { code: "11011", paymentMonth: 4, label: "사업보고서" },
+  { code: "11013", paymentMonth: 5, label: "1분기보고서" },
+  { code: "11012", paymentMonth: 8, label: "반기보고서" },
+  { code: "11014", paymentMonth: 11, label: "3분기보고서" }
+] as const;
+
+let cachedCorpCodes: OpenDartCorpCodeRow[] | null = null;
+
+function fmpApiKey() {
+  return process.env.FMP_API_KEY?.trim();
+}
+
+function openDartApiKey() {
+  return process.env.OPENDART_API_KEY?.trim() ?? process.env.DART_API_KEY?.trim();
+}
+
+function inferCurrency(symbol: string, currency?: string): "KRW" | "USD" {
+  if (currency === "KRW" || symbol.endsWith(".KS") || symbol.endsWith(".KQ")) return "KRW";
+  return "USD";
+}
+
+function inferMarketCountry(symbol: string, currency?: string): "KR" | "US" {
+  return inferCurrency(symbol, currency) === "KRW" ? "KR" : "US";
+}
+
+function normalizeKrStockCode(symbol: string) {
+  const cleaned = symbol.trim().toUpperCase().replace(/\.(KS|KQ)$/, "");
+  return /^\d{6}$/.test(cleaned) ? cleaned : null;
+}
+
+function parseNumber(value?: string | number) {
+  if (value === undefined || value === null) return undefined;
+  const normalized = String(value).replace(/[,원%\s]/g, "");
+  if (!normalized || normalized === "-" || normalized === "N/A") return undefined;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function toArray<T>(value: T | T[] | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+async function readOpenDartCorpCodes() {
+  const apiKey = openDartApiKey();
+  if (!apiKey) return [];
+  if (cachedCorpCodes) return cachedCorpCodes;
+
+  const url = new URL("https://opendart.fss.or.kr/api/corpCode.xml");
+  url.searchParams.set("crtfc_key", apiKey);
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) return [];
+
+  const zip = new AdmZip(Buffer.from(await response.arrayBuffer()));
+  const entry = zip.getEntry("CORPCODE.xml");
+  if (!entry) return [];
+
+  const parser = new XMLParser({ ignoreAttributes: false, trimValues: true });
+  const parsed = parser.parse(entry.getData().toString("utf-8")) as {
+    result?: { list?: OpenDartCorpCodeRow | OpenDartCorpCodeRow[] };
+  };
+
+  cachedCorpCodes = toArray(parsed.result?.list).filter((row) => row.stock_code);
+  return cachedCorpCodes;
+}
+
+async function searchOpenDartSymbols(query: string): Promise<SymbolSearchResult[]> {
+  const normalized = query.trim().toUpperCase().replace(/\.(KS|KQ)$/, "");
+  if (!openDartApiKey() || !normalized) return [];
+
+  const rows = await readOpenDartCorpCodes();
+  return rows
+    .filter((row) => {
+      const stockCode = row.stock_code ?? "";
+      const corpName = row.corp_name ?? "";
+      return stockCode.includes(normalized) || corpName.toUpperCase().includes(normalized);
+    })
+    .slice(0, 15)
+    .map((row) => ({
+      symbol: row.stock_code ?? "",
+      name: row.corp_name ?? row.stock_code ?? "",
+      exchange: "KRX",
+      currency: "KRW" as const,
+      marketCountry: "KR" as const,
+      source: "opendart" as const
+    }));
+}
+
+export async function searchSymbols(query: string): Promise<SymbolSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const openDartResults = await searchOpenDartSymbols(trimmed);
+  if (openDartResults.length >= 15) return openDartResults;
+
+  if (fmpApiKey()) {
+    const url = new URL("https://financialmodelingprep.com/stable/search-symbol");
+    url.searchParams.set("query", trimmed);
+    url.searchParams.set("apikey", fmpApiKey() ?? "");
+    const response = await fetch(url, { cache: "no-store" });
+    if (response.ok) {
+      const rows = (await response.json()) as FmpSearchRow[];
+      const fmpResults = rows.slice(0, 15).map((row) => ({
+        symbol: row.symbol ?? "",
+        name: row.name ?? row.symbol ?? "",
+        exchange: row.exchangeShortName ?? row.stockExchange,
+        currency: inferCurrency(row.symbol ?? "", row.currency),
+        marketCountry: inferMarketCountry(row.symbol ?? "", row.currency),
+        source: "fmp" as const
+      }));
+      return mergeSearchResults(openDartResults, fmpResults);
+    }
+  }
+
+  const url = new URL("https://query1.finance.yahoo.com/v1/finance/search");
+  url.searchParams.set("q", trimmed);
+  url.searchParams.set("quotesCount", "15");
+  url.searchParams.set("newsCount", "0");
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    cache: "no-store"
+  });
+
+  if (!response.ok) return openDartResults;
+
+  const json = (await response.json()) as { quotes?: YahooQuote[] };
+  const yahooResults = (json.quotes ?? [])
+    .filter((quote) => quote.symbol)
+    .slice(0, 15)
+    .map((quote) => ({
+      symbol: quote.symbol ?? "",
+      name: quote.longname ?? quote.shortname ?? quote.symbol ?? "",
+      exchange: quote.exchDisp ?? quote.exchange,
+      currency: inferCurrency(quote.symbol ?? ""),
+      marketCountry: inferMarketCountry(quote.symbol ?? ""),
+      source: "yahoo" as const
+    }));
+  return mergeSearchResults(openDartResults, yahooResults);
+}
+
+function mergeSearchResults(
+  primary: SymbolSearchResult[],
+  secondary: SymbolSearchResult[]
+): SymbolSearchResult[] {
+  const seen = new Set<string>();
+  return [...primary, ...secondary]
+    .filter((result) => {
+      const key = result.symbol.toUpperCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 15);
+}
+
+function monthsFromDates(dates: string[]) {
+  const months = dates
+    .map((date) => new Date(date).getMonth() + 1)
+    .filter((month) => month >= 1 && month <= 12);
+  return [...new Set(months)].sort((a, b) => a - b);
+}
+
+export async function fetchDividendRecordFromMarket(symbol: string): Promise<DividendRecord | null> {
+  const normalized = symbol.trim().toUpperCase();
+  if (!normalized) return null;
+
+  const openDartRecord = await fetchOpenDartDividendRecord(normalized);
+  if (openDartRecord) return openDartRecord;
+
+  if (fmpApiKey()) {
+    const url = new URL("https://financialmodelingprep.com/stable/dividends");
+    url.searchParams.set("symbol", normalized);
+    url.searchParams.set("apikey", fmpApiKey() ?? "");
+    const response = await fetch(url, { cache: "no-store" });
+    if (response.ok) {
+      const rows = ((await response.json()) as FmpDividendRow[])
+        .filter((row) => row.date && (row.adjDividend || row.dividend))
+        .slice(0, 12);
+      if (rows.length > 0) {
+        const annualDividendPerShare = rows
+          .slice(0, 4)
+          .reduce((sum, row) => sum + Number(row.adjDividend ?? row.dividend ?? 0), 0);
+        return {
+          symbol: normalized,
+          currency: inferCurrency(normalized),
+          annualDividendPerShare,
+          expectedPaymentMonths: monthsFromDates(
+            rows.map((row) => row.paymentDate ?? row.recordDate ?? row.date ?? "").filter(Boolean)
+          ),
+          lastDividendPerShare: Number(rows[0]?.adjDividend ?? rows[0]?.dividend ?? 0),
+          memo: "FMP 배당 데이터에서 동기화됨"
+        };
+      }
+    }
+  }
+
+  const period2 = Math.floor(Date.now() / 1000);
+  const period1 = period2 - 60 * 60 * 24 * 365 * 5;
+  const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(normalized)}`);
+  url.searchParams.set("period1", String(period1));
+  url.searchParams.set("period2", String(period2));
+  url.searchParams.set("interval", "1d");
+  url.searchParams.set("events", "div");
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    cache: "no-store"
+  });
+  if (!response.ok) return null;
+
+  const json = await response.json();
+  const dividends = json.chart?.result?.[0]?.events?.dividends as
+    | Record<string, YahooDividendEvent>
+    | undefined;
+  const rows = Object.values(dividends ?? {})
+    .filter((event) => event.date && event.amount)
+    .sort((a, b) => Number(b.date) - Number(a.date))
+    .slice(0, 12);
+
+  if (rows.length === 0) return null;
+
+  const recentFour = rows.slice(0, 4);
+  return {
+    symbol: normalized,
+    currency: inferCurrency(normalized),
+    annualDividendPerShare: recentFour.reduce((sum, row) => sum + Number(row.amount ?? 0), 0),
+    expectedPaymentMonths: [
+      ...new Set(rows.map((row) => new Date(Number(row.date) * 1000).getMonth() + 1))
+    ].sort((a, b) => a - b),
+    lastDividendPerShare: Number(rows[0]?.amount ?? 0),
+    memo: "Yahoo Finance 배당 이력에서 추정됨. 지급일/기준일은 별도 검증 필요"
+  };
+}
+
+async function fetchOpenDartDividendRecord(symbol: string): Promise<DividendRecord | null> {
+  const apiKey = openDartApiKey();
+  const stockCode = normalizeKrStockCode(symbol);
+  if (!apiKey || !stockCode) return null;
+
+  const corpCodes = await readOpenDartCorpCodes();
+  const corp = corpCodes.find((row) => row.stock_code === stockCode);
+  if (!corp?.corp_code) return null;
+
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
+  const results = (
+    await Promise.all(
+      years.flatMap((year) =>
+        DART_REPORTS.map(async (report) => {
+          const response = await fetchOpenDartAlotMatter(apiKey, corp.corp_code ?? "", year, report.code);
+          const rows = response?.list ?? [];
+          return rows.map((row) => ({ row, year, report }));
+        })
+      )
+    )
+  ).flat();
+
+  const dividendRows = results
+    .map((result) => ({
+      ...result,
+      amount: parseNumber(result.row.thstrm)
+    }))
+    .filter(({ row, amount }) => {
+      const se = row.se ?? "";
+      const stockKind = row.stock_knd ?? "";
+      return (
+        amount !== undefined &&
+        amount > 0 &&
+        se.includes("주당") &&
+        se.includes("배당") &&
+        (!stockKind || stockKind.includes("보통"))
+      );
+    })
+    .sort((a, b) => b.year - a.year);
+
+  const annualRow = dividendRows.find((result) => result.report.code === "11011") ?? dividendRows[0];
+  if (!annualRow?.amount) return null;
+
+  const yieldRows = results
+    .map((result) => ({
+      ...result,
+      yieldRate: parseNumber(result.row.thstrm)
+    }))
+    .filter(({ row, yieldRate }) => {
+      const se = row.se ?? "";
+      const stockKind = row.stock_knd ?? "";
+      return (
+        yieldRate !== undefined &&
+        yieldRate > 0 &&
+        se.includes("배당수익률") &&
+        (!stockKind || stockKind.includes("보통"))
+      );
+    })
+    .sort((a, b) => b.year - a.year);
+
+  const expectedPaymentMonths = [
+    ...new Set(dividendRows.map((result) => result.report.paymentMonth))
+  ].sort((a, b) => a - b);
+
+  return {
+    symbol: stockCode,
+    currency: "KRW",
+    annualDividendPerShare: annualRow.amount,
+    trailingYield: yieldRows[0]?.yieldRate ? yieldRows[0].yieldRate / 100 : undefined,
+    expectedPaymentMonths: expectedPaymentMonths.length > 0 ? expectedPaymentMonths : [4],
+    lastDividendPerShare: dividendRows[0]?.amount,
+    memo: `OpenDART ${annualRow.year} ${annualRow.report.label} 배당 데이터에서 동기화됨`
+  };
+}
+
+async function fetchOpenDartAlotMatter(
+  apiKey: string,
+  corpCode: string,
+  year: number,
+  reportCode: string
+): Promise<OpenDartAlotMatterResponse | null> {
+  const url = new URL("https://opendart.fss.or.kr/api/alotMatter.json");
+  url.searchParams.set("crtfc_key", apiKey);
+  url.searchParams.set("corp_code", corpCode);
+  url.searchParams.set("bsns_year", String(year));
+  url.searchParams.set("reprt_code", reportCode);
+
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) return null;
+
+  const json = (await response.json()) as OpenDartAlotMatterResponse;
+  return json.status === "000" ? json : null;
+}

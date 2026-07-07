@@ -1,0 +1,124 @@
+export type DataGsmStudent = {
+  id: number;
+  name: string;
+  sex?: string;
+  grade?: number;
+  classNum?: number;
+  number?: number;
+  studentNumber?: number;
+  major?: string;
+  specialty?: string | null;
+  role?: string;
+  isLeaveSchool?: boolean;
+};
+
+export type DataGsmUser = {
+  id: number;
+  email: string;
+  role: string;
+  isStudent: boolean;
+  student: DataGsmStudent | null;
+};
+
+export type AppUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  studentNumber?: number;
+  userType: "student" | "alumni";
+};
+
+export type IntentStatus = "PENDING" | "ACCEPTED" | "REJECTED";
+
+export type InvestmentIntent = {
+  id: string;
+  type: "INVESTMENT";
+  userId: string;
+  userName: string;
+  userEmail: string;
+  amountKrw: number;
+  depositorName: string;
+  contact: string;
+  guardianConfirmed: boolean;
+  status: IntentStatus;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WithdrawalIntent = {
+  id: string;
+  type: "WITHDRAWAL";
+  userId: string;
+  userName: string;
+  userEmail: string;
+  amountKrw: number;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  contact: string;
+  status: IntentStatus;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AppStore = {
+  investmentIntents: InvestmentIntent[];
+  withdrawalIntents: WithdrawalIntent[];
+};
+
+export type Holding = {
+  symbol: string;
+  name: string;
+  marketCountry: "KR" | "US";
+  currency: "KRW" | "USD";
+  quantity: number;
+  lastPrice: number;
+  averagePurchasePrice?: number;
+  marketValue: number;
+  marketValueKrw: number;
+  profitLossRate?: number;
+};
+
+export type PortfolioOverview = {
+  source: "manual";
+  fetchedAt: string;
+  exchangeRate: number;
+  totalMarketValueKrw: number;
+  holdings: Holding[];
+};
+
+export type ManualPortfolioStore = {
+  exchangeRate: number;
+  updatedAt: string;
+  holdings: Holding[];
+};
+
+export type DividendRecord = {
+  symbol: string;
+  currency: "KRW" | "USD";
+  annualDividendPerShare: number;
+  trailingYield?: number;
+  expectedPaymentMonths: number[];
+  lastDividendPerShare?: number;
+  memo?: string;
+};
+
+export type DividendForecastLine = {
+  symbol: string;
+  name: string;
+  allocationKrw: number;
+  estimatedQuantity: number;
+  annualDividendKrw: number;
+  monthlyAverageKrw: number;
+  nextPaymentMonth?: number;
+};
+
+export type DividendForecast = {
+  amountKrw: number;
+  annualDividendKrw: number;
+  monthlyAverageKrw: number;
+  lines: DividendForecastLine[];
+};

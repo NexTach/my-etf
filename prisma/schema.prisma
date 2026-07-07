@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model PortfolioHolding {
+  symbol               String   @id
+  name                 String
+  marketCountry        String
+  currency             String
+  quantity             Float
+  lastPrice            Float
+  averagePurchasePrice Float?
+  profitLossRate       Float?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model PortfolioSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model DividendRecord {
+  symbol                 String   @id
+  currency               String
+  annualDividendPerShare Float
+  trailingYield          Float?
+  expectedPaymentMonths  String   @db.VarChar(80)
+  lastDividendPerShare   Float?
+  memo                   String?  @db.VarChar(500)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model InvestmentIntent {
+  id                String   @id @default(cuid())
+  userId            String
+  userName          String
+  userEmail         String
+  amountKrw         Int
+  depositorName     String
+  contact           String
+  guardianConfirmed Boolean  @default(false)
+  status            String   @default("PENDING")
+  note              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model WithdrawalIntent {
+  id            String   @id @default(cuid())
+  userId        String
+  userName      String
+  userEmail     String
+  amountKrw     Int
+  bankName      String
+  accountNumber String
+  accountHolder String
+  contact       String
+  status        String   @default("PENDING")
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
