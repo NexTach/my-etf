@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
-import { createWithdrawalIntent } from "@/lib/store";
+import { createWithdrawalIntent, readStore } from "@/lib/store";
+import { withdrawalLimitForUser } from "@/lib/withdrawal-limit";
 
 const schema = z.object({
-  amountKrw: z.coerce.number().int().min(10000).max(100000000),
+  amountKrw: z.coerce.number().int().min(0).max(100000000),
   bankName: z.string().min(1).max(30),
   accountNumber: z.string().min(5).max(40),
   accountHolder: z.string().min(1).max(30),
@@ -18,7 +20,13 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/?error=invalid_withdrawal", request.url), { status: 303 });
+    return NextResponse.redirect(new URL("/intents?error=invalid_withdrawal", request.url), { status: 303 });
+  }
+
+  const [portfolio, store] = await Promise.all([getManualPortfolioOverview(), readStore()]);
+  const limit = withdrawalLimitForUser(store, portfolio, user.id);
+  if (limit.principalKrw <= 0 || parsed.data.amountKrw > limit.maxAmountKrw) {
+    return NextResponse.redirect(new URL("/intents?error=withdrawal_limit", request.url), { status: 303 });
   }
 
   await createWithdrawalIntent({
@@ -33,5 +41,5 @@ export async function POST(request: Request) {
     note: parsed.data.note
   });
 
-  return NextResponse.redirect(new URL("/?submitted=withdrawal", request.url), { status: 303 });
+  return NextResponse.redirect(new URL("/intents?submitted=withdrawal", request.url), { status: 303 });
 }

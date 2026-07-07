@@ -1,17 +1,12 @@
-import { ArrowDownToLine, ArrowUpRight, CircleDollarSign, LogOut, ShieldAlert } from "lucide-react";
+import { LogOut, ShieldAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { DividendForecastView } from "@/app/components/dividend-forecast-view";
 import { SparkLineChart } from "@/app/components/stock-chart";
 import { ToastStack, type ToastMessage } from "@/app/components/toast";
 import {
   AppShell,
-  Badge,
   ButtonLink,
-  CheckboxField,
   CompositionChart,
-  Empty,
-  Field,
-  Form,
   Grid,
   List,
   ListRow,
@@ -19,7 +14,6 @@ import {
   Navigation,
   Notice,
   Panel,
-  RowMeta,
   SectionHeader,
   TextLink,
   Top
@@ -33,11 +27,10 @@ import {
   samplePoints
 } from "@/lib/chart-metrics";
 import { forecastDividend, summarizePortfolioDividend } from "@/lib/dividends";
-import { formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
+import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles } from "@/lib/market-data";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
-import { readStore } from "@/lib/store";
 import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 
 type HomeProps = {
@@ -64,12 +57,6 @@ function homeToastMessages(params: Record<string, string | string[] | undefined>
   return messages;
 }
 
-function statusClass(status: string): "accepted" | "rejected" | "pending" {
-  if (status === "ACCEPTED") return "accepted";
-  if (status === "REJECTED") return "rejected";
-  return "pending";
-}
-
 function formatPercent(value?: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   return `${formatNumber(value * 100, 2)}%`;
@@ -89,7 +76,7 @@ export default async function Home({ searchParams }: HomeProps) {
   if (!user) redirect("/login");
 
   const params = (await searchParams) ?? {};
-  const [portfolio, store] = await Promise.all([getManualPortfolioOverview(), readStore()]);
+  const portfolio = await getManualPortfolioOverview();
   const [scheduledDividend, portfolioDividend] = await Promise.all([
     forecastDividend(portfolio, portfolio.totalMarketValueKrw),
     summarizePortfolioDividend(portfolio)
@@ -134,10 +121,6 @@ export default async function Home({ searchParams }: HomeProps) {
       description: stockSecondaryLabel(holding),
       value: holding.marketValueKrw
     }));
-  const myInvestments = store.investmentIntents.filter((intent) => intent.userId === user.id);
-  const myWithdrawals = store.withdrawalIntents.filter((intent) => intent.userId === user.id);
-  const myIntents = [...myInvestments, ...myWithdrawals];
-
   return (
     <AppShell>
       <ToastStack messages={homeToastMessages(params)} />
@@ -164,14 +147,11 @@ export default async function Home({ searchParams }: HomeProps) {
         description="공개 포트폴리오의 평가금액, 수익률, 배당수익률을 확인하고 참여 의향을 남길 수 있습니다."
         actions={
           <>
-            <ButtonLink href="#intent-section">
+            <ButtonLink href="/intents">
               의향서 작성
             </ButtonLink>
             <ButtonLink href="/simulation" variant="secondary">
               투자 시뮬레이션
-            </ButtonLink>
-            <ButtonLink href="#portfolio-section" variant="secondary">
-              포트폴리오 보기
             </ButtonLink>
           </>
         }
@@ -187,9 +167,9 @@ export default async function Home({ searchParams }: HomeProps) {
               <TextLink className="chart-link" href="/metrics/daily-change">
                 <SparkLineChart
                   interactive={false}
-                  trendValue={portfolioDailyChangeRate}
                   label="포트폴리오 1년 등락 추세"
                   points={samplePoints(portfolioDailyPoints)}
+                  trendValue={portfolioDailyChangeRate}
                   valueFormat="krw"
                 />
               </TextLink>
@@ -204,9 +184,9 @@ export default async function Home({ searchParams }: HomeProps) {
               <TextLink className="chart-link" href="/metrics/holding-return">
                 <SparkLineChart
                   interactive={false}
-                  trendValue={portfolioDividend.totalReturnRate}
                   label="보유 수익률 추세"
                   points={holdingReturnPoints}
+                  trendValue={portfolioDividend.totalReturnRate}
                   valueFormat="percent"
                 />
               </TextLink>
@@ -221,9 +201,9 @@ export default async function Home({ searchParams }: HomeProps) {
               <TextLink className="chart-link" href="/metrics/dividend-yield">
                 <SparkLineChart
                   interactive={false}
-                  trendValue={portfolioDividend.dividendYield}
                   label="배당수익률 추세"
                   points={yieldPoints}
+                  trendValue={portfolioDividend.dividendYield}
                   valueFormat="percent"
                 />
               </TextLink>
@@ -288,86 +268,6 @@ export default async function Home({ searchParams }: HomeProps) {
       </Grid>
 
       <DividendForecastView lines={scheduledDividend.lines} mode="holding" />
-
-      <SectionHeader id="intent-section" title="의향서 제출" description="제출된 내용은 관리자가 검토한 뒤 상태를 변경합니다." />
-
-      <Grid columns={2}>
-        <Panel>
-          <h2>
-            <ArrowUpRight size={18} /> 투자 의향서
-          </h2>
-          <Form action="/api/intents/invest" method="post">
-            <Field htmlFor="investAmount" label="의향 금액">
-              <input id="investAmount" name="amountKrw" type="number" min="10000" step="10000" required />
-            </Field>
-            <Field htmlFor="depositorName" label="입금자명">
-              <input id="depositorName" name="depositorName" defaultValue={user.name} required />
-            </Field>
-            <Field htmlFor="investContact" label="연락처">
-              <input id="investContact" name="contact" placeholder="전화번호 또는 메신저 ID" required />
-            </Field>
-            <CheckboxField>
-              <input type="checkbox" name="guardianConfirmed" value="true" />
-              미성년자인 경우 보호자 동의는 서비스 외부에서 수동으로 제출합니다.
-            </CheckboxField>
-            <Field htmlFor="investNote" label="메모">
-              <textarea id="investNote" name="note" />
-            </Field>
-            <button type="submit">
-              <CircleDollarSign size={17} />
-              제출
-            </button>
-          </Form>
-        </Panel>
-
-        <Panel>
-          <h2>
-            <ArrowDownToLine size={18} /> 출금 의향서
-          </h2>
-          <Form action="/api/intents/withdraw" method="post">
-            <Field htmlFor="withdrawAmount" label="의향 금액">
-              <input id="withdrawAmount" name="amountKrw" type="number" min="10000" step="10000" required />
-            </Field>
-            <Field htmlFor="bankName" label="은행">
-              <input id="bankName" name="bankName" required />
-            </Field>
-            <Field htmlFor="accountNumber" label="계좌번호">
-              <input id="accountNumber" name="accountNumber" inputMode="numeric" required />
-            </Field>
-            <Field htmlFor="accountHolder" label="예금주">
-              <input id="accountHolder" name="accountHolder" defaultValue={user.name} required />
-            </Field>
-            <Field htmlFor="withdrawContact" label="연락처">
-              <input id="withdrawContact" name="contact" placeholder="전화번호 또는 메신저 ID" required />
-            </Field>
-            <Field htmlFor="withdrawNote" label="메모">
-              <textarea id="withdrawNote" name="note" />
-            </Field>
-            <button type="submit">제출</button>
-          </Form>
-        </Panel>
-      </Grid>
-
-      <SectionHeader title="내 제출 내역" description="투자와 출금 의향서 상태를 한곳에서 확인합니다." />
-
-      <List>
-        {myIntents.map((intent) => (
-          <ListRow
-            key={intent.id}
-            title={intent.type === "INVESTMENT" ? "투자 의향" : "출금 의향"}
-            description={formatDateTime(intent.createdAt)}
-            value={
-              <>
-                {formatKrw(intent.amountKrw)}
-                <RowMeta>
-                  <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
-                </RowMeta>
-              </>
-            }
-          />
-        ))}
-        {myIntents.length === 0 ? <Empty>제출 내역이 없습니다.</Empty> : null}
-      </List>
 
       <Notice className="mt-18">
         <ShieldAlert size={17} /> 이 서비스는 투자 권유, 투자자문, 자동매매, 금전 보관 기능을 제공하지 않는 의향서

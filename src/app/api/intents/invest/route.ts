@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/?error=invalid_investment", request.url), { status: 303 });
+    return NextResponse.redirect(new URL("/intents?error=invalid_investment", request.url), { status: 303 });
   }
 
   await createInvestmentIntent({
@@ -31,5 +31,5 @@ export async function POST(request: Request) {
     note: parsed.data.note
   });
 
-  return NextResponse.redirect(new URL("/?submitted=investment", request.url), { status: 303 });
+  return NextResponse.redirect(new URL("/intents?submitted=investment", request.url), { status: 303 });
 }
