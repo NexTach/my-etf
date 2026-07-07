@@ -137,6 +137,10 @@ button.full {
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
 }
 
+.grid.one {
+  grid-template-columns: minmax(0, 680px);
+}
+
 .grid.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

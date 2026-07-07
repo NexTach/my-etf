@@ -1,40 +1,39 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAuthorizeUrl, createCodeChallenge } from "@/lib/datagsm";
 import { randomToken } from "@/lib/session";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const clientId = process.env.DATAGSM_CLIENT_ID;
-  const redirectUri = process.env.DATAGSM_REDIRECT_URI;
+  const requestUrl = new URL(request.url);
+  const redirectUri = process.env.DATAGSM_REDIRECT_URI ?? `${requestUrl.origin}/api/auth/datagsm/callback`;
 
   if (!clientId || !redirectUri) {
-    return NextResponse.redirect(new URL("/login?error=datagsm_not_configured", "http://localhost:3000"));
+    return NextResponse.redirect(new URL("/login?error=datagsm_not_configured", request.url));
+  }
+
+  if (new URL(redirectUri).origin !== requestUrl.origin) {
+    return NextResponse.redirect(new URL("/login?error=oauth_origin", request.url));
   }
 
   const state = randomToken();
   const codeVerifier = randomToken();
-  const cookieStore = await cookies();
-  cookieStore.set("datagsm_oauth_state", state, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 5,
-    path: "/"
-  });
-  cookieStore.set("datagsm_code_verifier", codeVerifier, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 5,
-    path: "/"
-  });
-
   const url = createAuthorizeUrl({
     clientId,
     redirectUri,
     state,
     codeChallenge: createCodeChallenge(codeVerifier)
   });
+  const response = NextResponse.redirect(url);
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: requestUrl.protocol === "https:",
+    maxAge: 60 * 5,
+    path: "/"
+  };
 
-  return NextResponse.redirect(url);
+  response.cookies.set("datagsm_oauth_state", state, cookieOptions);
+  response.cookies.set("datagsm_code_verifier", codeVerifier, cookieOptions);
+
+  return response;
 }

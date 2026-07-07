@@ -1,4 +1,4 @@
-import { LogIn, ShieldCheck } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { isProduction } from "@/lib/env";
 
 type LoginPageProps = {
@@ -10,6 +10,7 @@ function errorMessage(error?: string | string[]) {
   if (value === "datagsm_not_configured") return "DataGSM OAuth 환경변수가 아직 설정되지 않았습니다.";
   if (value === "not_eligible") return "재학생 또는 졸업생으로 확인되지 않아 이용할 수 없습니다.";
   if (value === "oauth_state") return "OAuth state 검증에 실패했습니다. 다시 로그인하세요.";
+  if (value === "oauth_origin") return "접속 주소와 OAuth 콜백 주소가 다릅니다. 같은 주소로 접속하세요.";
   if (value === "oauth_failed") return "DataGSM 로그인 처리 중 오류가 발생했습니다.";
   return null;
 }
@@ -28,8 +29,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </p>
       </section>
 
-      <div className="grid two">
-        <section className="panel">
+      <div className="grid one">
+        <section className="panel login-panel">
           <h2>DataGSM 로그인 필요</h2>
           <p className="lede">
             재학생과 졸업생만 이용할 수 있으며, 자퇴 상태로 확인되는 계정은 차단됩니다.
@@ -50,16 +51,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             ) : null}
           </div>
         </section>
-
-        <aside className="panel muted">
-          <h3>
-            <ShieldCheck size={18} /> 운영 범위
-          </h3>
-          <p className="lede">
-            이 버전은 금전 수취, 자동 출금, 배당 지급, 주문 기능을 제공하지 않습니다. 관리자는 제출된
-            의향서의 금액, 연락처, 계좌번호와 상태만 확인합니다.
-          </p>
-        </aside>
       </div>
     </main>
   );
