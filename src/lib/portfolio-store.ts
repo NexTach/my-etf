@@ -70,10 +70,15 @@ function normalizeStore(store: ManualPortfolioStore): ManualPortfolioStore {
   const exchangeRate = Number(store.exchangeRate) || 1380;
   const holdings = store.holdings.map((holding) => {
     const marketValue = holding.quantity * holding.lastPrice;
+    const profitLossRate =
+      holding.averagePurchasePrice && holding.averagePurchasePrice > 0
+        ? (holding.lastPrice - holding.averagePurchasePrice) / holding.averagePurchasePrice
+        : undefined;
     return {
       ...holding,
       marketValue,
-      marketValueKrw: holding.currency === "USD" ? marketValue * exchangeRate : marketValue
+      marketValueKrw: holding.currency === "USD" ? marketValue * exchangeRate : marketValue,
+      profitLossRate
     };
   });
 
@@ -164,6 +169,10 @@ export async function getManualPortfolioOverview(): Promise<PortfolioOverview> {
 
 export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "marketValueKrw">) {
   const symbol = input.symbol.toUpperCase();
+  const profitLossRate =
+    input.averagePurchasePrice && input.averagePurchasePrice > 0
+      ? (input.lastPrice - input.averagePurchasePrice) / input.averagePurchasePrice
+      : undefined;
   await prisma.portfolioHolding.upsert({
     where: { symbol },
     create: {
@@ -174,7 +183,7 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
       quantity: input.quantity,
       lastPrice: input.lastPrice,
       averagePurchasePrice: input.averagePurchasePrice,
-      profitLossRate: input.profitLossRate
+      profitLossRate
     },
     update: {
       name: input.name,
@@ -183,7 +192,7 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
       quantity: input.quantity,
       lastPrice: input.lastPrice,
       averagePurchasePrice: input.averagePurchasePrice,
-      profitLossRate: input.profitLossRate
+      profitLossRate
     }
   });
 }

@@ -179,6 +179,35 @@ export async function forecastDividend(
   };
 }
 
+export async function summarizePortfolioDividend(portfolio: PortfolioOverview) {
+  const dividendRecords = await readDividendRecords();
+  const recordsBySymbol = new Map(
+    dividendRecords.map((record) => [record.symbol.toUpperCase(), record])
+  );
+
+  const annualDividendKrw = portfolio.holdings.reduce((sum, holding) => {
+    const record = recordsBySymbol.get(holding.symbol.toUpperCase());
+    if (!record) return sum;
+    return sum + holding.quantity * dividendPerShareKrw(record, portfolio.exchangeRate);
+  }, 0);
+
+  const costBasisKrw = portfolio.holdings.reduce((sum, holding) => {
+    if (!holding.averagePurchasePrice || holding.averagePurchasePrice <= 0) return sum;
+    const cost = holding.averagePurchasePrice * holding.quantity;
+    return sum + (holding.currency === "USD" ? cost * portfolio.exchangeRate : cost);
+  }, 0);
+
+  return {
+    annualDividendKrw,
+    monthlyAverageKrw: annualDividendKrw / 12,
+    dividendYield:
+      portfolio.totalMarketValueKrw > 0 ? annualDividendKrw / portfolio.totalMarketValueKrw : 0,
+    costBasisKrw,
+    totalReturnRate:
+      costBasisKrw > 0 ? (portfolio.totalMarketValueKrw - costBasisKrw) / costBasisKrw : undefined
+  };
+}
+
 export async function knownDividendRecords() {
   return readDividendRecords();
 }

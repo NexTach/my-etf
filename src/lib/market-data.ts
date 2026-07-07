@@ -11,6 +11,10 @@ export type SymbolSearchResult = {
   source: "opendart" | "fmp" | "yahoo" | "local";
 };
 
+export type MarketQuote = SymbolSearchResult & {
+  lastPrice?: number;
+};
+
 type FmpSearchRow = {
   symbol?: string;
   name?: string;
@@ -36,6 +40,20 @@ type YahooQuote = {
   exchDisp?: string;
   exchange?: string;
   quoteType?: string;
+  currency?: string;
+  regularMarketPrice?: number;
+  regularMarketPreviousClose?: number;
+};
+
+type YahooChartMeta = {
+  currency?: string;
+  symbol?: string;
+  exchangeName?: string;
+  fullExchangeName?: string;
+  regularMarketPrice?: number;
+  chartPreviousClose?: number;
+  longName?: string;
+  shortName?: string;
 };
 
 type YahooDividendEvent = {
@@ -95,6 +113,18 @@ function normalizeKrStockCode(symbol: string) {
   return /^\d{6}$/.test(cleaned) ? cleaned : null;
 }
 
+function normalizeSymbolForStorage(symbol: string, currency?: string) {
+  const normalizedKr = normalizeKrStockCode(symbol);
+  if (normalizedKr && inferCurrency(symbol, currency) === "KRW") return normalizedKr;
+  return symbol.trim().toUpperCase();
+}
+
+function yahooLookupSymbol(symbol: string) {
+  const trimmed = symbol.trim().toUpperCase();
+  if (/^\d{6}$/.test(trimmed)) return `${trimmed}.KS`;
+  return trimmed;
+}
+
 function parseNumber(value?: string | number) {
   if (value === undefined || value === null) return undefined;
   const normalized = String(value).replace(/[,원%\s]/g, "");
@@ -115,7 +145,7 @@ async function readOpenDartCorpCodes() {
 
   const url = new URL("https://opendart.fss.or.kr/api/corpCode.xml");
   url.searchParams.set("crtfc_key", apiKey);
-  const response = await fetch(url, { cache: "force-cache" });
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) return [];
 
   const zip = new AdmZip(Buffer.from(await response.arrayBuffer()));
@@ -138,14 +168,14 @@ async function searchOpenDartSymbols(query: string): Promise<SymbolSearchResult[
   const rows = await readOpenDartCorpCodes();
   return rows
     .filter((row) => {
-      const stockCode = row.stock_code ?? "";
-      const corpName = row.corp_name ?? "";
+      const stockCode = String(row.stock_code ?? "").padStart(6, "0");
+      const corpName = String(row.corp_name ?? "");
       return stockCode.includes(normalized) || corpName.toUpperCase().includes(normalized);
     })
     .slice(0, 15)
     .map((row) => ({
-      symbol: row.stock_code ?? "",
-      name: row.corp_name ?? row.stock_code ?? "",
+      symbol: String(row.stock_code ?? "").padStart(6, "0"),
+      name: String(row.corp_name ?? row.stock_code ?? ""),
       exchange: "KRX",
       currency: "KRW" as const,
       marketCountry: "KR" as const,
@@ -203,6 +233,36 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
       source: "yahoo" as const
     }));
   return mergeSearchResults(openDartResults, yahooResults);
+}
+
+export async function fetchMarketQuote(symbol: string): Promise<MarketQuote | null> {
+  const trimmed = symbol.trim();
+  if (!trimmed) return null;
+
+  const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooLookupSymbol(trimmed))}`);
+  url.searchParams.set("range", "1d");
+  url.searchParams.set("interval", "1d");
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    cache: "no-store"
+  });
+
+  if (!response.ok) return null;
+
+  const json = (await response.json()) as { chart?: { result?: Array<{ meta?: YahooChartMeta }> } };
+  const quote = json.chart?.result?.[0]?.meta;
+  if (!quote?.symbol) return null;
+
+  const currency = inferCurrency(quote.symbol, quote.currency);
+  return {
+    symbol: normalizeSymbolForStorage(quote.symbol, quote.currency),
+    name: quote.longName ?? quote.shortName ?? quote.symbol,
+    exchange: quote.fullExchangeName ?? quote.exchangeName,
+    currency,
+    marketCountry: inferMarketCountry(quote.symbol, quote.currency),
+    lastPrice: quote.regularMarketPrice ?? quote.chartPreviousClose,
+    source: "yahoo"
+  };
 }
 
 function mergeSearchResults(
