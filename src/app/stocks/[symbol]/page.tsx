@@ -56,6 +56,17 @@ function formatDividendAmount(record?: DividendRecord) {
   return formatKrw(record.annualDividendPerShare);
 }
 
+function formatPaymentMonths(months?: number[]) {
+  if (!months || months.length === 0) return "-";
+  return months.map((month) => `${month}월`).join(", ");
+}
+
+function formatMarket(holding: Holding) {
+  if (holding.marketCountry === "US") return "나스닥(NASDAQ)";
+  if (holding.symbol.toUpperCase().endsWith(".KQ")) return "코스닥시장(KOSDAQ)";
+  return "유가증권시장(KOSPI)";
+}
+
 export default async function StockDetailPage({ params }: StockDetailProps) {
   const user = await getUserSession();
   if (!user) redirect("/login");
@@ -167,7 +178,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
       <List>
         <ListRow title="종목 코드" value={holding.symbol} />
         <ListRow title="종목명" value={holding.name} />
-        <ListRow title="시장" value={holding.marketCountry === "US" ? "미국" : "국내"} />
+        <ListRow title="시장" value={formatMarket(holding)} />
         <ListRow title="통화" value={holding.currency} />
         <ListRow title="보유 수량" value={`${formatNumber(holding.quantity, 4)}주`} />
         <ListRow title="현재가" value={formatPrice(holding)} />
@@ -191,7 +202,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
         <ListRow title="배당수익률" value={formatPercent(dividendRecord?.trailingYield)} />
         <ListRow title="보유 기준 연 예상 배당" value={formatKrw(annualDividendKrw)} />
         <ListRow title="보유 기준 월평균 배당" value={formatKrw(annualDividendKrw / 12)} />
-        <ListRow title="예상 지급월" value={dividendRecord?.expectedPaymentMonths.join(", ") ?? "-"} />
+        <ListRow title="예상 지급월" value={formatPaymentMonths(dividendRecord?.expectedPaymentMonths)} />
       </List>
     </AppShell>
   );

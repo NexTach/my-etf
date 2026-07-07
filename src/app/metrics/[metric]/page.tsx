@@ -166,7 +166,6 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
           description="연 예상 배당금을 현재 평가금액으로 나눈 값"
           value={<RatePill value={portfolioDividend.dividendYield} />}
         />
-        <ListRow title="차트 포인트" value={`${candles.length}개`} />
       </List>
     </AppShell>
   );

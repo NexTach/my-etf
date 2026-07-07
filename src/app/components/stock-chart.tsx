@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import type { MarketCandle } from "@/lib/market-data";
 
 type ChartPoint = {
@@ -63,9 +63,21 @@ export function CandleChart({
   label?: string;
   valueFormat?: ValueFormat;
 }) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(
-    size === "detail" && candles.length > 0 ? candles.length - 1 : null
-  );
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeIndex === null) return;
+
+    function handleDocumentPointerMove(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && chartRef.current?.contains(target)) return;
+      setActiveIndex(null);
+    }
+
+    document.addEventListener("pointermove", handleDocumentPointerMove);
+    return () => document.removeEventListener("pointermove", handleDocumentPointerMove);
+  }, [activeIndex]);
 
   const metrics = useMemo(() => {
     const width = size === "detail" ? 640 : 148;
@@ -159,11 +171,17 @@ export function CandleChart({
 
   return (
     <div
+      ref={chartRef}
       className={className}
       aria-label={label}
-      onMouseLeave={() => setActiveIndex(size === "detail" ? candles.length - 1 : null)}
+      onMouseLeave={() => setActiveIndex(null)}
     >
-      <svg onMouseMove={handleMouseMove} role="img" viewBox={`0 0 ${metrics.width} ${metrics.height}`}>
+      <svg
+        onMouseLeave={() => setActiveIndex(null)}
+        onMouseMove={handleMouseMove}
+        role="img"
+        viewBox={`0 0 ${metrics.width} ${metrics.height}`}
+      >
         {size === "detail" ? (
           <>
             <line className="chart-grid" x1="0" x2={metrics.width} y1={metrics.topPadding} y2={metrics.topPadding} />
