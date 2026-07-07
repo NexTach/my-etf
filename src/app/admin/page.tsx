@@ -1,8 +1,26 @@
 import { LockKeyhole, UsersRound } from "lucide-react";
-import Link from "next/link";
+import { AdminHoldingForm } from "./AdminHoldingForm";
+import {
+  AppShell,
+  Badge,
+  ButtonLink,
+  CtaPanel,
+  Field,
+  Form,
+  Grid,
+  InlineFields,
+  Metric,
+  MutedText,
+  Navigation,
+  Notice,
+  Panel,
+  SectionHeader,
+  TableSurface,
+  Top
+} from "@/app/components/tds";
 import { isAdminUser } from "@/lib/admin";
 import { readDividendRecords } from "@/lib/dividends";
-import { formatDateTime, formatKrw, statusLabel } from "@/lib/format";
+import { formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -12,10 +30,15 @@ type AdminProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function statusClass(status: string) {
+function statusClass(status: string): "accepted" | "rejected" | "pending" {
   if (status === "ACCEPTED") return "accepted";
   if (status === "REJECTED") return "rejected";
   return "pending";
+}
+
+function formatDividendAmount(value: number, currency: "KRW" | "USD") {
+  if (currency === "KRW") return formatKrw(value);
+  return `$${formatNumber(value, 4)}`;
 }
 
 function StatusForm({
@@ -43,203 +66,25 @@ function StatusForm({
   );
 }
 
-function HoldingForm({
-  symbol,
-  name,
-  marketCountry,
-  currency,
-  quantity,
-  lastPrice,
-  averagePurchasePrice,
-  profitLossRate
-}: {
-  symbol?: string;
-  name?: string;
-  marketCountry?: "KR" | "US";
-  currency?: "KRW" | "USD";
-  quantity?: number;
-  lastPrice?: number;
-  averagePurchasePrice?: number;
-  profitLossRate?: number;
-}) {
-  return (
-    <form className="form compact" action="/api/admin/portfolio/holding" method="post">
-      <div className="inline-fields">
-        <div className="field">
-          <label htmlFor={`symbol-${symbol ?? "new"}`}>심볼</label>
-          <input id={`symbol-${symbol ?? "new"}`} name="symbol" defaultValue={symbol} required />
-        </div>
-        <div className="field wide">
-          <label htmlFor={`name-${symbol ?? "new"}`}>종목명</label>
-          <input id={`name-${symbol ?? "new"}`} name="name" defaultValue={name} required />
-        </div>
-        <div className="field">
-          <label htmlFor={`market-${symbol ?? "new"}`}>시장</label>
-          <select id={`market-${symbol ?? "new"}`} name="marketCountry" defaultValue={marketCountry ?? "US"}>
-            <option value="US">미국</option>
-            <option value="KR">국내</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor={`currency-${symbol ?? "new"}`}>통화</label>
-          <select id={`currency-${symbol ?? "new"}`} name="currency" defaultValue={currency ?? "USD"}>
-            <option value="USD">USD</option>
-            <option value="KRW">KRW</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor={`quantity-${symbol ?? "new"}`}>수량</label>
-          <input
-            id={`quantity-${symbol ?? "new"}`}
-            name="quantity"
-            type="number"
-            step="0.000001"
-            min="0"
-            defaultValue={quantity}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`price-${symbol ?? "new"}`}>현재가</label>
-          <input
-            id={`price-${symbol ?? "new"}`}
-            name="lastPrice"
-            type="number"
-            step="0.000001"
-            min="0"
-            defaultValue={lastPrice}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`avg-${symbol ?? "new"}`}>평단</label>
-          <input
-            id={`avg-${symbol ?? "new"}`}
-            name="averagePurchasePrice"
-            type="number"
-            step="0.000001"
-            min="0"
-            defaultValue={averagePurchasePrice}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`profit-${symbol ?? "new"}`}>손익률 %</label>
-          <input
-            id={`profit-${symbol ?? "new"}`}
-            name="profitLossRate"
-            type="number"
-            step="0.01"
-            defaultValue={typeof profitLossRate === "number" ? profitLossRate * 100 : undefined}
-          />
-        </div>
-        <button type="submit">{symbol ? "수정" : "추가"}</button>
-      </div>
-    </form>
-  );
-}
-
-function DividendForm({
-  symbol,
-  currency,
-  annualDividendPerShare,
-  trailingYield,
-  expectedPaymentMonths,
-  lastDividendPerShare,
-  memo
-}: {
-  symbol?: string;
-  currency?: "KRW" | "USD";
-  annualDividendPerShare?: number;
-  trailingYield?: number;
-  expectedPaymentMonths?: number[];
-  lastDividendPerShare?: number;
-  memo?: string;
-}) {
-  return (
-    <form className="form compact" action="/api/admin/dividends/record" method="post">
-      <div className="inline-fields dividend">
-        <div className="field">
-          <label htmlFor={`div-symbol-${symbol ?? "new"}`}>심볼</label>
-          <input id={`div-symbol-${symbol ?? "new"}`} name="symbol" defaultValue={symbol} required />
-        </div>
-        <div className="field">
-          <label htmlFor={`div-currency-${symbol ?? "new"}`}>통화</label>
-          <select id={`div-currency-${symbol ?? "new"}`} name="currency" defaultValue={currency ?? "USD"}>
-            <option value="USD">USD</option>
-            <option value="KRW">KRW</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor={`div-annual-${symbol ?? "new"}`}>연 배당/주</label>
-          <input
-            id={`div-annual-${symbol ?? "new"}`}
-            name="annualDividendPerShare"
-            type="number"
-            step="0.000001"
-            min="0"
-            defaultValue={annualDividendPerShare}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`div-yield-${symbol ?? "new"}`}>수익률 %</label>
-          <input
-            id={`div-yield-${symbol ?? "new"}`}
-            name="trailingYield"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={typeof trailingYield === "number" ? trailingYield * 100 : undefined}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`div-months-${symbol ?? "new"}`}>지급월</label>
-          <input
-            id={`div-months-${symbol ?? "new"}`}
-            name="expectedPaymentMonths"
-            placeholder="3,6,9,12"
-            defaultValue={expectedPaymentMonths?.join(",")}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`div-last-${symbol ?? "new"}`}>최근 배당/주</label>
-          <input
-            id={`div-last-${symbol ?? "new"}`}
-            name="lastDividendPerShare"
-            type="number"
-            step="0.000001"
-            min="0"
-            defaultValue={lastDividendPerShare}
-          />
-        </div>
-        <div className="field wide">
-          <label htmlFor={`div-memo-${symbol ?? "new"}`}>메모</label>
-          <input id={`div-memo-${symbol ?? "new"}`} name="memo" defaultValue={memo} />
-        </div>
-        <button type="submit">{symbol ? "수정" : "추가"}</button>
-      </div>
-    </form>
-  );
-}
-
 function AdminGate({ signedIn }: { signedIn: boolean }) {
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">ETF</div>
-          <div>
-            <h1>관리자 로그인</h1>
-            <p>의향서 상태 관리</p>
-          </div>
-        </div>
-        <Link className="button secondary" href="/">
-          사용자 화면
-        </Link>
-      </header>
+    <AppShell>
+      <Navigation
+        title="관리자 로그인"
+        description="의향서 상태 관리"
+        actions={
+          <ButtonLink href="/" variant="secondary">
+            사용자 화면
+          </ButtonLink>
+        }
+      />
 
-      <section className="panel" style={{ maxWidth: 440 }}>
+      <Top
+        title="관리자 권한이 필요해요"
+        description="DataGSM 인증 계정이 관리자 목록에 포함되어 있어야 운영 화면에 접근할 수 있습니다."
+      />
+
+      <CtaPanel className="max-w-gate">
         <h2>
           <LockKeyhole size={18} /> 관리자 권한 필요
         </h2>
@@ -253,8 +98,8 @@ function AdminGate({ signedIn }: { signedIn: boolean }) {
             DataGSM으로 로그인
           </a>
         ) : null}
-      </section>
-    </main>
+      </CtaPanel>
+    </AppShell>
   );
 }
 
@@ -277,47 +122,44 @@ export default async function AdminPage({ searchParams }: AdminProps) {
   const pendingWithdrawal = store.withdrawalIntents
     .filter((intent) => intent.status === "PENDING")
     .reduce((sum, intent) => sum + intent.amountKrw, 0);
+  const dividendRecordsBySymbol = new Map(
+    dividendRecords.map((record) => [record.symbol.toUpperCase(), record])
+  );
 
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">ETF</div>
-          <div>
-            <h1>관리자 페이지</h1>
-            <p>투자/출금 의향서 확인 및 상태 변경</p>
-          </div>
-        </div>
-        <Link className="button secondary" href="/">
-          사용자 화면
-        </Link>
-      </header>
+    <AppShell>
+      <Navigation
+        title="T-ETF 관리자"
+        description="투자/출금 의향서 확인 및 상태 변경"
+        actions={
+          <ButtonLink href="/" variant="secondary">
+            사용자 화면
+          </ButtonLink>
+        }
+      />
 
-      {params.updated ? (
-        <div className="notice" style={{ marginBottom: 16 }}>
-          상태가 저장되었습니다.
-        </div>
-      ) : null}
-      {params.portfolio ? (
-        <div className="notice" style={{ marginBottom: 16 }}>
-          포트폴리오가 저장되었습니다.
-        </div>
-      ) : null}
-      {params.dividend ? (
-        <div className="notice" style={{ marginBottom: 16 }}>
-          배당 데이터가 저장되었습니다.
-        </div>
-      ) : null}
+      {params.updated ? <Notice className="mt-12">상태가 저장되었습니다.</Notice> : null}
+      {params.portfolio ? <Notice className="mt-12">포트폴리오가 저장되었습니다.</Notice> : null}
+      {params.dividend ? <Notice className="mt-12">배당 데이터가 저장되었습니다.</Notice> : null}
 
-      <section className="panel" style={{ marginBottom: 16 }}>
+      <Top
+        title="의향서와 포트폴리오를 관리해요"
+        description="운영 데이터가 사용자 화면의 예상 배당 계산과 제출 내역 상태에 바로 반영됩니다."
+      />
+
+      <Grid columns={3} className="mt-16">
+        <Metric label="수락된 투자 의향" value={formatKrw(acceptedInvestment)} />
+        <Metric label="대기 중 투자 의향" value={formatKrw(pendingInvestment)} />
+        <Metric label="대기 중 출금 의향" value={formatKrw(pendingWithdrawal)} />
+      </Grid>
+
+      <SectionHeader title="운영 포트폴리오" description="보유 종목, 수량, 현재가, USD 환율을 관리합니다." />
+
+      <Panel>
         <h2>운영 포트폴리오 관리</h2>
-        <p className="lede">
-          보유 종목, 수량, 현재가, USD 환율을 관리자 화면에서 관리합니다.
-        </p>
-        <form className="form compact" action="/api/admin/portfolio/exchange-rate" method="post">
-          <div className="inline-fields exchange">
-            <div className="field">
-              <label htmlFor="exchangeRate">USD/KRW 환율</label>
+        <Form action="/api/admin/portfolio/exchange-rate" compact method="post">
+          <InlineFields variant="exchange">
+            <Field htmlFor="exchangeRate" label="USD/KRW 환율">
               <input
                 id="exchangeRate"
                 name="exchangeRate"
@@ -328,11 +170,11 @@ export default async function AdminPage({ searchParams }: AdminProps) {
                 defaultValue={portfolio.exchangeRate}
                 required
               />
-            </div>
+            </Field>
             <button type="submit">환율 저장</button>
-          </div>
-        </form>
-        <div className="table-wrap" style={{ marginTop: 16 }}>
+          </InlineFields>
+        </Form>
+        <TableSurface className="mt-16">
           <table>
             <thead>
               <tr>
@@ -345,7 +187,7 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               {portfolio.holdings.map((holding) => (
                 <tr key={holding.symbol}>
                   <td>
-                    <HoldingForm {...holding} />
+                    <AdminHoldingForm {...holding} />
                   </td>
                   <td>{formatKrw(holding.marketValueKrw)}</td>
                   <td>
@@ -360,82 +202,116 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               ))}
               <tr>
                 <td colSpan={3}>
-                  <HoldingForm />
+                  <AdminHoldingForm />
                 </td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </section>
+        </TableSurface>
+      </Panel>
 
-      <section className="panel" style={{ marginBottom: 16 }}>
-        <h2>배당 데이터 관리</h2>
-        <p className="lede">
-          예상 배당은 이 표의 연 배당/주와 지급월을 기준으로 계산됩니다. 지급월은 쉼표로 입력합니다.
-        </p>
-        <div className="table-wrap">
+      <SectionHeader title="배당 데이터" description="포트폴리오 종목의 배당 데이터는 외부 데이터로 동기화합니다." />
+
+      <Panel>
+        <h2>배당 데이터 동기화</h2>
+        <TableSurface>
           <table>
             <thead>
               <tr>
-                <th>배당 데이터</th>
+                <th>종목</th>
+                <th>연 배당/주</th>
+                <th>배당수익률</th>
+                <th>지급월</th>
+                <th>최근 배당</th>
                 <th>동기화</th>
-                <th>삭제</th>
               </tr>
             </thead>
             <tbody>
-              {dividendRecords.map((record) => (
-                <tr key={record.symbol}>
-                  <td>
-                    <DividendForm {...record} />
-                  </td>
-                  <td>
-                    <form action="/api/admin/dividends/sync" method="post">
-                      <input type="hidden" name="symbol" value={record.symbol} />
-                      <button className="secondary" type="submit">
-                        외부 동기화
-                      </button>
-                    </form>
-                  </td>
-                  <td>
-                    <form action="/api/admin/dividends/delete" method="post">
-                      <input type="hidden" name="symbol" value={record.symbol} />
-                      <button className="ghost" type="submit">
-                        삭제
-                      </button>
-                    </form>
-                  </td>
+              {portfolio.holdings.map((holding) => {
+                const record = dividendRecordsBySymbol.get(holding.symbol.toUpperCase());
+                return (
+                  <tr key={holding.symbol}>
+                    <td>
+                      <strong>{holding.symbol}</strong>
+                      <br />
+                      <MutedText>{holding.name}</MutedText>
+                    </td>
+                    <td>{record ? formatDividendAmount(record.annualDividendPerShare, record.currency) : "-"}</td>
+                    <td>{record?.trailingYield ? `${formatNumber(record.trailingYield * 100, 2)}%` : "-"}</td>
+                    <td>{record?.expectedPaymentMonths.join(", ") ?? "-"}</td>
+                    <td>
+                      {record?.lastDividendPerShare
+                        ? formatDividendAmount(record.lastDividendPerShare, record.currency)
+                        : "-"}
+                    </td>
+                    <td>
+                      <form action="/api/admin/dividends/sync" method="post">
+                        <input type="hidden" name="symbol" value={holding.symbol} />
+                        <button className="secondary" type="submit">
+                          외부 동기화
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+              {portfolio.holdings.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>포트폴리오 종목이 없습니다.</td>
                 </tr>
-              ))}
-              <tr>
-                <td colSpan={3}>
-                  <DividendForm />
-                </td>
-              </tr>
+              ) : null}
             </tbody>
           </table>
-        </div>
-      </section>
+        </TableSurface>
+      </Panel>
 
-      <section className="grid three" style={{ marginBottom: 16 }}>
-        <div className="panel metric">
-          <span>수락된 투자 의향</span>
-          <strong>{formatKrw(acceptedInvestment)}</strong>
-        </div>
-        <div className="panel metric">
-          <span>대기 중 투자 의향</span>
-          <strong>{formatKrw(pendingInvestment)}</strong>
-        </div>
-        <div className="panel metric">
-          <span>대기 중 출금 의향</span>
-          <strong>{formatKrw(pendingWithdrawal)}</strong>
-        </div>
-      </section>
+      {dividendRecords.length > portfolio.holdings.length ? (
+        <Panel className="mt-12">
+          <h2>포트폴리오 외 배당 데이터</h2>
+          <TableSurface>
+            <table>
+              <thead>
+                <tr>
+                  <th>종목</th>
+                  <th>연 배당/주</th>
+                  <th>삭제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dividendRecords
+                  .filter(
+                    (record) =>
+                      !portfolio.holdings.some(
+                        (holding) => holding.symbol.toUpperCase() === record.symbol.toUpperCase()
+                      )
+                  )
+                  .map((record) => (
+                    <tr key={record.symbol}>
+                      <td>{record.symbol}</td>
+                      <td>{formatDividendAmount(record.annualDividendPerShare, record.currency)}</td>
+                      <td>
+                        <form action="/api/admin/dividends/delete" method="post">
+                          <input type="hidden" name="symbol" value={record.symbol} />
+                          <button className="ghost" type="submit">
+                            삭제
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </TableSurface>
+        </Panel>
+      ) : null}
 
-      <section className="panel">
+      <SectionHeader title="투자 의향서" description="신청자 정보와 보호자 확인 여부를 보고 상태를 저장합니다." />
+
+      <Panel>
         <h2>
           <UsersRound size={18} /> 투자 의향서
         </h2>
-        <div className="table-wrap">
+        <TableSurface>
           <table>
             <thead>
               <tr>
@@ -455,14 +331,14 @@ export default async function AdminPage({ searchParams }: AdminProps) {
                   <td>
                     <strong>{intent.userName}</strong>
                     <br />
-                    <span style={{ color: "var(--muted)" }}>{intent.userEmail}</span>
+                    <MutedText>{intent.userEmail}</MutedText>
                   </td>
                   <td>{formatKrw(intent.amountKrw)}</td>
                   <td>{intent.depositorName}</td>
                   <td>{intent.contact}</td>
                   <td>{intent.guardianConfirmed ? "확인 예정" : "미확인"}</td>
                   <td>
-                    <span className={`badge ${statusClass(intent.status)}`}>{statusLabel(intent.status)}</span>
+                    <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
                   </td>
                   <td>{formatDateTime(intent.createdAt)}</td>
                   <td>
@@ -477,12 +353,14 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               ) : null}
             </tbody>
           </table>
-        </div>
-      </section>
+        </TableSurface>
+      </Panel>
 
-      <section className="panel" style={{ marginTop: 16 }}>
+      <SectionHeader title="출금 의향서" description="계좌 정보와 연락처를 확인한 뒤 상태를 저장합니다." />
+
+      <Panel>
         <h2>출금 의향서</h2>
-        <div className="table-wrap">
+        <TableSurface>
           <table>
             <thead>
               <tr>
@@ -502,18 +380,18 @@ export default async function AdminPage({ searchParams }: AdminProps) {
                   <td>
                     <strong>{intent.userName}</strong>
                     <br />
-                    <span style={{ color: "var(--muted)" }}>{intent.userEmail}</span>
+                    <MutedText>{intent.userEmail}</MutedText>
                   </td>
                   <td>{formatKrw(intent.amountKrw)}</td>
                   <td>
                     {intent.bankName}
                     <br />
-                    <span style={{ color: "var(--muted)" }}>{intent.accountNumber}</span>
+                    <MutedText>{intent.accountNumber}</MutedText>
                   </td>
                   <td>{intent.accountHolder}</td>
                   <td>{intent.contact}</td>
                   <td>
-                    <span className={`badge ${statusClass(intent.status)}`}>{statusLabel(intent.status)}</span>
+                    <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
                   </td>
                   <td>{formatDateTime(intent.createdAt)}</td>
                   <td>
@@ -528,8 +406,8 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               ) : null}
             </tbody>
           </table>
-        </div>
-      </section>
-    </main>
+        </TableSurface>
+      </Panel>
+    </AppShell>
   );
 }

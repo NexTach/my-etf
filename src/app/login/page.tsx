@@ -1,4 +1,5 @@
 import { LogIn } from "lucide-react";
+import { AppShell, CtaPanel, Form, Grid, Navigation, Notice, Stack, Top } from "@/app/components/tds";
 import { isProduction } from "@/lib/env";
 
 type LoginPageProps = {
@@ -20,38 +21,39 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const message = errorMessage(params.error);
 
   return (
-    <main className="shell">
-      <section className="hero-band">
-        <h2>GSM 구성원 전용 포트폴리오 의향서</h2>
-        <p>
-          운영자 1명의 공개 포트폴리오와 예상 배당을 확인하고, 실제 입금 처리 없이 투자 또는 출금
-          의향만 제출합니다.
-        </p>
-      </section>
+    <AppShell>
+      <Navigation title="T-ETF" description="DataGSM 인증" />
 
-      <div className="grid one">
-        <section className="panel login-panel">
-          <h2>DataGSM 로그인 필요</h2>
-          <p className="lede">
-            재학생과 졸업생만 이용할 수 있으며, 자퇴 상태로 확인되는 계정은 차단됩니다.
-          </p>
-          {message ? <div className="notice">{message}</div> : null}
-          <div className="stack" style={{ marginTop: 16 }}>
+      <Top
+        title="GSM 구성원만 이용할 수 있어요"
+        description="운영 포트폴리오와 예상 배당을 확인하고, 실제 입금 처리 없이 투자 또는 출금 의향만 제출합니다."
+      />
+
+      <Grid columns={1}>
+        <CtaPanel className="login-panel">
+          <div>
+            <h2>DataGSM으로 계속하기</h2>
+            <p className="lede">
+              재학생과 졸업생만 이용할 수 있으며, 자퇴 상태로 확인되는 계정은 차단됩니다.
+            </p>
+          </div>
+          {message ? <Notice>{message}</Notice> : null}
+          <Stack>
             <a className="button" href="/api/auth/datagsm/start">
               <LogIn size={18} />
               DataGSM으로 로그인
             </a>
             {!isProduction() ? (
-              <form action="/api/auth/dev-login" method="post" className="form">
+              <Form action="/api/auth/dev-login" method="post">
                 <input type="hidden" name="name" value="개발 사용자" />
                 <button className="secondary" type="submit">
                   개발용 로그인
                 </button>
-              </form>
+              </Form>
             ) : null}
-          </div>
-        </section>
-      </div>
-    </main>
+          </Stack>
+        </CtaPanel>
+      </Grid>
+    </AppShell>
   );
 }
