@@ -207,6 +207,7 @@ export async function forecastDividend(
     return {
       symbol: holding.symbol,
       name: holding.name,
+      alias: holding.alias,
       marketCountry: holding.marketCountry,
       currency: holding.currency,
       allocationKrw,

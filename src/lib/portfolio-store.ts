@@ -83,6 +83,7 @@ export async function readManualPortfolioStore(): Promise<ManualPortfolioStore> 
     holdings: holdings.map((holding) => ({
       symbol: holding.symbol,
       name: holding.name,
+      alias: holding.alias ?? undefined,
       currency: holding.currency as "KRW" | "USD",
       marketCountry: normalizeStoredMarketCode(holding.marketCountry, holding.currency as "KRW" | "USD", holding.symbol),
       quantity: holding.quantity,
@@ -111,6 +112,7 @@ export async function getManualPortfolioOverview(): Promise<PortfolioOverview> {
 
 export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "marketValueKrw">) {
   const symbol = input.symbol.toUpperCase();
+  const alias = input.alias?.trim();
   const profitLossRate =
     input.averagePurchasePrice && input.averagePurchasePrice > 0
       ? (input.lastPrice - input.averagePurchasePrice) / input.averagePurchasePrice
@@ -120,6 +122,7 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
     create: {
       symbol,
       name: input.name,
+      alias,
       marketCountry: input.marketCountry,
       currency: input.currency,
       quantity: input.quantity,
@@ -130,6 +133,7 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
     },
     update: {
       name: input.name,
+      alias,
       marketCountry: input.marketCountry,
       currency: input.currency,
       quantity: input.quantity,

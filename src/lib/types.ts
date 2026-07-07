@@ -74,6 +74,7 @@ export type MarketCode = "NASDAQ" | "NYSE" | "AMEX" | "KOSPI" | "KOSDAQ";
 export type Holding = {
   symbol: string;
   name: string;
+  alias?: string;
   marketCountry: MarketCode;
   currency: "KRW" | "USD";
   quantity: number;
@@ -120,6 +121,7 @@ export type DividendRecord = {
 export type DividendForecastLine = {
   symbol: string;
   name: string;
+  alias?: string;
   marketCountry: MarketCode;
   currency: "KRW" | "USD";
   allocationKrw: number;

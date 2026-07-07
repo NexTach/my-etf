@@ -9,6 +9,10 @@ import { getUserSession } from "@/lib/session";
 const schema = z.object({
   symbol: z.string().trim().min(1).max(20),
   name: z.string().trim().min(1).max(120),
+  alias: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().trim().max(80).optional()
+  ),
   marketCountry: z.enum(["NASDAQ", "NYSE", "AMEX", "KOSPI", "KOSDAQ"]),
   currency: z.enum(["KRW", "USD"]),
   quantity: z.coerce.number().positive(),

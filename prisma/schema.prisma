@@ -10,6 +10,7 @@ datasource db {
 model PortfolioHolding {
   symbol               String   @id
   name                 String
+  alias                String?  @db.VarChar(80)
   marketCountry        String
   currency             String
   quantity             Float

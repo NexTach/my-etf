@@ -3,12 +3,31 @@ import type { MarketCode } from "./types";
 type StockIdentity = {
   symbol: string;
   name?: string;
+  alias?: string;
   marketCountry?: MarketCode;
   currency?: "KRW" | "USD";
 };
 
 function clean(value?: string) {
   return value?.trim() ?? "";
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function cleanName(symbol: string, name?: string) {
+  const trimmedName = clean(name);
+  const trimmedSymbol = clean(symbol);
+  if (!trimmedName || !trimmedSymbol) return trimmedName;
+
+  const escapedSymbol = escapeRegExp(trimmedSymbol);
+  return trimmedName
+    .replace(new RegExp(`^${escapedSymbol}\\s*\\((.*)\\)$`, "i"), "$1")
+    .replace(new RegExp(`^${escapedSymbol}\\s*[-:–—]\\s*`, "i"), "")
+    .replace(new RegExp(`^${escapedSymbol}\\s+`, "i"), "")
+    .replace(new RegExp(`\\s*\\(${escapedSymbol}\\)$`, "i"), "")
+    .trim();
 }
 
 export function isKoreanStock(stock: StockIdentity) {
@@ -22,13 +41,22 @@ export function isKoreanStock(stock: StockIdentity) {
 }
 
 export function stockPrimaryLabel(stock: StockIdentity) {
-  const name = clean(stock.name);
+  const alias = clean(stock.alias);
+  if (alias) return alias;
+
+  const name = cleanName(stock.symbol, stock.name);
   if (isKoreanStock(stock) && name) return name;
   return stock.symbol;
 }
 
 export function stockSecondaryLabel(stock: StockIdentity) {
-  const secondary = isKoreanStock(stock) ? stock.symbol : clean(stock.name);
+  const alias = clean(stock.alias);
+  if (alias) {
+    const primaryWithoutAlias = stockPrimaryLabel({ ...stock, alias: undefined });
+    return primaryWithoutAlias !== alias ? primaryWithoutAlias : undefined;
+  }
+
+  const secondary = isKoreanStock(stock) ? stock.symbol : cleanName(stock.symbol, stock.name);
   return secondary && secondary !== stockPrimaryLabel(stock) ? secondary : undefined;
 }
 

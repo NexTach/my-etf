@@ -21,6 +21,7 @@ type AdminHoldingFormProps = Partial<Pick<
   Holding,
   | "symbol"
   | "name"
+  | "alias"
   | "marketCountry"
   | "currency"
   | "quantity"
@@ -32,6 +33,7 @@ type AdminHoldingFormProps = Partial<Pick<
 type HoldingFormState = {
   symbol: string;
   name: string;
+  alias: string;
   marketCountry: MarketCode;
   currency: "KRW" | "USD";
   quantity: string;
@@ -84,6 +86,7 @@ function isAbortError(error: unknown) {
 function createHoldingFormState({
   symbol,
   name,
+  alias,
   marketCountry,
   currency,
   quantity,
@@ -96,6 +99,7 @@ function createHoldingFormState({
   return {
     symbol: symbol ?? "",
     name: name ?? "",
+    alias: alias ?? "",
     marketCountry: normalizedMarket,
     currency: currency ?? currencyFromMarket(normalizedMarket),
     quantity: quantity?.toString() ?? "",
@@ -108,6 +112,7 @@ function createHoldingFormState({
 export function AdminHoldingForm({
   symbol,
   name,
+  alias,
   marketCountry,
   currency,
   quantity,
@@ -126,6 +131,7 @@ export function AdminHoldingForm({
       createHoldingFormState({
         symbol,
         name,
+        alias,
         marketCountry,
         currency,
         quantity,
@@ -133,7 +139,7 @@ export function AdminHoldingForm({
         averagePurchasePrice,
         purchaseExchangeRate
       }),
-    [averagePurchasePrice, currency, lastPrice, marketCountry, name, purchaseExchangeRate, quantity, symbol]
+    [alias, averagePurchasePrice, currency, lastPrice, marketCountry, name, purchaseExchangeRate, quantity, symbol]
   );
   const [form, setForm] = useState<HoldingFormState>(initialForm);
 
@@ -248,7 +254,7 @@ export function AdminHoldingForm({
   }
 
   if (symbol && !isOpen) {
-    const stock = { symbol, name, marketCountry, currency };
+    const stock = { symbol, name, alias, marketCountry, currency };
     const secondaryLabel = stockSecondaryLabel(stock);
 
     return (
@@ -305,7 +311,7 @@ export function AdminHoldingForm({
         <header className="holding-modal-header">
           <div>
             <h3 id={`holding-modal-title-${symbol ?? "new"}`}>{modalTitle}</h3>
-            <p>{symbol ? stockPrimaryLabel({ symbol, name, marketCountry, currency }) : "검색 결과를 선택하면 기본 정보가 채워집니다."}</p>
+            <p>{symbol ? stockPrimaryLabel({ symbol, name, alias, marketCountry, currency }) : "검색 결과를 선택하면 기본 정보가 채워집니다."}</p>
           </div>
           <button aria-label="닫기" className="ghost holding-modal-close" type="button" onClick={closeModal}>
             <X size={18} />
@@ -374,6 +380,15 @@ export function AdminHoldingForm({
                 value={form.name}
                 onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                 required
+              />
+            </Field>
+            <Field htmlFor={`alias-${symbol ?? "new"}`} label="표시 별칭" wide>
+              <input
+                id={`alias-${symbol ?? "new"}`}
+                name="alias"
+                value={form.alias}
+                placeholder="비워두면 종목명/심볼 기준으로 표시"
+                onChange={(event) => setForm((current) => ({ ...current, alias: event.target.value }))}
               />
             </Field>
             <Field htmlFor={`market-${symbol ?? "new"}`} label="시장">
