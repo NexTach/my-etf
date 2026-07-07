@@ -8,7 +8,7 @@ export type SymbolSearchResult = {
   exchange?: string;
   currency?: "KRW" | "USD";
   marketCountry?: MarketCode;
-  source: "opendart" | "fmp" | "yahoo" | "local";
+  source: "opendart" | "fmp" | "yahoo" | "krx";
 };
 
 export type MarketQuote = SymbolSearchResult & {
@@ -113,6 +113,22 @@ type OpenDartAlotMatterResponse = {
   list?: OpenDartAlotMatterRow[];
 };
 
+type KrxOpenApiRow = {
+  ISU_CD?: string;
+  ISU_SRT_CD?: string;
+  ISU_NM?: string;
+  ISU_ABBRV?: string;
+  MKT_NM?: string;
+  TDD_CLSPRC?: string;
+  CLSPRC?: string;
+};
+
+type KrxOpenApiResponse = {
+  OutBlock_1?: KrxOpenApiRow[];
+  respCode?: string;
+  respMsg?: string;
+};
+
 const DART_REPORTS = [
   { code: "11011", paymentMonth: 4, label: "사업보고서" },
   { code: "11013", paymentMonth: 5, label: "1분기보고서" },
@@ -121,9 +137,26 @@ const DART_REPORTS = [
 ] as const;
 
 let cachedCorpCodes: OpenDartCorpCodeRow[] | null = null;
+let cachedKrxSymbols: SymbolSearchResult[] | null = null;
+let cachedKrxSymbolsAt = 0;
+
+const KRX_SYMBOL_CACHE_MS = 60 * 60 * 1000;
+const KRX_OPENAPI_PATHS = [
+  { path: "sto/stk_isu_base_info.json", exchange: "KOSPI", marketCountry: "KOSPI" as const },
+  { path: "sto/ksq_isu_base_info.json", exchange: "KOSDAQ", marketCountry: "KOSDAQ" as const },
+  { path: "etp/etf_bydd_trd.json", exchange: "ETF", marketCountry: "KOSPI" as const }
+];
 
 function fmpApiKey() {
   return process.env.FMP_API_KEY?.trim();
+}
+
+function krxOpenApiKey() {
+  return process.env.KRX_OPENAPI_AUTH_KEY?.trim() ?? process.env.KRX_AUTH_KEY?.trim();
+}
+
+function krxOpenApiBaseUrl() {
+  return (process.env.KRX_OPENAPI_BASE_URL ?? "https://data-dbg.krx.co.kr/svc/apis").replace(/\/+$/, "");
 }
 
 function openDartApiKey() {
@@ -192,6 +225,10 @@ function inferMarketCode(symbol: string, currency?: string, exchange?: string): 
 function normalizeKrStockCode(symbol: string) {
   const cleaned = symbol.trim().toUpperCase().replace(/\.(KS|KQ)$/, "");
   return /^\d{6}$/.test(cleaned) ? cleaned : null;
+}
+
+function normalizeSearchText(value: string) {
+  return value.trim().toUpperCase().replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 function shouldSearchOpenDart(query: string) {
@@ -271,9 +308,100 @@ async function searchOpenDartSymbols(query: string): Promise<SymbolSearchResult[
     }));
 }
 
+async function fetchKrxOpenApiRows(path: string) {
+  const authKey = krxOpenApiKey();
+  if (!authKey) return [];
+
+  const response = await fetchWithTimeout(`${krxOpenApiBaseUrl()}/${path}`, {
+    cache: "no-store",
+    headers: { AUTH_KEY: authKey }
+  });
+  if (!response.ok) return [];
+
+  const json = (await response.json()) as KrxOpenApiResponse;
+  if (json.respCode && json.respCode !== "0000") {
+    console.warn(`KRX OpenAPI failed: ${json.respCode} ${json.respMsg ?? ""}`.trim());
+    return [];
+  }
+
+  return json.OutBlock_1 ?? [];
+}
+
+async function readKrxSymbols() {
+  if (!krxOpenApiKey()) return [];
+
+  const now = Date.now();
+  if (cachedKrxSymbols && now - cachedKrxSymbolsAt < KRX_SYMBOL_CACHE_MS) {
+    return cachedKrxSymbols;
+  }
+
+  const groups = await Promise.all(
+    KRX_OPENAPI_PATHS.map(async (source) => {
+      try {
+        const rows = await fetchKrxOpenApiRows(source.path);
+        return rows
+          .map((row): SymbolSearchResult | null => {
+            const symbol = normalizeKrStockCode(row.ISU_SRT_CD ?? row.ISU_CD ?? "");
+            const name = row.ISU_NM ?? row.ISU_ABBRV ?? "";
+            if (!symbol || !name) return null;
+
+            return {
+              symbol,
+              name,
+              exchange: row.MKT_NM ?? source.exchange,
+              currency: "KRW" as const,
+              marketCountry: source.marketCountry,
+              source: "krx" as const
+            };
+          })
+          .filter((row): row is SymbolSearchResult => Boolean(row));
+      } catch (error) {
+        console.warn(`KRX OpenAPI request failed: ${source.path}`, error);
+        return [];
+      }
+    })
+  );
+
+  cachedKrxSymbols = mergeSearchResults([], groups.flat());
+  cachedKrxSymbolsAt = now;
+  return cachedKrxSymbols;
+}
+
+async function searchKrxSymbols(query: string): Promise<SymbolSearchResult[]> {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return [];
+
+  const terms = query
+    .trim()
+    .toUpperCase()
+    .split(/\s+/)
+    .map(normalizeSearchText)
+    .filter(Boolean);
+  const rows = await readKrxSymbols();
+
+  return rows
+    .filter((row) => {
+      const searchable = normalizeSearchText([row.symbol, row.name, row.exchange].filter(Boolean).join(" "));
+      return (
+        searchable.includes(normalized) ||
+        normalized.includes(normalizeSearchText(row.symbol)) ||
+        terms.every((term) => searchable.includes(term))
+      );
+    })
+    .slice(0, 15);
+}
+
 export async function searchSymbols(query: string): Promise<SymbolSearchResult[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
+
+  let krxResults: SymbolSearchResult[] = [];
+  try {
+    krxResults = await searchKrxSymbols(trimmed);
+  } catch (error) {
+    console.warn(`KRX search failed: ${trimmed}`, error);
+  }
+  if (krxResults.length > 0) return krxResults;
 
   let openDartResults: SymbolSearchResult[] = [];
   if (shouldSearchOpenDart(trimmed)) {
@@ -283,7 +411,8 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
       console.warn(`OpenDART search failed: ${trimmed}`, error);
     }
   }
-  if (openDartResults.length >= 15) return openDartResults;
+  const primaryResults = mergeSearchResults(krxResults, openDartResults);
+  if (primaryResults.length >= 15) return primaryResults;
 
   if (fmpApiKey()) {
     const url = new URL("https://financialmodelingprep.com/stable/search-symbol");
@@ -300,7 +429,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
         marketCountry: inferMarketCode(row.symbol ?? "", row.currency, row.exchangeShortName ?? row.stockExchange),
         source: "fmp" as const
       }));
-      return mergeSearchResults(openDartResults, fmpResults);
+      return mergeSearchResults(primaryResults, fmpResults);
     }
   }
 
@@ -313,7 +442,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
     cache: "no-store"
   });
 
-  if (!response.ok) return openDartResults;
+  if (!response.ok) return primaryResults;
 
   const json = (await response.json()) as { quotes?: YahooQuote[] };
   const yahooResults = (json.quotes ?? [])
@@ -327,7 +456,7 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
       marketCountry: inferMarketCode(quote.symbol ?? "", quote.currency, quote.exchDisp ?? quote.exchange),
       source: "yahoo" as const
     }));
-  return mergeSearchResults(openDartResults, yahooResults);
+  return mergeSearchResults(primaryResults, yahooResults);
 }
 
 export async function fetchMarketQuote(symbol: string): Promise<MarketQuote | null> {
@@ -447,7 +576,8 @@ function mergeSearchResults(
   const seen = new Set<string>();
   return [...primary, ...secondary]
     .filter((result) => {
-      const key = result.symbol.toUpperCase();
+      const krCode = normalizeKrStockCode(result.symbol);
+      const key = krCode ? `KR:${krCode}` : result.symbol.toUpperCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
