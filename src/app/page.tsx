@@ -136,7 +136,7 @@ export default async function Home({ searchParams }: HomeProps) {
     .sort((a, b) => b.marketValueKrw - a.marketValueKrw)
     .map((holding) => ({
       id: holding.symbol,
-      label: holding.symbol,
+      label: stockPrimaryLabel(holding),
       description: stockFullLabel(holding),
       value: holding.marketValueKrw
     }));
