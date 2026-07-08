@@ -22,12 +22,6 @@ model PortfolioHolding {
   updatedAt            DateTime @updatedAt
 }
 
-model PortfolioSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
-}
-
 model DividendRecord {
   symbol                 String   @id
   currency               String
