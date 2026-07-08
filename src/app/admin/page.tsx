@@ -53,7 +53,12 @@ function adminToastMessages(params: Record<string, string | string[] | undefined
   if (portfolio) {
     messages.push({
       id: `portfolio-${portfolio}`,
-      title: portfolio === "deleted" ? "포트폴리오 종목이 삭제되었습니다" : "포트폴리오가 저장되었습니다",
+      title:
+        portfolio === "deleted"
+          ? "포트폴리오 종목이 삭제되었습니다"
+          : portfolio === "traded"
+            ? "거래가 포트폴리오에 반영되었습니다"
+            : "포트폴리오가 저장되었습니다",
       tone: "success"
     });
   }
@@ -79,6 +84,9 @@ function adminToastMessages(params: Record<string, string | string[] | undefined
     const errorMessages: Record<string, string> = {
       invalid_status: "상태 값을 다시 확인해주세요",
       invalid_holding: "포트폴리오 입력값을 다시 확인해주세요",
+      invalid_trade: "거래 입력값을 다시 확인해주세요",
+      trade_not_found: "거래를 적용할 종목을 찾을 수 없습니다",
+      trade_insufficient: "매도 수량이 현재 보유 수량보다 큽니다",
       invalid_delete: "삭제할 종목을 다시 확인해주세요",
       invalid_exchange_rate: "환율 입력값을 다시 확인해주세요",
       invalid_dividend: "배당 입력값을 다시 확인해주세요",

@@ -1765,6 +1765,83 @@ button.holding-modal-close {
   grid-column: 1 / -1;
 }
 
+.holding-trade-panel {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--tds-radius-lg);
+  display: grid;
+  gap: var(--tds-space-3);
+  padding: var(--tds-space-3);
+}
+
+.holding-trade-panel header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tds-space-3);
+  justify-content: space-between;
+}
+
+.holding-trade-panel h4 {
+  font-size: var(--tds-text-md);
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.trade-side-toggle {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--tds-radius-md);
+  display: inline-grid;
+  gap: 2px;
+  grid-template-columns: repeat(2, minmax(64px, 1fr));
+  padding: 3px;
+}
+
+.trade-side-toggle label {
+  align-items: center;
+  border-radius: var(--tds-radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--tds-text-xs);
+  font-weight: 900;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px var(--tds-space-3);
+}
+
+.trade-side-toggle label.selected {
+  background: var(--text);
+  color: #fff;
+}
+
+.trade-side-toggle input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.holding-trade-grid {
+  display: grid;
+  gap: var(--tds-space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.holding-trade-result {
+  align-items: stretch;
+  display: grid;
+  gap: var(--tds-space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+
+.holding-trade-result button {
+  align-self: stretch;
+  min-height: var(--tds-control-md);
+}
+
 .holding-modal-actions {
   align-items: center;
   border-top: 1px solid var(--line);
@@ -2590,6 +2667,8 @@ button.tds-toast-close:hover {
   }
 
   .holding-modal-grid,
+  .holding-trade-grid,
+  .holding-trade-result,
   .disclosure-form-grid,
   .disclosure-trade-form-grid,
   .disclosure-trade-detail-grid,

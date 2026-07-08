@@ -2,6 +2,8 @@ import type { Holding, ManualPortfolioStore, MarketCode, PortfolioOverview } fro
 import { fetchUsdKrwExchangeRate } from "./exchange-rate";
 import { prisma } from "./prisma";
 
+const MIN_REMAINING_QUANTITY = 0.0000001;
+
 function normalizeStore(store: ManualPortfolioStore): ManualPortfolioStore {
   const exchangeRate = Number(store.exchangeRate) || 1380;
   const holdings = store.holdings.map((holding) => {
@@ -143,6 +145,82 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
       profitLossRate
     }
   });
+}
+
+export async function applyManualHoldingTrade(input: {
+  symbol: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  orderPrice: number;
+  exchangeRate?: number;
+}) {
+  const symbol = input.symbol.toUpperCase();
+  const holding = await prisma.portfolioHolding.findUnique({ where: { symbol } });
+
+  if (!holding) return { status: "not_found" as const };
+
+  if (input.side === "SELL") {
+    const nextQuantity = holding.quantity - input.quantity;
+    if (nextQuantity < -MIN_REMAINING_QUANTITY) return { status: "insufficient_quantity" as const };
+
+    if (nextQuantity <= MIN_REMAINING_QUANTITY) {
+      await prisma.portfolioHolding.delete({ where: { symbol } });
+      return { status: "deleted" as const };
+    }
+
+    const profitLossRate =
+      holding.averagePurchasePrice && holding.averagePurchasePrice > 0
+        ? (input.orderPrice - holding.averagePurchasePrice) / holding.averagePurchasePrice
+        : undefined;
+
+    await prisma.portfolioHolding.update({
+      where: { symbol },
+      data: {
+        quantity: nextQuantity,
+        lastPrice: input.orderPrice,
+        profitLossRate
+      }
+    });
+    return { status: "updated" as const };
+  }
+
+  const currentAveragePurchasePrice =
+    holding.averagePurchasePrice && holding.averagePurchasePrice > 0
+      ? holding.averagePurchasePrice
+      : holding.lastPrice;
+  const currentNativeCost = currentAveragePurchasePrice * holding.quantity;
+  const tradeNativeCost = input.orderPrice * input.quantity;
+  const nextQuantity = holding.quantity + input.quantity;
+  const nextAveragePurchasePrice = (currentNativeCost + tradeNativeCost) / nextQuantity;
+
+  let nextPurchaseExchangeRate = holding.purchaseExchangeRate ?? undefined;
+  if (holding.currency === "USD") {
+    const tradeExchangeRate = input.exchangeRate ?? holding.purchaseExchangeRate ?? undefined;
+    if (tradeExchangeRate) {
+      const currentExchangeRate = holding.purchaseExchangeRate ?? tradeExchangeRate;
+      nextPurchaseExchangeRate =
+        (currentNativeCost * currentExchangeRate + tradeNativeCost * tradeExchangeRate) /
+        (currentNativeCost + tradeNativeCost);
+    }
+  }
+
+  const profitLossRate =
+    nextAveragePurchasePrice > 0
+      ? (input.orderPrice - nextAveragePurchasePrice) / nextAveragePurchasePrice
+      : undefined;
+
+  await prisma.portfolioHolding.update({
+    where: { symbol },
+    data: {
+      quantity: nextQuantity,
+      lastPrice: input.orderPrice,
+      averagePurchasePrice: nextAveragePurchasePrice,
+      purchaseExchangeRate: holding.currency === "USD" ? nextPurchaseExchangeRate : null,
+      profitLossRate
+    }
+  });
+
+  return { status: "updated" as const };
 }
 
 export async function deleteManualHolding(symbol: string) {

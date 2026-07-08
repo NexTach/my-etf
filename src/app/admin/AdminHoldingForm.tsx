@@ -6,7 +6,7 @@ import { FormattedNumberInput } from "@/app/components/formatted-number-input";
 import { ComputedValue, Field, Form } from "@/app/components/tds";
 import { currencySymbol, formatCurrency } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
-import type { Holding, MarketCode } from "@/lib/types";
+import type { Holding, MarketCode, TradeSide } from "@/lib/types";
 
 type SearchResult = {
   symbol: string;
@@ -43,6 +43,13 @@ type HoldingFormState = {
   purchaseExchangeRate: string;
 };
 
+type TradeFormState = {
+  side: TradeSide;
+  quantity: string;
+  orderPrice: string;
+  exchangeRate: string;
+};
+
 function profitLossRate(lastPrice?: number, averagePurchasePrice?: number) {
   if (!lastPrice || !averagePurchasePrice) return null;
   return ((lastPrice - averagePurchasePrice) / averagePurchasePrice) * 100;
@@ -58,6 +65,11 @@ function formatHoldingNumber(value?: number, digits = 4) {
 function formatHoldingCurrency(value: number | undefined, currency: "KRW" | "USD" | undefined, digits = 4) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   return formatCurrency(value, currency ?? "USD", digits);
+}
+
+function positiveNumber(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function normalizeMarketCode(value?: string, currency?: "KRW" | "USD", symbol?: string): MarketCode {
@@ -110,6 +122,18 @@ function createHoldingFormState({
   };
 }
 
+function createTradeFormState({
+  lastPrice,
+  purchaseExchangeRate
+}: Pick<AdminHoldingFormProps, "lastPrice" | "purchaseExchangeRate">): TradeFormState {
+  return {
+    side: "BUY",
+    quantity: "",
+    orderPrice: lastPrice?.toString() ?? "",
+    exchangeRate: purchaseExchangeRate?.toString() ?? ""
+  };
+}
+
 export function AdminHoldingForm({
   symbol,
   name,
@@ -143,11 +167,72 @@ export function AdminHoldingForm({
     [alias, averagePurchasePrice, currency, lastPrice, marketCountry, name, purchaseExchangeRate, quantity, symbol]
   );
   const [form, setForm] = useState<HoldingFormState>(initialForm);
+  const initialTradeForm = useMemo(
+    () => createTradeFormState({ lastPrice, purchaseExchangeRate }),
+    [lastPrice, purchaseExchangeRate]
+  );
+  const [tradeForm, setTradeForm] = useState<TradeFormState>(initialTradeForm);
 
   const computedRate = useMemo(
     () => profitLossRate(Number(form.lastPrice), Number(form.averagePurchasePrice)),
     [form.averagePurchasePrice, form.lastPrice]
   );
+  const tradePreview = useMemo(() => {
+    const tradeQuantity = positiveNumber(tradeForm.quantity);
+    const tradePrice = positiveNumber(tradeForm.orderPrice);
+    const currentQuantity = quantity ?? 0;
+    const currentAveragePrice = averagePurchasePrice && averagePurchasePrice > 0 ? averagePurchasePrice : lastPrice;
+
+    if (!tradeQuantity || !tradePrice || !currentQuantity) {
+      return {
+        isValid: false,
+        quantity: undefined,
+        averagePurchasePrice,
+        purchaseExchangeRate
+      };
+    }
+
+    if (tradeForm.side === "SELL") {
+      const nextQuantity = currentQuantity - tradeQuantity;
+      return {
+        isValid: nextQuantity >= -0.0000001,
+        quantity: Math.max(0, nextQuantity),
+        averagePurchasePrice,
+        purchaseExchangeRate
+      };
+    }
+
+    const currentNativeCost = (currentAveragePrice ?? tradePrice) * currentQuantity;
+    const tradeNativeCost = tradePrice * tradeQuantity;
+    const nextQuantity = currentQuantity + tradeQuantity;
+    const nextAveragePurchasePrice = (currentNativeCost + tradeNativeCost) / nextQuantity;
+    const tradeExchangeRate = positiveNumber(tradeForm.exchangeRate);
+    let nextPurchaseExchangeRate = purchaseExchangeRate;
+
+    if (currency === "USD" && tradeExchangeRate) {
+      const currentExchangeRate = purchaseExchangeRate ?? tradeExchangeRate;
+      nextPurchaseExchangeRate =
+        (currentNativeCost * currentExchangeRate + tradeNativeCost * tradeExchangeRate) /
+        (currentNativeCost + tradeNativeCost);
+    }
+
+    return {
+      isValid: true,
+      quantity: nextQuantity,
+      averagePurchasePrice: nextAveragePurchasePrice,
+      purchaseExchangeRate: nextPurchaseExchangeRate
+    };
+  }, [
+    averagePurchasePrice,
+    currency,
+    lastPrice,
+    purchaseExchangeRate,
+    quantity,
+    tradeForm.exchangeRate,
+    tradeForm.orderPrice,
+    tradeForm.quantity,
+    tradeForm.side
+  ]);
 
   function clearSearchFailure() {
     if (searchFailureTimeoutRef.current) {
@@ -244,6 +329,7 @@ export function AdminHoldingForm({
     setIsSearching(false);
     clearSearchFailure();
     setForm(initialForm);
+    setTradeForm(initialTradeForm);
   }
 
   if (!symbol && !isOpen) {
@@ -475,6 +561,98 @@ export function AdminHoldingForm({
               />
             </Field>
           </div>
+
+          {symbol ? (
+            <section className="holding-trade-panel" aria-labelledby={`holding-trade-title-${symbol}`}>
+              <input name="tradeSymbol" type="hidden" value={symbol} />
+              <header>
+                <h4 id={`holding-trade-title-${symbol}`}>거래 적용</h4>
+                <div className="trade-side-toggle" role="radiogroup" aria-label="거래 구분">
+                  {(["BUY", "SELL"] as TradeSide[]).map((side) => (
+                    <label className={tradeForm.side === side ? "selected" : undefined} key={side}>
+                      <input
+                        checked={tradeForm.side === side}
+                        name="side"
+                        type="radio"
+                        value={side}
+                        onChange={() => setTradeForm((current) => ({ ...current, side }))}
+                      />
+                      <span>{side === "BUY" ? "매수" : "매도"}</span>
+                    </label>
+                  ))}
+                </div>
+              </header>
+              <div className="holding-trade-grid">
+                <Field htmlFor={`trade-quantity-${symbol}`} label="거래 수량">
+                  <FormattedNumberInput
+                    allowDecimal
+                    id={`trade-quantity-${symbol}`}
+                    name="tradeQuantity"
+                    step="0.000001"
+                    min="0"
+                    value={tradeForm.quantity}
+                    onValueChange={(value) => setTradeForm((current) => ({ ...current, quantity: value }))}
+                  />
+                </Field>
+                <Field htmlFor={`trade-price-${symbol}`} label={`거래가 (${currencySymbol(currency ?? "USD")})`}>
+                  <FormattedNumberInput
+                    allowDecimal
+                    id={`trade-price-${symbol}`}
+                    name="orderPrice"
+                    step="0.000001"
+                    min="0"
+                    value={tradeForm.orderPrice}
+                    onValueChange={(value) => setTradeForm((current) => ({ ...current, orderPrice: value }))}
+                  />
+                </Field>
+                <Field htmlFor={`trade-fx-${symbol}`} label="거래환율 (₩)">
+                  <FormattedNumberInput
+                    allowDecimal
+                    id={`trade-fx-${symbol}`}
+                    name="exchangeRate"
+                    step="0.01"
+                    min="500"
+                    max="3000"
+                    value={tradeForm.exchangeRate}
+                    disabled={currency !== "USD"}
+                    onValueChange={(value) => setTradeForm((current) => ({ ...current, exchangeRate: value }))}
+                  />
+                </Field>
+              </div>
+              <div className="holding-trade-result">
+                <ComputedValue
+                  label="적용 후 수량"
+                  value={
+                    tradePreview.isValid
+                      ? `${formatHoldingNumber(tradePreview.quantity)}주`
+                      : tradeForm.side === "SELL"
+                        ? "수량 부족"
+                        : "-"
+                  }
+                />
+                <ComputedValue
+                  label="적용 후 평단"
+                  value={formatHoldingCurrency(tradePreview.averagePurchasePrice, currency, 6)}
+                />
+                {currency === "USD" ? (
+                  <ComputedValue
+                    label="적용 후 환율"
+                    value={formatHoldingCurrency(tradePreview.purchaseExchangeRate, "KRW", 2)}
+                  />
+                ) : null}
+                <button
+                  className="secondary"
+                  disabled={!tradePreview.isValid}
+                  formAction="/api/admin/portfolio/trade"
+                  formMethod="post"
+                  formNoValidate
+                  type="submit"
+                >
+                  거래 적용
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           <footer className="holding-modal-actions">
             <ComputedValue label="손익률" value={computedRate === null ? "-" : `${computedRate.toFixed(2)}%`} />
