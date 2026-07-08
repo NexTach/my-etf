@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { getUserSession } from "@/lib/session";
 import { updateIntentStatus } from "@/lib/store";
 
@@ -16,11 +17,9 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_status", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_status"));
   }
 
   await updateIntentStatus(parsed.data);
-  return NextResponse.redirect(new URL("/admin?updated=1", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("updated"));
 }

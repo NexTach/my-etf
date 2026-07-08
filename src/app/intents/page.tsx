@@ -1,13 +1,13 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { ArrowDownToLine, ArrowUpRight, CircleDollarSign, ShieldAlert } from "lucide-react";
-import { redirect } from "next/navigation";
-import { AuthNavActions } from "@/app/components/auth-actions";
+import { ArrowDownToLine, ArrowUpRight, CircleDollarSign, LockKeyhole, ShieldAlert } from "lucide-react";
+import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
 import { ToastStack, type ToastMessage } from "@/app/components/toast";
 import {
   AppShell,
   Badge,
+  CtaPanel,
   Empty,
   Field,
   Form,
@@ -23,46 +23,13 @@ import {
   Top
 } from "@/app/components/tds";
 import { formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
+import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 import { withdrawalLimitForUser } from "@/lib/withdrawal-limit";
 import { TermsAgreement } from "./TermsAgreement";
 import { WithdrawalAmountSlider } from "./WithdrawalAmountSlider";
-
-type IntentPageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
-
-function firstParam(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function intentToastMessages(params: Record<string, string | string[] | undefined>): ToastMessage[] {
-  const messages: ToastMessage[] = [];
-  const error = firstParam(params.error);
-
-  if (params.submitted) {
-    messages.push({
-      id: "submitted",
-      title: "의향서가 제출되었습니다",
-      description: "관리자가 확인 후 상태를 변경합니다.",
-      tone: "success"
-    });
-  }
-  if (error) {
-    const title =
-      error === "terms_required"
-        ? "약관 동의가 필요합니다"
-        : "입력값을 다시 확인해주세요";
-    messages.push({
-      id: "error",
-      title,
-      tone: "error"
-    });
-  }
-  return messages;
-}
 
 function statusClass(status: string): "accepted" | "rejected" | "pending" {
   if (status === "ACCEPTED") return "accepted";
@@ -79,11 +46,40 @@ async function readProductDescription() {
   return fs.readFile(filePath, "utf8");
 }
 
-export default async function IntentsPage({ searchParams }: IntentPageProps) {
-  const user = await getUserSession();
-  if (!user) redirect("/?loginRequired=1");
+function IntentGate({ messages }: { messages: ToastMessage[] }) {
+  return (
+    <AppShell>
+      <ToastStack messages={messages} clearCookieName={FLASH_COOKIE_NAME} />
 
-  const params = (await searchParams) ?? {};
+      <Navigation
+        title="의향서 로그인"
+        actions={<AuthNavActions user={null} />}
+      />
+
+      <Top
+        title="로그인이 필요해요"
+        description="투자 의향서와 출금 의향서는 DataGSM 인증 후 작성할 수 있습니다."
+        backLink={{ href: "/" }}
+      />
+
+      <CtaPanel className="max-w-gate">
+        <h2>
+          <LockKeyhole size={18} /> DataGSM 인증 필요
+        </h2>
+        <p className="lede">
+          DataGSM으로 로그인한 뒤 의향서를 작성하고 제출 내역을 확인할 수 있습니다.
+        </p>
+        <DataGsmLoginButton />
+      </CtaPanel>
+    </AppShell>
+  );
+}
+
+export default async function IntentsPage() {
+  const user = await getUserSession();
+  const flashMessages = await getFlashMessages();
+  if (!user) return <IntentGate messages={flashMessages} />;
+
   const [portfolio, store, termsMarkdown] = await Promise.all([
     getManualPortfolioOverview(),
     readStore(),
@@ -97,7 +93,7 @@ export default async function IntentsPage({ searchParams }: IntentPageProps) {
 
   return (
     <AppShell>
-      <ToastStack messages={intentToastMessages(params)} />
+      <ToastStack messages={flashMessages} clearCookieName={FLASH_COOKIE_NAME} />
 
       <Navigation
         title="T-ETF"

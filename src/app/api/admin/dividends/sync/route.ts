@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
 import { fetchDividendRecordFromMarket } from "@/lib/market-data";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { getUserSession } from "@/lib/session";
 import { upsertDividendRecord } from "@/lib/dividends";
 
@@ -15,18 +16,14 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_dividend_sync", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_dividend_sync"));
   }
 
   const record = await fetchDividendRecordFromMarket(parsed.data.symbol);
   if (!record) {
-    return NextResponse.redirect(new URL("/admin?error=dividend_sync_failed", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("dividend_sync_failed"));
   }
 
   await upsertDividendRecord(record);
-  return NextResponse.redirect(new URL("/admin?dividend=synced", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("dividend", "synced"));
 }

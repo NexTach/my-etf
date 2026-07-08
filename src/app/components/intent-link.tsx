@@ -20,7 +20,7 @@ export function IntentLink({ signedIn }: { signedIn: boolean }) {
       <ToastStack messages={message ? [message] : []} />
       <Link
         className="button"
-        href="/?loginRequired=1"
+        href="/intents"
         onClick={(event) => {
           event.preventDefault();
           setMessage({

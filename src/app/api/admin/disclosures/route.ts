@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
 import { upsertDisclosure } from "@/lib/disclosures";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { getUserSession } from "@/lib/session";
 
 const sideSchema = z.enum(["BUY", "SELL"]);
@@ -63,19 +64,19 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_disclosure", request.url), { status: 303 });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_disclosure"));
   }
 
   const trades = parseTrades(parsed.data.tradesJson);
   if (!trades) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_disclosure_trade", request.url), { status: 303 });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_disclosure_trade"));
   }
 
   const normalizedTrades = [];
   for (const trade of trades) {
     const orderedAt = parseOrderedAt(trade.orderedAt);
     if (!orderedAt) {
-      return NextResponse.redirect(new URL("/admin?error=invalid_disclosure_trade", request.url), { status: 303 });
+      return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_disclosure_trade"));
     }
 
     normalizedTrades.push({
@@ -95,7 +96,9 @@ export async function POST(request: Request) {
     trades: normalizedTrades
   });
 
-  return NextResponse.redirect(new URL(`/admin?disclosure=${parsed.data.id ? "updated" : "created"}`, request.url), {
-    status: 303
-  });
+  return redirectWithFlash(
+    request,
+    "/admin",
+    adminSuccessFlash("disclosure", parsed.data.id ? "updated" : "created")
+  );
 }

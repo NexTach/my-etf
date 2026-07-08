@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
+import { intentErrorFlash, intentSubmittedFlash, loginRequiredFlash, redirectWithFlash } from "@/lib/flash";
 import { getUserSession } from "@/lib/session";
 import { createInvestmentIntent } from "@/lib/store";
 
@@ -14,14 +14,14 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const user = await getUserSession();
-  if (!user) return NextResponse.redirect(new URL("/?loginRequired=1", request.url), { status: 303 });
+  if (!user) return redirectWithFlash(request, "/intents", loginRequiredFlash());
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
     const error = parsed.error.issues.some((issue) => issue.path[0] === "termsAgreed")
       ? "terms_required"
       : "invalid_investment";
-    return NextResponse.redirect(new URL(`/intents?error=${error}`, request.url), { status: 303 });
+    return redirectWithFlash(request, "/intents", intentErrorFlash(error));
   }
 
   await createInvestmentIntent({
@@ -35,5 +35,5 @@ export async function POST(request: Request) {
     note: parsed.data.note
   });
 
-  return NextResponse.redirect(new URL("/intents?submitted=investment", request.url), { status: 303 });
+  return redirectWithFlash(request, "/intents", intentSubmittedFlash());
 }

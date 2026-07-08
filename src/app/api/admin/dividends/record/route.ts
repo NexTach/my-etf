@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
 import { upsertDividendRecord } from "@/lib/dividends";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { getUserSession } from "@/lib/session";
 
 const schema = z.object({
@@ -27,16 +28,12 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_dividend", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_dividend"));
   }
 
   const expectedPaymentMonths = parseMonths(parsed.data.expectedPaymentMonths);
   if (expectedPaymentMonths.length === 0) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_dividend_months", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_dividend_months"));
   }
 
   await upsertDividendRecord({
@@ -50,5 +47,5 @@ export async function POST(request: Request) {
     memo: parsed.data.memo
   });
 
-  return NextResponse.redirect(new URL("/admin?dividend=updated", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("dividend", "updated"));
 }

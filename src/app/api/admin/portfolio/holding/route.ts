@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
 import { upsertDividendRecord } from "@/lib/dividends";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { fetchDividendRecordFromMarket } from "@/lib/market-data";
 import { upsertManualHolding } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
@@ -39,9 +40,7 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_holding", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_holding"));
   }
 
   const symbol = normalizeHoldingSymbol(parsed.data.symbol, parsed.data.currency, parsed.data.marketCountry);
@@ -63,5 +62,5 @@ export async function POST(request: Request) {
     console.error(`Dividend sync failed after holding update: ${symbol}`, error);
   }
 
-  return NextResponse.redirect(new URL("/admin?portfolio=updated", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("portfolio", "updated"));
 }

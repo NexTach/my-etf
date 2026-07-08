@@ -43,8 +43,14 @@ function ToastItem({ message }: { message: ToastMessage }) {
   );
 }
 
-export function ToastStack({ messages }: { messages: ToastMessage[] }) {
+export function ToastStack({ messages, clearCookieName }: { messages: ToastMessage[]; clearCookieName?: string }) {
   const visibleMessages = messages.filter(Boolean);
+
+  useEffect(() => {
+    if (!clearCookieName || visibleMessages.length === 0) return;
+    document.cookie = `${clearCookieName}=; Max-Age=0; path=/; SameSite=Lax`;
+  }, [clearCookieName, visibleMessages.length]);
+
   if (visibleMessages.length === 0) return null;
 
   return (

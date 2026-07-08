@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
 import { deleteDisclosure } from "@/lib/disclosures";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { getUserSession } from "@/lib/session";
 
 const schema = z.object({
@@ -14,9 +15,9 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_disclosure_delete", request.url), { status: 303 });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_disclosure_delete"));
   }
 
   await deleteDisclosure(parsed.data.id);
-  return NextResponse.redirect(new URL("/admin?disclosure=deleted", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("disclosure", "deleted"));
 }

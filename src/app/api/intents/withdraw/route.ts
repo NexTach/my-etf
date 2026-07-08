@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
+import { intentErrorFlash, intentSubmittedFlash, loginRequiredFlash, redirectWithFlash } from "@/lib/flash";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { createWithdrawalIntent, readStore } from "@/lib/store";
@@ -17,20 +17,20 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const user = await getUserSession();
-  if (!user) return NextResponse.redirect(new URL("/?loginRequired=1", request.url), { status: 303 });
+  if (!user) return redirectWithFlash(request, "/intents", loginRequiredFlash());
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
     const error = parsed.error.issues.some((issue) => issue.path[0] === "termsAgreed")
       ? "terms_required"
       : "invalid_withdrawal";
-    return NextResponse.redirect(new URL(`/intents?error=${error}`, request.url), { status: 303 });
+    return redirectWithFlash(request, "/intents", intentErrorFlash(error));
   }
 
   const [portfolio, store] = await Promise.all([getManualPortfolioOverview(), readStore()]);
   const limit = withdrawalLimitForUser(store, portfolio, user.id);
   if (limit.principalKrw <= 0 || parsed.data.amountKrw > limit.maxAmountKrw) {
-    return NextResponse.redirect(new URL("/intents?error=withdrawal_limit", request.url), { status: 303 });
+    return redirectWithFlash(request, "/intents", intentErrorFlash("withdrawal_limit"));
   }
 
   await createWithdrawalIntent({
@@ -45,5 +45,5 @@ export async function POST(request: Request) {
     note: parsed.data.note
   });
 
-  return NextResponse.redirect(new URL("/intents?submitted=withdrawal", request.url), { status: 303 });
+  return redirectWithFlash(request, "/intents", intentSubmittedFlash());
 }

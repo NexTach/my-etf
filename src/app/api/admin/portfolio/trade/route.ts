@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { applyManualHoldingTrade } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 
@@ -21,9 +22,7 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_trade", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_trade"));
   }
 
   const result = await applyManualHoldingTrade({
@@ -35,12 +34,12 @@ export async function POST(request: Request) {
   });
 
   if (result.status === "not_found") {
-    return NextResponse.redirect(new URL("/admin?error=trade_not_found", request.url), { status: 303 });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("trade_not_found"));
   }
 
   if (result.status === "insufficient_quantity") {
-    return NextResponse.redirect(new URL("/admin?error=trade_insufficient", request.url), { status: 303 });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("trade_insufficient"));
   }
 
-  return NextResponse.redirect(new URL("/admin?portfolio=traded", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("portfolio", "traded"));
 }

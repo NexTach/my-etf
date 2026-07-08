@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeDataGsmCode, fetchDataGsmUser, toEligibleAppUser } from "@/lib/datagsm";
+import { authErrorFlash, redirectWithFlash } from "@/lib/flash";
 import { setUserSession } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   cookieStore.delete("datagsm_code_verifier");
 
   if (!code || !state || !savedState || !codeVerifier || state !== savedState) {
-    return NextResponse.redirect(new URL("/?authError=oauth_state", request.url));
+    return redirectWithFlash(request, "/", authErrorFlash("oauth_state"), 307);
   }
 
   try {
@@ -28,13 +29,13 @@ export async function GET(request: NextRequest) {
     const appUser = toEligibleAppUser(dataGsmUser);
 
     if (!appUser) {
-      return NextResponse.redirect(new URL("/?authError=not_eligible", request.url));
+      return redirectWithFlash(request, "/", authErrorFlash("not_eligible"), 307);
     }
 
     await setUserSession(appUser);
     return NextResponse.redirect(new URL("/", request.url));
   } catch (error) {
     console.error(error);
-    return NextResponse.redirect(new URL("/?authError=oauth_failed", request.url));
+    return redirectWithFlash(request, "/", authErrorFlash("oauth_failed"), 307);
   }
 }

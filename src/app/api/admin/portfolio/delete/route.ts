@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminUser } from "@/lib/admin";
+import { adminErrorFlash, adminSuccessFlash, redirectWithFlash } from "@/lib/flash";
 import { deleteManualHolding } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 
@@ -14,11 +15,9 @@ export async function POST(request: Request) {
 
   const parsed = schema.safeParse(Object.fromEntries((await request.formData()).entries()));
   if (!parsed.success) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_delete", request.url), {
-      status: 303
-    });
+    return redirectWithFlash(request, "/admin", adminErrorFlash("invalid_delete"));
   }
 
   await deleteManualHolding(parsed.data.symbol);
-  return NextResponse.redirect(new URL("/admin?portfolio=deleted", request.url), { status: 303 });
+  return redirectWithFlash(request, "/admin", adminSuccessFlash("portfolio", "deleted"));
 }
