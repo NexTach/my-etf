@@ -8,12 +8,14 @@ import {
   List,
   ListRow,
   Navigation,
+  Pagination,
   RowMeta,
   TextLink,
   Top
 } from "@/app/components/tds";
 import { readDisclosures } from "@/lib/disclosures";
 import { formatDateTime } from "@/lib/format";
+import { pageFromSearchParams, paginateItems } from "@/lib/pagination";
 import { getUserSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -21,11 +23,23 @@ export const metadata: Metadata = {
   description: "T-ETF 공시 목록"
 };
 
-export default async function DisclosuresPage() {
+type DisclosuresProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const DISCLOSURES_PAGE_SIZE = 10;
+
+export default async function DisclosuresPage({ searchParams }: DisclosuresProps) {
   const user = await getUserSession();
   if (!user) redirect("/login");
 
+  const params = (await searchParams) ?? {};
   const disclosures = await readDisclosures();
+  const paginatedDisclosures = paginateItems(
+    disclosures,
+    pageFromSearchParams(params, "page"),
+    DISCLOSURES_PAGE_SIZE
+  );
 
   return (
     <AppShell>
@@ -48,19 +62,27 @@ export default async function DisclosuresPage() {
       />
 
       {disclosures.length > 0 ? (
-        <List className="disclosure-list">
-          {disclosures.map((disclosure) => (
-            <ListRow
-              key={disclosure.id}
-              title={<TextLink href={`/disclosures/${disclosure.id}`}>{disclosure.title}</TextLink>}
-              description={disclosure.body.slice(0, 100) + (disclosure.body.length > 100 ? "..." : "")}
-              value={<TextLink href={`/disclosures/${disclosure.id}`}>상세</TextLink>}
-            >
-              <RowMeta>{formatDateTime(disclosure.createdAt)}</RowMeta>
-              <DisclosureTradeSummary trades={disclosure.trades} />
-            </ListRow>
-          ))}
-        </List>
+        <>
+          <List className="disclosure-list">
+            {paginatedDisclosures.items.map((disclosure) => (
+              <ListRow
+                key={disclosure.id}
+                title={<TextLink href={`/disclosures/${disclosure.id}`}>{disclosure.title}</TextLink>}
+                description={disclosure.body.slice(0, 100) + (disclosure.body.length > 100 ? "..." : "")}
+                value={<TextLink href={`/disclosures/${disclosure.id}`}>상세</TextLink>}
+              >
+                <RowMeta>{formatDateTime(disclosure.createdAt)}</RowMeta>
+                <DisclosureTradeSummary trades={disclosure.trades} />
+              </ListRow>
+            ))}
+          </List>
+          <Pagination
+            label="공시 페이지"
+            pageInfo={paginatedDisclosures.pageInfo}
+            pageParam="page"
+            searchParams={params}
+          />
+        </>
       ) : (
         <Empty>등록된 공시가 없습니다.</Empty>
       )}

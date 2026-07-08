@@ -11,6 +11,7 @@ import {
   Metric,
   MutedText,
   Navigation,
+  Pagination,
   Panel,
   SectionHeader,
   TableSurface,
@@ -20,6 +21,7 @@ import { isAdminUser } from "@/lib/admin";
 import { readDisclosures } from "@/lib/disclosures";
 import { readDividendRecords } from "@/lib/dividends";
 import { formatCurrency, formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
+import { pageFromSearchParams, paginateItems } from "@/lib/pagination";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -29,6 +31,12 @@ import type { IntentStatus } from "@/lib/types";
 type AdminProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const ADMIN_DISCLOSURES_PAGE_SIZE = 8;
+const ADMIN_PORTFOLIO_PAGE_SIZE = 8;
+const ADMIN_DIVIDEND_PAGE_SIZE = 8;
+const ADMIN_DETACHED_DIVIDEND_PAGE_SIZE = 8;
+const ADMIN_INTENTS_PAGE_SIZE = 10;
 
 function statusClass(status: string): "accepted" | "rejected" | "pending" {
   if (status === "ACCEPTED") return "accepted";
@@ -192,6 +200,40 @@ export default async function AdminPage({ searchParams }: AdminProps) {
   const dividendRecordsBySymbol = new Map(
     dividendRecords.map((record) => [record.symbol.toUpperCase(), record])
   );
+  const portfolioSymbols = new Set(portfolio.holdings.map((holding) => holding.symbol.toUpperCase()));
+  const detachedDividendRecords = dividendRecords.filter(
+    (record) => !portfolioSymbols.has(record.symbol.toUpperCase())
+  );
+  const paginatedDisclosures = paginateItems(
+    disclosures,
+    pageFromSearchParams(params, "disclosurePage"),
+    ADMIN_DISCLOSURES_PAGE_SIZE
+  );
+  const paginatedPortfolioHoldings = paginateItems(
+    portfolio.holdings,
+    pageFromSearchParams(params, "portfolioPage"),
+    ADMIN_PORTFOLIO_PAGE_SIZE
+  );
+  const paginatedDividendHoldings = paginateItems(
+    portfolio.holdings,
+    pageFromSearchParams(params, "dividendPage"),
+    ADMIN_DIVIDEND_PAGE_SIZE
+  );
+  const paginatedDetachedDividendRecords = paginateItems(
+    detachedDividendRecords,
+    pageFromSearchParams(params, "detachedDividendPage"),
+    ADMIN_DETACHED_DIVIDEND_PAGE_SIZE
+  );
+  const paginatedInvestmentIntents = paginateItems(
+    store.investmentIntents,
+    pageFromSearchParams(params, "investmentPage"),
+    ADMIN_INTENTS_PAGE_SIZE
+  );
+  const paginatedWithdrawalIntents = paginateItems(
+    store.withdrawalIntents,
+    pageFromSearchParams(params, "withdrawalPage"),
+    ADMIN_INTENTS_PAGE_SIZE
+  );
 
   return (
     <AppShell>
@@ -215,7 +257,11 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         <Metric label="포트폴리오 평가금액" value={formatKrw(portfolio.totalMarketValueKrw)} />
       </Grid>
 
-      <SectionHeader title="공시" description="사용자에게 노출되는 공시와 첨부 거래 이력을 관리합니다." />
+      <SectionHeader
+        id="admin-disclosures"
+        title="공시"
+        description="사용자에게 노출되는 공시와 첨부 거래 이력을 관리합니다."
+      />
 
       <Panel>
         <div className="admin-panel-header">
@@ -235,7 +281,7 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               </tr>
             </thead>
             <tbody>
-              {disclosures.map((disclosure) => (
+              {paginatedDisclosures.items.map((disclosure) => (
                 <tr key={disclosure.id}>
                   <td>
                     <strong>{disclosure.title}</strong>
@@ -268,9 +314,20 @@ export default async function AdminPage({ searchParams }: AdminProps) {
             </tbody>
           </table>
         </TableSurface>
+        <Pagination
+          anchor="admin-disclosures"
+          label="관리자 공시 페이지"
+          pageInfo={paginatedDisclosures.pageInfo}
+          pageParam="disclosurePage"
+          searchParams={params}
+        />
       </Panel>
 
-      <SectionHeader title="운영 포트폴리오" description="보유 종목, 수량, 현재가, USD 매입환율을 관리합니다." />
+      <SectionHeader
+        id="admin-portfolio"
+        title="운영 포트폴리오"
+        description="보유 종목, 수량, 현재가, USD 매입환율을 관리합니다."
+      />
 
       <Panel>
         <h2>운영 포트폴리오 관리</h2>
@@ -283,7 +340,7 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               </tr>
             </thead>
             <tbody>
-              {portfolio.holdings.map((holding) => (
+              {paginatedPortfolioHoldings.items.map((holding) => (
                 <tr key={holding.symbol}>
                   <td>
                     <AdminHoldingForm {...holding} />
@@ -299,9 +356,20 @@ export default async function AdminPage({ searchParams }: AdminProps) {
             </tbody>
           </table>
         </TableSurface>
+        <Pagination
+          anchor="admin-portfolio"
+          label="운영 포트폴리오 페이지"
+          pageInfo={paginatedPortfolioHoldings.pageInfo}
+          pageParam="portfolioPage"
+          searchParams={params}
+        />
       </Panel>
 
-      <SectionHeader title="배당 데이터" description="포트폴리오 종목의 배당 데이터는 외부 데이터로 동기화합니다." />
+      <SectionHeader
+        id="admin-dividends"
+        title="배당 데이터"
+        description="포트폴리오 종목의 배당 데이터는 외부 데이터로 동기화합니다."
+      />
 
       <Panel>
         <h2>배당 데이터 동기화</h2>
@@ -318,7 +386,7 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               </tr>
             </thead>
             <tbody>
-              {portfolio.holdings.map((holding) => {
+              {paginatedDividendHoldings.items.map((holding) => {
                 const record = dividendRecordsBySymbol.get(holding.symbol.toUpperCase());
                 const secondaryLabel = stockSecondaryLabel(holding);
                 return (
@@ -357,10 +425,17 @@ export default async function AdminPage({ searchParams }: AdminProps) {
             </tbody>
           </table>
         </TableSurface>
+        <Pagination
+          anchor="admin-dividends"
+          label="배당 데이터 페이지"
+          pageInfo={paginatedDividendHoldings.pageInfo}
+          pageParam="dividendPage"
+          searchParams={params}
+        />
       </Panel>
 
-      {dividendRecords.length > portfolio.holdings.length ? (
-        <Panel className="mt-12">
+      {detachedDividendRecords.length > 0 ? (
+        <Panel className="mt-12" id="admin-detached-dividends">
           <h2>포트폴리오 외 배당 데이터</h2>
           <TableSurface className="dividend-table compact">
             <table>
@@ -372,34 +447,38 @@ export default async function AdminPage({ searchParams }: AdminProps) {
                 </tr>
               </thead>
               <tbody>
-                {dividendRecords
-                  .filter(
-                    (record) =>
-                      !portfolio.holdings.some(
-                        (holding) => holding.symbol.toUpperCase() === record.symbol.toUpperCase()
-                      )
-                  )
-                  .map((record) => (
-                    <tr key={record.symbol}>
-                      <td>{record.symbol}</td>
-                      <td>{formatDividendAmount(record.annualDividendPerShare, record.currency)}</td>
-                      <td>
-                        <form action="/api/admin/dividends/delete" method="post">
-                          <input type="hidden" name="symbol" value={record.symbol} />
-                          <button className="ghost" type="submit">
-                            삭제
-                          </button>
-                        </form>
-                      </td>
-                    </tr>
-                  ))}
+                {paginatedDetachedDividendRecords.items.map((record) => (
+                  <tr key={record.symbol}>
+                    <td>{record.symbol}</td>
+                    <td>{formatDividendAmount(record.annualDividendPerShare, record.currency)}</td>
+                    <td>
+                      <form action="/api/admin/dividends/delete" method="post">
+                        <input type="hidden" name="symbol" value={record.symbol} />
+                        <button className="ghost" type="submit">
+                          삭제
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </TableSurface>
+          <Pagination
+            anchor="admin-detached-dividends"
+            label="포트폴리오 외 배당 데이터 페이지"
+            pageInfo={paginatedDetachedDividendRecords.pageInfo}
+            pageParam="detachedDividendPage"
+            searchParams={params}
+          />
         </Panel>
       ) : null}
 
-      <SectionHeader title="투자 의향서" description="신청자 정보와 보호자 확인 여부를 보고 상태를 저장합니다." />
+      <SectionHeader
+        id="admin-investments"
+        title="투자 의향서"
+        description="신청자 정보와 보호자 확인 여부를 보고 상태를 저장합니다."
+      />
 
       <Panel>
         <h2>투자 의향서</h2>
@@ -418,7 +497,7 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               </tr>
             </thead>
             <tbody>
-              {store.investmentIntents.map((intent) => (
+              {paginatedInvestmentIntents.items.map((intent) => (
                 <tr key={intent.id}>
                   <td>
                     <strong>{intent.userName}</strong>
@@ -446,9 +525,20 @@ export default async function AdminPage({ searchParams }: AdminProps) {
             </tbody>
           </table>
         </TableSurface>
+        <Pagination
+          anchor="admin-investments"
+          label="투자 의향서 페이지"
+          pageInfo={paginatedInvestmentIntents.pageInfo}
+          pageParam="investmentPage"
+          searchParams={params}
+        />
       </Panel>
 
-      <SectionHeader title="출금 의향서" description="계좌 정보와 연락처를 확인한 뒤 상태를 저장합니다." />
+      <SectionHeader
+        id="admin-withdrawals"
+        title="출금 의향서"
+        description="계좌 정보와 연락처를 확인한 뒤 상태를 저장합니다."
+      />
 
       <Panel>
         <h2>출금 의향서</h2>
@@ -467,7 +557,7 @@ export default async function AdminPage({ searchParams }: AdminProps) {
               </tr>
             </thead>
             <tbody>
-              {store.withdrawalIntents.map((intent) => (
+              {paginatedWithdrawalIntents.items.map((intent) => (
                 <tr key={intent.id}>
                   <td>
                     <strong>{intent.userName}</strong>
@@ -499,6 +589,13 @@ export default async function AdminPage({ searchParams }: AdminProps) {
             </tbody>
           </table>
         </TableSurface>
+        <Pagination
+          anchor="admin-withdrawals"
+          label="출금 의향서 페이지"
+          pageInfo={paginatedWithdrawalIntents.pageInfo}
+          pageParam="withdrawalPage"
+          searchParams={params}
+        />
       </Panel>
 
       <SectionHeader

@@ -1,6 +1,7 @@
 import type { CSSProperties, ElementType, FormHTMLAttributes, ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import type { PaginationInfo, SearchParams } from "@/lib/pagination";
 
 type WithChildren = {
   children: ReactNode;
@@ -41,6 +42,29 @@ function formatTdsNumber(value: number) {
 
 function formatTdsPercent(value: number) {
   return `${formatTdsNumber(value * 100)}%`;
+}
+
+function paginationHref(searchParams: SearchParams, pageParam: string, page: number, anchor?: string) {
+  const params = new URLSearchParams();
+
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (key === pageParam || value === undefined) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => params.append(key, item));
+      return;
+    }
+    params.set(key, value);
+  });
+
+  if (page > 1) params.set(pageParam, String(page));
+  const query = params.toString();
+  if (anchor) return `${query ? `?${query}` : ""}#${anchor}`;
+  return query ? `?${query}` : ".";
+}
+
+function paginationPages(currentPage: number, totalPages: number) {
+  const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  return [...pages].filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
 }
 
 export function AppShell({ children, className }: WithChildren) {
@@ -167,8 +191,12 @@ export function Grid({
   return <section className={cx("grid", columnClass, className)}>{children}</section>;
 }
 
-export function Panel({ children, className }: WithChildren) {
-  return <section className={cx("panel", className)}>{children}</section>;
+export function Panel({ children, className, id }: WithChildren & { id?: string }) {
+  return (
+    <section className={cx("panel", className)} id={id}>
+      {children}
+    </section>
+  );
 }
 
 export function CtaPanel({ children, className }: WithChildren) {
@@ -311,6 +339,67 @@ export function TableSurface({ children, className }: WithChildren) {
 
 export function Stack({ children, className }: WithChildren) {
   return <div className={cx("stack", className)}>{children}</div>;
+}
+
+export function Pagination({
+  pageInfo,
+  pageParam,
+  searchParams,
+  anchor,
+  label = "페이지"
+}: {
+  pageInfo: PaginationInfo;
+  pageParam: string;
+  searchParams: SearchParams;
+  anchor?: string;
+  label?: string;
+}) {
+  if (pageInfo.totalPages <= 1) return null;
+
+  const pages = paginationPages(pageInfo.page, pageInfo.totalPages);
+  let previousRenderedPage = 0;
+
+  return (
+    <nav className="pagination" aria-label={label}>
+      <p>
+        {pageInfo.startItem}-{pageInfo.endItem} / {pageInfo.totalItems}
+      </p>
+      <div className="pagination-controls">
+        <Link
+          aria-disabled={pageInfo.page === 1}
+          aria-label="이전 페이지"
+          className={cx("pagination-button icon", pageInfo.page === 1 && "disabled")}
+          href={paginationHref(searchParams, pageParam, Math.max(1, pageInfo.page - 1), anchor)}
+        >
+          <ChevronLeft size={16} />
+        </Link>
+        {pages.map((page) => {
+          const hasGap = previousRenderedPage > 0 && page - previousRenderedPage > 1;
+          previousRenderedPage = page;
+          return (
+            <span className="pagination-page-group" key={page}>
+              {hasGap ? <span className="pagination-ellipsis">...</span> : null}
+              <Link
+                aria-current={page === pageInfo.page ? "page" : undefined}
+                className={cx("pagination-button", page === pageInfo.page && "active")}
+                href={paginationHref(searchParams, pageParam, page, anchor)}
+              >
+                {page}
+              </Link>
+            </span>
+          );
+        })}
+        <Link
+          aria-disabled={pageInfo.page === pageInfo.totalPages}
+          aria-label="다음 페이지"
+          className={cx("pagination-button icon", pageInfo.page === pageInfo.totalPages && "disabled")}
+          href={paginationHref(searchParams, pageParam, Math.min(pageInfo.totalPages, pageInfo.page + 1), anchor)}
+        >
+          <ChevronRight size={16} />
+        </Link>
+      </div>
+    </nav>
+  );
 }
 
 export function CompositionChart({

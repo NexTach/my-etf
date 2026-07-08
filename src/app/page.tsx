@@ -14,6 +14,7 @@ import {
   Metric,
   Navigation,
   Notice,
+  Pagination,
   Panel,
   RowMeta,
   SectionHeader,
@@ -34,6 +35,7 @@ import { readDisclosures } from "@/lib/disclosures";
 import { forecastDividend, summarizePortfolioDividend } from "@/lib/dividends";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles } from "@/lib/market-data";
+import { pageFromSearchParams, paginateItems } from "@/lib/pagination";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
@@ -41,6 +43,8 @@ import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/st
 type HomeProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const HOME_HOLDINGS_PAGE_SIZE = 8;
 
 function homeToastMessages(params: Record<string, string | string[] | undefined>): ToastMessage[] {
   const messages: ToastMessage[] = [];
@@ -133,6 +137,11 @@ export default async function Home({ searchParams }: HomeProps) {
       href: `/stocks/${encodeURIComponent(holding.symbol)}`,
       value: holding.marketValueKrw
     }));
+  const paginatedHoldings = paginateItems(
+    portfolio.holdings,
+    pageFromSearchParams(params, "holdingsPage"),
+    HOME_HOLDINGS_PAGE_SIZE
+  );
   return (
     <AppShell className="home-shell">
       <ToastStack messages={homeToastMessages(params)} />
@@ -272,7 +281,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <div className="home-dashboard-main">
           <List className="home-holdings-list">
-            {portfolio.holdings.map((holding) => {
+            {paginatedHoldings.items.map((holding) => {
               const chart = dailyCharts.get(holding.symbol);
               const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
               const secondaryLabel = stockSecondaryLabel(holding);
@@ -302,6 +311,13 @@ export default async function Home({ searchParams }: HomeProps) {
               );
             })}
           </List>
+          <Pagination
+            anchor="portfolio-section"
+            label="포트폴리오 종목 페이지"
+            pageInfo={paginatedHoldings.pageInfo}
+            pageParam="holdingsPage"
+            searchParams={params}
+          />
 
           <section>
             <SectionHeader title="예정 배당" description="현재 펀드 보유 수량 기준으로 예정 배당을 월별 또는 종목별로 확인합니다." />
