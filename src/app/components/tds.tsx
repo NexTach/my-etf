@@ -72,7 +72,6 @@ export function AppShell({ children, className }: WithChildren) {
 }
 
 export function Navigation({
-  title,
   actions,
   mark = "T"
 }: {
@@ -86,7 +85,7 @@ export function Navigation({
       <Link className="brand" href="/">
         <div className="brand-mark">{mark}</div>
         <div>
-          <h1>{title}</h1>
+          <h1>T-ETF</h1>
         </div>
       </Link>
       {actions ? <div className="nav-actions">{actions}</div> : null}
