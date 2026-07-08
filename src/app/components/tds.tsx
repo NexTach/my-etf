@@ -58,8 +58,8 @@ function paginationHref(searchParams: SearchParams, pageParam: string, page: num
 
   if (page > 1) params.set(pageParam, String(page));
   const query = params.toString();
-  if (anchor) return `${query ? `?${query}` : ""}#${anchor}`;
-  return query ? `?${query}` : ".";
+  if (anchor) return `${query ? `?${query}` : "?"}#${anchor}`;
+  return query ? `?${query}` : "?";
 }
 
 function paginationPages(currentPage: number, totalPages: number) {
