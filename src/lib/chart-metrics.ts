@@ -1,5 +1,5 @@
 import type { MarketCandle, MarketChart } from "@/lib/market-data";
-import type { Holding } from "@/lib/types";
+import type { Holding, PortfolioDailySnapshot } from "@/lib/types";
 
 export type ChartPoint = {
   date: string;
@@ -11,6 +11,13 @@ export function changeRateFromCandles(candles: MarketCandle[]) {
   const previous = candles.at(-2);
   if (!latest || !previous || previous.close <= 0) return undefined;
   return (latest.close - previous.close) / previous.close;
+}
+
+export function changeRateFromSnapshots(snapshots: PortfolioDailySnapshot[]) {
+  const latest = snapshots.at(-1);
+  const previous = snapshots.at(-2);
+  if (!latest || !previous || previous.totalMarketValueKrw <= 0) return undefined;
+  return (latest.totalMarketValueKrw - previous.totalMarketValueKrw) / previous.totalMarketValueKrw;
 }
 
 function previousCloseFromChart(chart?: MarketChart | null) {
@@ -61,6 +68,23 @@ export function pointsFromCandles(candles: MarketCandle[]) {
   return candles.map((candle) => ({
     date: candle.date,
     value: candle.close
+  }));
+}
+
+export function pointsFromSnapshots(snapshots: PortfolioDailySnapshot[]) {
+  return snapshots.map((snapshot) => ({
+    date: snapshot.date,
+    value: snapshot.totalMarketValueKrw
+  }));
+}
+
+export function candlesFromSnapshots(snapshots: PortfolioDailySnapshot[]) {
+  return snapshots.map((snapshot) => ({
+    date: snapshot.date,
+    open: snapshot.totalMarketValueKrw,
+    high: snapshot.totalMarketValueKrw,
+    low: snapshot.totalMarketValueKrw,
+    close: snapshot.totalMarketValueKrw
   }));
 }
 

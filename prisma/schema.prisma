@@ -22,6 +22,16 @@ model PortfolioHolding {
   updatedAt            DateTime @updatedAt
 }
 
+model PortfolioDailySnapshot {
+  snapshotDate        String   @id @db.VarChar(10)
+  totalMarketValueKrw Float
+  exchangeRate        Float
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 model DividendRecord {
   symbol                 String   @id
   currency               String

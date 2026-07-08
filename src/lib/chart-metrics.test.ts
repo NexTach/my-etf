@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { portfolioChangeRateFromMarketValue } from "./chart-metrics";
+import { changeRateFromSnapshots, portfolioChangeRateFromMarketValue } from "./chart-metrics";
 import type { MarketChart } from "./market-data";
 import type { Holding } from "./types";
 
@@ -91,5 +91,42 @@ describe("portfolioChangeRateFromMarketValue", () => {
     });
 
     assert.equal(rate, 0.1);
+  });
+});
+
+describe("changeRateFromSnapshots", () => {
+  it("uses stored daily portfolio total market values", () => {
+    const rate = changeRateFromSnapshots([
+      {
+        date: "2026-07-07",
+        totalMarketValueKrw: 100000,
+        exchangeRate: 1300,
+        createdAt: "2026-07-07T00:00:00.000Z",
+        updatedAt: "2026-07-07T00:00:00.000Z"
+      },
+      {
+        date: "2026-07-08",
+        totalMarketValueKrw: 102500,
+        exchangeRate: 1310,
+        createdAt: "2026-07-08T00:00:00.000Z",
+        updatedAt: "2026-07-08T00:00:00.000Z"
+      }
+    ]);
+
+    assert.equal(rate, 0.025);
+  });
+
+  it("does not estimate a rate when fewer than two snapshots exist", () => {
+    const rate = changeRateFromSnapshots([
+      {
+        date: "2026-07-08",
+        totalMarketValueKrw: 102500,
+        exchangeRate: 1310,
+        createdAt: "2026-07-08T00:00:00.000Z",
+        updatedAt: "2026-07-08T00:00:00.000Z"
+      }
+    ]);
+
+    assert.equal(rate, undefined);
   });
 });

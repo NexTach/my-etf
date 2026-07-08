@@ -25,9 +25,10 @@ import {
 import {
   aggregatePortfolioCandles,
   changeRateFromCandles,
+  changeRateFromSnapshots,
   dividendYieldPoints,
-  portfolioChangeRateFromMarketValue,
   pointsFromCandles,
+  pointsFromSnapshots,
   returnPoints,
   samplePoints
 } from "@/lib/chart-metrics";
@@ -84,23 +85,14 @@ export default async function Home() {
   ]);
   const dailyCharts = new Map(dailyChartEntries);
   const monthlyCharts = new Map(monthlyChartEntries);
-  const portfolioDailyCandles = aggregatePortfolioCandles({
-    holdings: portfolio.holdings,
-    charts: dailyCharts,
-    exchangeRate: portfolio.exchangeRate
-  });
   const portfolioMonthlyCandles = aggregatePortfolioCandles({
     holdings: portfolio.holdings,
     charts: monthlyCharts,
     exchangeRate: portfolio.exchangeRate,
     bucket: "month"
   });
-  const portfolioDailyChangeRate = portfolioChangeRateFromMarketValue({
-    holdings: portfolio.holdings,
-    charts: dailyCharts,
-    exchangeRate: portfolio.exchangeRate
-  });
-  const portfolioDailyPoints = pointsFromCandles(portfolioDailyCandles);
+  const portfolioDailyChangeRate = changeRateFromSnapshots(portfolio.dailySnapshots);
+  const portfolioDailyPoints = pointsFromSnapshots(portfolio.dailySnapshots);
   const holdingReturnPoints = returnPoints(portfolioMonthlyCandles, portfolioDividend.costBasisKrw);
   const yieldPoints = dividendYieldPoints(portfolioMonthlyCandles, portfolioDividend.annualDividendKrw);
   const portfolioAllocation = [...portfolio.holdings]

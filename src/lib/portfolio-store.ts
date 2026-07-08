@@ -1,8 +1,10 @@
-import type { Holding, ManualPortfolioStore, MarketCode, PortfolioOverview } from "./types";
+import type { Holding, ManualPortfolioStore, MarketCode, PortfolioDailySnapshot, PortfolioOverview } from "./types";
 import { fetchUsdKrwExchangeRate } from "./exchange-rate";
 import { prisma } from "./prisma";
 
 const MIN_REMAINING_QUANTITY = 0.0000001;
+const SNAPSHOT_TIMEZONE_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DAILY_SNAPSHOT_LIMIT = 370;
 
 function normalizeStore(store: ManualPortfolioStore): ManualPortfolioStore {
   const exchangeRate = Number(store.exchangeRate) || 1380;
@@ -66,6 +68,60 @@ function normalizeStoredMarketCode(value: string, currency: "KRW" | "USD", symbo
   return "NASDAQ";
 }
 
+function portfolioSnapshotDate(date = new Date()) {
+  return new Date(date.getTime() + SNAPSHOT_TIMEZONE_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function toPortfolioDailySnapshot(row: {
+  snapshotDate: string;
+  totalMarketValueKrw: number;
+  exchangeRate: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): PortfolioDailySnapshot {
+  return {
+    date: row.snapshotDate,
+    totalMarketValueKrw: row.totalMarketValueKrw,
+    exchangeRate: row.exchangeRate,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  };
+}
+
+async function upsertPortfolioDailySnapshot({
+  totalMarketValueKrw,
+  exchangeRate
+}: {
+  totalMarketValueKrw: number;
+  exchangeRate: number;
+}) {
+  const snapshotDate = portfolioSnapshotDate();
+
+  await prisma.portfolioDailySnapshot.upsert({
+    where: { snapshotDate },
+    create: {
+      snapshotDate,
+      totalMarketValueKrw,
+      exchangeRate
+    },
+    update: {
+      totalMarketValueKrw,
+      exchangeRate
+    }
+  });
+}
+
+async function readPortfolioDailySnapshots(limit = DAILY_SNAPSHOT_LIMIT) {
+  const rows = await prisma.portfolioDailySnapshot.findMany({
+    orderBy: { snapshotDate: "desc" },
+    take: limit
+  });
+
+  return rows
+    .map((row) => toPortfolioDailySnapshot(row))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function readManualPortfolioStore(): Promise<ManualPortfolioStore> {
   const [exchangeRateSnapshot, holdings] = await Promise.all([
     fetchUsdKrwExchangeRate(),
@@ -101,13 +157,23 @@ export async function readManualPortfolioStore(): Promise<ManualPortfolioStore> 
 
 export async function getManualPortfolioOverview(): Promise<PortfolioOverview> {
   const store = await readManualPortfolioStore();
+  const totalMarketValueKrw = store.holdings.reduce((sum, holding) => sum + holding.marketValueKrw, 0);
+
+  await upsertPortfolioDailySnapshot({
+    totalMarketValueKrw,
+    exchangeRate: store.exchangeRate
+  });
+
+  const dailySnapshots = await readPortfolioDailySnapshots();
+
   return {
     source: "manual",
     fetchedAt: store.updatedAt,
     exchangeRate: store.exchangeRate,
     exchangeRateFetchedAt: store.exchangeRateFetchedAt ?? new Date().toISOString(),
     exchangeRateSource: store.exchangeRateSource ?? "fallback",
-    totalMarketValueKrw: store.holdings.reduce((sum, holding) => sum + holding.marketValueKrw, 0),
+    totalMarketValueKrw,
+    dailySnapshots,
     holdings: store.holdings
   };
 }

@@ -99,7 +99,16 @@ export type PortfolioOverview = {
   exchangeRateFetchedAt: string;
   exchangeRateSource: string;
   totalMarketValueKrw: number;
+  dailySnapshots: PortfolioDailySnapshot[];
   holdings: Holding[];
+};
+
+export type PortfolioDailySnapshot = {
+  date: string;
+  totalMarketValueKrw: number;
+  exchangeRate: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ManualPortfolioStore = {
