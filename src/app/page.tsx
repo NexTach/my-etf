@@ -1,10 +1,11 @@
 import { ShieldAlert } from "lucide-react";
 import { AuthNavActions } from "@/app/components/auth-actions";
+import { PaginatedList } from "@/app/components/client-pagination";
 import { DividendForecastView } from "@/app/components/dividend-forecast-view";
 import { DisclosureTradeSummary } from "@/app/components/disclosure-trades";
 import { IntentLink } from "@/app/components/intent-link";
 import { SparkLineChart } from "@/app/components/stock-chart";
-import { ToastStack, type ToastMessage } from "@/app/components/toast";
+import { ToastStack } from "@/app/components/toast";
 import {
   AppShell,
   ButtonLink,
@@ -15,7 +16,6 @@ import {
   Metric,
   Navigation,
   Notice,
-  Pagination,
   Panel,
   RowMeta,
   SectionHeader,
@@ -34,65 +34,14 @@ import {
 import { isAdminUser } from "@/lib/admin";
 import { readDisclosures } from "@/lib/disclosures";
 import { forecastDividend, summarizePortfolioDividend } from "@/lib/dividends";
+import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles } from "@/lib/market-data";
-import { pageFromSearchParams, paginateItems } from "@/lib/pagination";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 
-type HomeProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
-
 const HOME_HOLDINGS_PAGE_SIZE = 8;
-
-function homeToastMessages(params: Record<string, string | string[] | undefined>): ToastMessage[] {
-  const messages: ToastMessage[] = [];
-  const authError = firstParam(params.authError);
-  if (params.submitted) {
-    messages.push({
-      id: "submitted",
-      title: "의향서가 제출되었습니다",
-      description: "관리자가 확인 후 상태를 변경합니다.",
-      tone: "success"
-    });
-  }
-  if (params.loginRequired) {
-    messages.push({
-      id: "login-required",
-      title: "로그인이 필요합니다",
-      description: "DataGSM으로 로그인한 뒤 의향서를 작성해주세요.",
-      tone: "info"
-    });
-  }
-  if (authError) {
-    const errorMessages: Record<string, string> = {
-      datagsm_not_configured: "DataGSM OAuth 환경변수가 아직 설정되지 않았습니다.",
-      not_eligible: "재학생 또는 졸업생으로 확인되지 않아 이용할 수 없습니다.",
-      oauth_state: "OAuth state 검증에 실패했습니다. 다시 로그인하세요.",
-      oauth_origin: "접속 주소와 OAuth 콜백 주소가 다릅니다. 같은 주소로 접속하세요.",
-      oauth_failed: "DataGSM 로그인 처리 중 오류가 발생했습니다."
-    };
-    messages.push({
-      id: `auth-error-${authError}`,
-      title: errorMessages[authError] ?? "로그인 처리 중 오류가 발생했습니다.",
-      tone: "error"
-    });
-  }
-  if (params.error) {
-    messages.push({
-      id: "error",
-      title: "입력값을 다시 확인해주세요",
-      tone: "error"
-    });
-  }
-  return messages;
-}
-
-function firstParam(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 function formatPercent(value?: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "-";
@@ -108,11 +57,11 @@ function RatePill({ value }: { value?: number }) {
   return <span className={`rate-pill ${rateTone(value)}`}>{formatPercent(value)}</span>;
 }
 
-export default async function Home({ searchParams }: HomeProps) {
+export default async function Home() {
   const user = await getUserSession();
+  const flashMessages = await getFlashMessages();
   const isAdmin = user ? isAdminUser(user) : false;
 
-  const params = (await searchParams) ?? {};
   const portfolio = await getManualPortfolioOverview();
   const [scheduledDividend, portfolioDividend, disclosures] = await Promise.all([
     forecastDividend(portfolio, portfolio.totalMarketValueKrw),
@@ -164,14 +113,9 @@ export default async function Home({ searchParams }: HomeProps) {
       href: `/stocks/${encodeURIComponent(holding.symbol)}`,
       value: holding.marketValueKrw
     }));
-  const paginatedHoldings = paginateItems(
-    portfolio.holdings,
-    pageFromSearchParams(params, "holdingsPage"),
-    HOME_HOLDINGS_PAGE_SIZE
-  );
   return (
     <AppShell className="home-shell">
-      <ToastStack messages={homeToastMessages(params)} />
+      <ToastStack messages={flashMessages} clearCookieName={FLASH_COOKIE_NAME} />
 
       <Navigation
         title="T-ETF"
@@ -292,8 +236,12 @@ export default async function Home({ searchParams }: HomeProps) {
         </aside>
 
         <div className="home-dashboard-main">
-          <List className="home-holdings-list">
-            {paginatedHoldings.items.map((holding) => {
+          <PaginatedList
+            className="home-holdings-list"
+            label="포트폴리오 종목 페이지"
+            pageSize={HOME_HOLDINGS_PAGE_SIZE}
+          >
+            {portfolio.holdings.map((holding) => {
               const chart = dailyCharts.get(holding.symbol);
               const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
               const secondaryLabel = stockSecondaryLabel(holding);
@@ -324,14 +272,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 />
               );
             })}
-          </List>
-          <Pagination
-            anchor="portfolio-section"
-            label="포트폴리오 종목 페이지"
-            pageInfo={paginatedHoldings.pageInfo}
-            pageParam="holdingsPage"
-            searchParams={params}
-          />
+          </PaginatedList>
 
           <section>
             <SectionHeader title="예정 배당" description="현재 펀드 보유 수량 기준으로 예정 배당을 월별 또는 종목별로 확인합니다." />

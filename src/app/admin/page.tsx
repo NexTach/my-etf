@@ -3,7 +3,8 @@ import { AdminHoldingForm } from "./AdminHoldingForm";
 import { DisclosureForm } from "./DisclosureForm";
 import { DividendAllocationCalculator } from "./DividendAllocationCalculator";
 import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
-import { ToastStack, type ToastMessage } from "@/app/components/toast";
+import { PaginatedPanelTable } from "@/app/components/client-pagination";
+import { ToastStack } from "@/app/components/toast";
 import {
   AppShell,
   Badge,
@@ -12,26 +13,20 @@ import {
   Metric,
   MutedText,
   Navigation,
-  Pagination,
   Panel,
   SectionHeader,
-  TableSurface,
   Top
 } from "@/app/components/tds";
 import { isAdminUser } from "@/lib/admin";
 import { readDisclosures } from "@/lib/disclosures";
 import { readDividendRecords } from "@/lib/dividends";
+import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { formatCurrency, formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
-import { pageFromSearchParams, paginateItems } from "@/lib/pagination";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { AppUser, IntentStatus } from "@/lib/types";
-
-type AdminProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
 
 const ADMIN_DISCLOSURES_PAGE_SIZE = 8;
 const ADMIN_PORTFOLIO_PAGE_SIZE = 8;
@@ -43,78 +38,6 @@ function statusClass(status: string): "accepted" | "rejected" | "pending" {
   if (status === "ACCEPTED") return "accepted";
   if (status === "REJECTED") return "rejected";
   return "pending";
-}
-
-function firstParam(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function adminToastMessages(params: Record<string, string | string[] | undefined>): ToastMessage[] {
-  const messages: ToastMessage[] = [];
-  const portfolio = firstParam(params.portfolio);
-  const dividend = firstParam(params.dividend);
-  const disclosure = firstParam(params.disclosure);
-  const error = firstParam(params.error);
-
-  if (params.updated) {
-    messages.push({ id: "updated", title: "상태가 저장되었습니다", tone: "success" });
-  }
-  if (portfolio) {
-    messages.push({
-      id: `portfolio-${portfolio}`,
-      title:
-        portfolio === "deleted"
-          ? "포트폴리오 종목이 삭제되었습니다"
-          : portfolio === "traded"
-            ? "거래가 포트폴리오에 반영되었습니다"
-            : "포트폴리오가 저장되었습니다",
-      tone: "success"
-    });
-  }
-  if (dividend) {
-    const title =
-      dividend === "synced"
-        ? "배당 데이터가 동기화되었습니다"
-        : dividend === "deleted"
-          ? "배당 데이터가 삭제되었습니다"
-          : "배당 데이터가 저장되었습니다";
-    messages.push({ id: `dividend-${dividend}`, title, tone: "success" });
-  }
-  if (disclosure) {
-    const title =
-      disclosure === "deleted"
-        ? "공시가 삭제되었습니다"
-        : disclosure === "updated"
-          ? "공시가 수정되었습니다"
-          : "공시가 등록되었습니다";
-    messages.push({ id: `disclosure-${disclosure}`, title, tone: "success" });
-  }
-  if (error) {
-    const errorMessages: Record<string, string> = {
-      invalid_status: "상태 값을 다시 확인해주세요",
-      invalid_holding: "포트폴리오 입력값을 다시 확인해주세요",
-      invalid_trade: "거래 입력값을 다시 확인해주세요",
-      trade_not_found: "거래를 적용할 종목을 찾을 수 없습니다",
-      trade_insufficient: "매도 수량이 현재 보유 수량보다 큽니다",
-      invalid_delete: "삭제할 종목을 다시 확인해주세요",
-      invalid_exchange_rate: "환율 입력값을 다시 확인해주세요",
-      invalid_dividend: "배당 입력값을 다시 확인해주세요",
-      invalid_dividend_months: "배당 지급월을 다시 확인해주세요",
-      invalid_dividend_delete: "삭제할 배당 데이터를 다시 확인해주세요",
-      invalid_dividend_sync: "동기화할 종목을 다시 확인해주세요",
-      dividend_sync_failed: "외부 배당 데이터를 가져오지 못했습니다",
-      invalid_disclosure: "공시 입력값을 다시 확인해주세요",
-      invalid_disclosure_trade: "공시 거래 이력 입력값을 다시 확인해주세요",
-      invalid_disclosure_delete: "삭제할 공시를 다시 확인해주세요"
-    };
-    messages.push({
-      id: `error-${error}`,
-      title: errorMessages[error] ?? "요청을 처리하지 못했습니다",
-      tone: "error"
-    });
-  }
-
-  return messages;
 }
 
 function formatDividendAmount(value: number, currency: "KRW" | "USD") {
@@ -180,10 +103,10 @@ function AdminGate({ user }: { user: AppUser | null }) {
   );
 }
 
-export default async function AdminPage({ searchParams }: AdminProps) {
-  const params = (await searchParams) ?? {};
+export default async function AdminPage() {
   const user = await getUserSession();
   if (!isAdminUser(user)) return <AdminGate user={user} />;
+  const flashMessages = await getFlashMessages();
 
   const [store, portfolio, dividendRecords, disclosures] = await Promise.all([
     readStore(),
@@ -206,40 +129,9 @@ export default async function AdminPage({ searchParams }: AdminProps) {
   const detachedDividendRecords = dividendRecords.filter(
     (record) => !portfolioSymbols.has(record.symbol.toUpperCase())
   );
-  const paginatedDisclosures = paginateItems(
-    disclosures,
-    pageFromSearchParams(params, "disclosurePage"),
-    ADMIN_DISCLOSURES_PAGE_SIZE
-  );
-  const paginatedPortfolioHoldings = paginateItems(
-    portfolio.holdings,
-    pageFromSearchParams(params, "portfolioPage"),
-    ADMIN_PORTFOLIO_PAGE_SIZE
-  );
-  const paginatedDividendHoldings = paginateItems(
-    portfolio.holdings,
-    pageFromSearchParams(params, "dividendPage"),
-    ADMIN_DIVIDEND_PAGE_SIZE
-  );
-  const paginatedDetachedDividendRecords = paginateItems(
-    detachedDividendRecords,
-    pageFromSearchParams(params, "detachedDividendPage"),
-    ADMIN_DETACHED_DIVIDEND_PAGE_SIZE
-  );
-  const paginatedInvestmentIntents = paginateItems(
-    store.investmentIntents,
-    pageFromSearchParams(params, "investmentPage"),
-    ADMIN_INTENTS_PAGE_SIZE
-  );
-  const paginatedWithdrawalIntents = paginateItems(
-    store.withdrawalIntents,
-    pageFromSearchParams(params, "withdrawalPage"),
-    ADMIN_INTENTS_PAGE_SIZE
-  );
-
   return (
     <AppShell>
-      <ToastStack messages={adminToastMessages(params)} />
+      <ToastStack messages={flashMessages} clearCookieName={FLASH_COOKIE_NAME} />
 
       <Navigation
         title="T-ETF 관리자"
@@ -266,65 +158,54 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         description="사용자에게 노출되는 공시와 첨부 거래 이력을 관리합니다."
       />
 
-      <Panel>
-        <div className="admin-panel-header">
-          <h2>
-            <Megaphone size={18} /> 공시 관리
-          </h2>
-          <DisclosureForm />
-        </div>
-        <TableSurface>
-          <table>
-            <thead>
-              <tr>
-                <th>제목</th>
-                <th>첨부 거래</th>
-                <th>등록일</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedDisclosures.items.map((disclosure) => (
-                <tr key={disclosure.id}>
-                  <td>
-                    <strong>{disclosure.title}</strong>
-                    <br />
-                    <MutedText>
-                      {disclosure.body.slice(0, 80)}
-                      {disclosure.body.length > 80 ? "..." : ""}
-                    </MutedText>
-                  </td>
-                  <td>{disclosure.trades.length}건</td>
-                  <td>{formatDateTime(disclosure.createdAt)}</td>
-                  <td>
-                    <div className="split-actions">
-                      <DisclosureForm disclosure={disclosure} />
-                      <form action="/api/admin/disclosures/delete" method="post">
-                        <input type="hidden" name="id" value={disclosure.id} />
-                        <button className="ghost" type="submit">
-                          삭제
-                        </button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {disclosures.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>등록된 공시가 없습니다.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </TableSurface>
-        <Pagination
-          anchor="admin-disclosures"
+      <PaginatedPanelTable
+          colSpan={4}
+          emptyText="등록된 공시가 없습니다."
+          header={
+            <tr>
+              <th>제목</th>
+              <th>첨부 거래</th>
+              <th>등록일</th>
+              <th>관리</th>
+            </tr>
+          }
           label="관리자 공시 페이지"
-          pageInfo={paginatedDisclosures.pageInfo}
-          pageParam="disclosurePage"
-          searchParams={params}
-        />
-      </Panel>
+          panelHeader={
+            <div className="admin-panel-header">
+              <h2>
+                <Megaphone size={18} /> 공시 관리
+              </h2>
+              <DisclosureForm />
+            </div>
+          }
+          pageSize={ADMIN_DISCLOSURES_PAGE_SIZE}
+        >
+          {disclosures.map((disclosure) => (
+            <tr key={disclosure.id}>
+              <td>
+                <strong>{disclosure.title}</strong>
+                <br />
+                <MutedText>
+                  {disclosure.body.slice(0, 80)}
+                  {disclosure.body.length > 80 ? "..." : ""}
+                </MutedText>
+              </td>
+              <td>{disclosure.trades.length}건</td>
+              <td>{formatDateTime(disclosure.createdAt)}</td>
+              <td>
+                <div className="split-actions">
+                  <DisclosureForm disclosure={disclosure} />
+                  <form action="/api/admin/disclosures/delete" method="post">
+                    <input type="hidden" name="id" value={disclosure.id} />
+                    <button className="ghost" type="submit">
+                      삭제
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </PaginatedPanelTable>
 
       <SectionHeader
         id="admin-portfolio"
@@ -332,41 +213,36 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         description="보유 종목, 수량, 현재가, USD 매입환율을 관리합니다."
       />
 
-      <Panel>
-        <h2>운영 포트폴리오 관리</h2>
-        <TableSurface className="portfolio-table mt-16">
-          <table>
-            <thead>
-              <tr>
-                <th>종목</th>
-                <th>평가금액</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedPortfolioHoldings.items.map((holding) => (
-                <tr key={holding.symbol}>
-                  <td>
-                    <AdminHoldingForm {...holding} />
-                  </td>
-                  <td>{formatKrw(holding.marketValueKrw)}</td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan={2}>
-                  <AdminHoldingForm />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </TableSurface>
-        <Pagination
-          anchor="admin-portfolio"
+      <PaginatedPanelTable
+          className="portfolio-table mt-16"
+          colSpan={2}
+          emptyText="포트폴리오 종목이 없습니다."
+          footerRows={
+            <tr>
+              <td colSpan={2}>
+                <AdminHoldingForm />
+              </td>
+            </tr>
+          }
+          header={
+            <tr>
+              <th>종목</th>
+              <th>평가금액</th>
+            </tr>
+          }
           label="운영 포트폴리오 페이지"
-          pageInfo={paginatedPortfolioHoldings.pageInfo}
-          pageParam="portfolioPage"
-          searchParams={params}
-        />
-      </Panel>
+          panelHeader={<h2>운영 포트폴리오 관리</h2>}
+          pageSize={ADMIN_PORTFOLIO_PAGE_SIZE}
+        >
+          {portfolio.holdings.map((holding) => (
+            <tr key={holding.symbol}>
+              <td>
+                <AdminHoldingForm {...holding} />
+              </td>
+              <td>{formatKrw(holding.marketValueKrw)}</td>
+            </tr>
+          ))}
+        </PaginatedPanelTable>
 
       <SectionHeader
         id="admin-dividends"
@@ -374,107 +250,90 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         description="포트폴리오 종목의 배당 데이터는 외부 데이터로 동기화합니다."
       />
 
-      <Panel>
-        <h2>배당 데이터 동기화</h2>
-        <TableSurface className="dividend-table">
-          <table>
-            <thead>
+      <PaginatedPanelTable
+          className="dividend-table"
+          colSpan={6}
+          emptyText="포트폴리오 종목이 없습니다."
+          header={
+            <tr>
+              <th>종목</th>
+              <th>연 배당/주</th>
+              <th>배당수익률</th>
+              <th>지급월</th>
+              <th>최근 배당</th>
+              <th>동기화</th>
+            </tr>
+          }
+          label="배당 데이터 페이지"
+          panelHeader={<h2>배당 데이터 동기화</h2>}
+          pageSize={ADMIN_DIVIDEND_PAGE_SIZE}
+        >
+          {portfolio.holdings.map((holding) => {
+            const record = dividendRecordsBySymbol.get(holding.symbol.toUpperCase());
+            const secondaryLabel = stockSecondaryLabel(holding);
+            return (
+              <tr key={holding.symbol}>
+                <td>
+                  <strong>{stockPrimaryLabel(holding)}</strong>
+                  <br />
+                  {secondaryLabel ? <MutedText>{secondaryLabel}</MutedText> : null}
+                </td>
+                <td>{record ? formatDividendAmount(record.annualDividendPerShare, record.currency) : "-"}</td>
+                <td>{record?.trailingYield ? `${formatNumber(record.trailingYield * 100, 2)}%` : "-"}</td>
+                <td>
+                  {record?.expectedPaymentMonths.map((month) => `${month}월`).join(", ") ?? "-"}
+                </td>
+                <td>
+                  {record?.lastDividendPerShare
+                    ? formatDividendAmount(record.lastDividendPerShare, record.currency)
+                    : "-"}
+                </td>
+                <td>
+                  <form action="/api/admin/dividends/sync" method="post">
+                    <input type="hidden" name="symbol" value={holding.symbol} />
+                    <button className="secondary" type="submit">
+                      외부 동기화
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            );
+          })}
+        </PaginatedPanelTable>
+
+      {detachedDividendRecords.length > 0 ? (
+        <PaginatedPanelTable
+            className="dividend-table compact"
+            colSpan={3}
+            emptyText="포트폴리오 외 배당 데이터가 없습니다."
+            header={
               <tr>
                 <th>종목</th>
                 <th>연 배당/주</th>
-                <th>배당수익률</th>
-                <th>지급월</th>
-                <th>최근 배당</th>
-                <th>동기화</th>
+                <th>삭제</th>
               </tr>
-            </thead>
-            <tbody>
-              {paginatedDividendHoldings.items.map((holding) => {
-                const record = dividendRecordsBySymbol.get(holding.symbol.toUpperCase());
-                const secondaryLabel = stockSecondaryLabel(holding);
-                return (
-                  <tr key={holding.symbol}>
-                    <td>
-                      <strong>{stockPrimaryLabel(holding)}</strong>
-                      <br />
-                      {secondaryLabel ? <MutedText>{secondaryLabel}</MutedText> : null}
-                    </td>
-                    <td>{record ? formatDividendAmount(record.annualDividendPerShare, record.currency) : "-"}</td>
-                    <td>{record?.trailingYield ? `${formatNumber(record.trailingYield * 100, 2)}%` : "-"}</td>
-                    <td>
-                      {record?.expectedPaymentMonths.map((month) => `${month}월`).join(", ") ?? "-"}
-                    </td>
-                    <td>
-                      {record?.lastDividendPerShare
-                        ? formatDividendAmount(record.lastDividendPerShare, record.currency)
-                        : "-"}
-                    </td>
-                    <td>
-                      <form action="/api/admin/dividends/sync" method="post">
-                        <input type="hidden" name="symbol" value={holding.symbol} />
-                        <button className="secondary" type="submit">
-                          외부 동기화
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                );
-              })}
-              {portfolio.holdings.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>포트폴리오 종목이 없습니다.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </TableSurface>
-        <Pagination
-          anchor="admin-dividends"
-          label="배당 데이터 페이지"
-          pageInfo={paginatedDividendHoldings.pageInfo}
-          pageParam="dividendPage"
-          searchParams={params}
-        />
-      </Panel>
-
-      {detachedDividendRecords.length > 0 ? (
-        <Panel className="mt-12" id="admin-detached-dividends">
-          <h2>포트폴리오 외 배당 데이터</h2>
-          <TableSurface className="dividend-table compact">
-            <table>
-              <thead>
-                <tr>
-                  <th>종목</th>
-                  <th>연 배당/주</th>
-                  <th>삭제</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedDetachedDividendRecords.items.map((record) => (
-                  <tr key={record.symbol}>
-                    <td>{record.symbol}</td>
-                    <td>{formatDividendAmount(record.annualDividendPerShare, record.currency)}</td>
-                    <td>
-                      <form action="/api/admin/dividends/delete" method="post">
-                        <input type="hidden" name="symbol" value={record.symbol} />
-                        <button className="ghost" type="submit">
-                          삭제
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableSurface>
-          <Pagination
-            anchor="admin-detached-dividends"
+            }
+            id="admin-detached-dividends"
             label="포트폴리오 외 배당 데이터 페이지"
-            pageInfo={paginatedDetachedDividendRecords.pageInfo}
-            pageParam="detachedDividendPage"
-            searchParams={params}
-          />
-        </Panel>
+            panelClassName="mt-12"
+            panelHeader={<h2>포트폴리오 외 배당 데이터</h2>}
+            pageSize={ADMIN_DETACHED_DIVIDEND_PAGE_SIZE}
+          >
+            {detachedDividendRecords.map((record) => (
+              <tr key={record.symbol}>
+                <td>{record.symbol}</td>
+                <td>{formatDividendAmount(record.annualDividendPerShare, record.currency)}</td>
+                <td>
+                  <form action="/api/admin/dividends/delete" method="post">
+                    <input type="hidden" name="symbol" value={record.symbol} />
+                    <button className="ghost" type="submit">
+                      삭제
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </PaginatedPanelTable>
       ) : null}
 
       <SectionHeader
@@ -483,59 +342,46 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         description="신청자 정보와 보호자 확인 여부를 보고 상태를 저장합니다."
       />
 
-      <Panel>
-        <h2>투자 의향서</h2>
-        <TableSurface>
-          <table>
-            <thead>
-              <tr>
-                <th>신청자</th>
-                <th>금액</th>
-                <th>입금자명</th>
-                <th>연락처</th>
-                <th>보호자</th>
-                <th>상태</th>
-                <th>제출일</th>
-                <th>변경</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedInvestmentIntents.items.map((intent) => (
-                <tr key={intent.id}>
-                  <td>
-                    <strong>{intent.userName}</strong>
-                    <br />
-                    <MutedText>{intent.userEmail}</MutedText>
-                  </td>
-                  <td>{formatKrw(intent.amountKrw)}</td>
-                  <td>{intent.depositorName}</td>
-                  <td>{intent.contact}</td>
-                  <td>{intent.guardianConfirmed ? "확인 예정" : "미확인"}</td>
-                  <td>
-                    <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
-                  </td>
-                  <td>{formatDateTime(intent.createdAt)}</td>
-                  <td>
-                    <StatusForm type="INVESTMENT" id={intent.id} current={intent.status} />
-                  </td>
-                </tr>
-              ))}
-              {store.investmentIntents.length === 0 ? (
-                <tr>
-                  <td colSpan={8}>투자 의향서가 없습니다.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </TableSurface>
-        <Pagination
-          anchor="admin-investments"
+      <PaginatedPanelTable
+          colSpan={8}
+          emptyText="투자 의향서가 없습니다."
+          header={
+            <tr>
+              <th>신청자</th>
+              <th>금액</th>
+              <th>입금자명</th>
+              <th>연락처</th>
+              <th>보호자</th>
+              <th>상태</th>
+              <th>제출일</th>
+              <th>변경</th>
+            </tr>
+          }
           label="투자 의향서 페이지"
-          pageInfo={paginatedInvestmentIntents.pageInfo}
-          pageParam="investmentPage"
-          searchParams={params}
-        />
-      </Panel>
+          panelHeader={<h2>투자 의향서</h2>}
+          pageSize={ADMIN_INTENTS_PAGE_SIZE}
+        >
+          {store.investmentIntents.map((intent) => (
+            <tr key={intent.id}>
+              <td>
+                <strong>{intent.userName}</strong>
+                <br />
+                <MutedText>{intent.userEmail}</MutedText>
+              </td>
+              <td>{formatKrw(intent.amountKrw)}</td>
+              <td>{intent.depositorName}</td>
+              <td>{intent.contact}</td>
+              <td>{intent.guardianConfirmed ? "확인 예정" : "미확인"}</td>
+              <td>
+                <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
+              </td>
+              <td>{formatDateTime(intent.createdAt)}</td>
+              <td>
+                <StatusForm type="INVESTMENT" id={intent.id} current={intent.status} />
+              </td>
+            </tr>
+          ))}
+        </PaginatedPanelTable>
 
       <SectionHeader
         id="admin-withdrawals"
@@ -543,63 +389,50 @@ export default async function AdminPage({ searchParams }: AdminProps) {
         description="계좌 정보와 연락처를 확인한 뒤 상태를 저장합니다."
       />
 
-      <Panel>
-        <h2>출금 의향서</h2>
-        <TableSurface>
-          <table>
-            <thead>
-              <tr>
-                <th>신청자</th>
-                <th>금액</th>
-                <th>계좌</th>
-                <th>예금주</th>
-                <th>연락처</th>
-                <th>상태</th>
-                <th>제출일</th>
-                <th>변경</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedWithdrawalIntents.items.map((intent) => (
-                <tr key={intent.id}>
-                  <td>
-                    <strong>{intent.userName}</strong>
-                    <br />
-                    <MutedText>{intent.userEmail}</MutedText>
-                  </td>
-                  <td>{formatKrw(intent.amountKrw)}</td>
-                  <td>
-                    {intent.bankName}
-                    <br />
-                    <MutedText>{intent.accountNumber}</MutedText>
-                  </td>
-                  <td>{intent.accountHolder}</td>
-                  <td>{intent.contact}</td>
-                  <td>
-                    <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
-                  </td>
-                  <td>{formatDateTime(intent.createdAt)}</td>
-                  <td>
-                    <StatusForm type="WITHDRAWAL" id={intent.id} current={intent.status} />
-                  </td>
-                </tr>
-              ))}
-              {store.withdrawalIntents.length === 0 ? (
-                <tr>
-                  <td colSpan={8}>출금 의향서가 없습니다.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </TableSurface>
-        <Pagination
-          anchor="admin-withdrawals"
+      <PaginatedPanelTable
+          colSpan={8}
+          emptyText="출금 의향서가 없습니다."
+          header={
+            <tr>
+              <th>신청자</th>
+              <th>금액</th>
+              <th>계좌</th>
+              <th>예금주</th>
+              <th>연락처</th>
+              <th>상태</th>
+              <th>제출일</th>
+              <th>변경</th>
+            </tr>
+          }
           label="출금 의향서 페이지"
-          pageInfo={paginatedWithdrawalIntents.pageInfo}
-          pageParam="withdrawalPage"
-          searchParams={params}
-        />
-      </Panel>
+          panelHeader={<h2>출금 의향서</h2>}
+          pageSize={ADMIN_INTENTS_PAGE_SIZE}
+        >
+          {store.withdrawalIntents.map((intent) => (
+            <tr key={intent.id}>
+              <td>
+                <strong>{intent.userName}</strong>
+                <br />
+                <MutedText>{intent.userEmail}</MutedText>
+              </td>
+              <td>{formatKrw(intent.amountKrw)}</td>
+              <td>
+                {intent.bankName}
+                <br />
+                <MutedText>{intent.accountNumber}</MutedText>
+              </td>
+              <td>{intent.accountHolder}</td>
+              <td>{intent.contact}</td>
+              <td>
+                <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
+              </td>
+              <td>{formatDateTime(intent.createdAt)}</td>
+              <td>
+                <StatusForm type="WITHDRAWAL" id={intent.id} current={intent.status} />
+              </td>
+            </tr>
+          ))}
+        </PaginatedPanelTable>
 
       <SectionHeader
         title="배당 배분 계산기"
