@@ -282,10 +282,10 @@ button.full,
 
 .datagsm-login-button {
   align-items: center;
-  background: #efefef;
-  border: 1px solid #e5e5e5;
+  background: #000000;
+  border: 0;
   border-radius: var(--tds-radius-sm);
-  color: #000;
+  color: #ffffff;
   cursor: pointer;
   display: inline-flex;
   font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
@@ -294,17 +294,17 @@ button.full,
   gap: 16px;
   height: 40px;
   line-height: 1;
+  max-width: calc(100vw - 48px);
   min-height: 40px;
   padding: 0 var(--tds-space-3);
   transition:
     background-color 180ms ease-in-out,
-    border-color 180ms ease-in-out,
     transform 160ms ease;
+  width: 220px;
 }
 
 .datagsm-login-button:hover {
-  background: #ffffff;
-  border-color: #d8d8d8;
+  background: #1a1a1a;
 }
 
 .datagsm-login-button:active {
@@ -312,7 +312,7 @@ button.full,
 }
 
 .datagsm-login-logo {
-  background: url("/datagsm/D_black.png") center / contain no-repeat;
+  background: url("/datagsm/D_white.png") center / contain no-repeat;
   flex: 0 0 14px;
   height: 14px;
   image-rendering: pixelated;
