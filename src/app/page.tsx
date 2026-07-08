@@ -285,6 +285,7 @@ export default async function Home({ searchParams }: HomeProps) {
               const chart = dailyCharts.get(holding.symbol);
               const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
               const secondaryLabel = stockSecondaryLabel(holding);
+              const dailyChangeRate = changeRateFromCandles(chart?.candles ?? []);
 
               return (
                 <ListRow
@@ -298,12 +299,13 @@ export default async function Home({ searchParams }: HomeProps) {
                           interactive={false}
                           label={`${stockFullLabel(holding)} 최근 1년 가격 추세`}
                           points={samplePoints(pointsFromCandles(chart?.candles ?? []))}
+                          trendValue={dailyChangeRate}
                           valueFormat={holding.currency === "USD" ? "usd" : "krw"}
                         />
                       </TextLink>
                       <div className="holding-row-price">
                         <span>{formatKrw(holding.marketValueKrw)}</span>
-                        <RatePill value={changeRateFromCandles(chart?.candles ?? [])} />
+                        <RatePill value={dailyChangeRate} />
                       </div>
                     </div>
                   }
