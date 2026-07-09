@@ -44,6 +44,7 @@ export function makeInvestmentIntent(overrides: Partial<InvestmentIntent> = {}):
     depositorName: "User",
     contact: "010-0000-0000",
     guardianConfirmed: true,
+    dividendPolicyAgreed: true,
     status: "PENDING",
     createdAt: "2026-07-09T00:00:00.000Z",
     updatedAt: "2026-07-09T00:00:00.000Z",

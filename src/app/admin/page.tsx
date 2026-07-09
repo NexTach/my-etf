@@ -410,11 +410,11 @@ export default async function AdminPage() {
       <SectionHeader
         id="admin-investments"
         title="투자 의향서"
-        description="신청자 정보와 보호자 확인 여부를 보고 상태를 저장합니다."
+        description="신청자 정보와 필수 동의 여부를 보고 상태를 저장합니다."
       />
 
       <PaginatedPanelTable
-          colSpan={8}
+          colSpan={9}
           emptyText="투자 의향서가 없습니다."
           header={
             <tr>
@@ -423,6 +423,7 @@ export default async function AdminPage() {
               <th>입금자명</th>
               <th>연락처</th>
               <th>보호자</th>
+              <th>배당 정책</th>
               <th>상태</th>
               <th>제출일</th>
               <th>변경</th>
@@ -443,6 +444,7 @@ export default async function AdminPage() {
               <td>{intent.depositorName}</td>
               <td>{intent.contact}</td>
               <td>{intent.guardianConfirmed ? "확인 예정" : "미확인"}</td>
+              <td>{intent.dividendPolicyAgreed ? "동의" : "미동의"}</td>
               <td>
                 <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
               </td>

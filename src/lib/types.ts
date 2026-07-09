@@ -41,6 +41,7 @@ export type InvestmentIntent = {
   depositorName: string;
   contact: string;
   guardianConfirmed: boolean;
+  dividendPolicyAgreed: boolean;
   status: IntentStatus;
   note?: string;
   createdAt: string;

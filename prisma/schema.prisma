@@ -100,18 +100,19 @@ model DisclosureTrade {
 }
 
 model InvestmentIntent {
-  id                String   @id @default(cuid())
-  userId            String
-  userName          String
-  userEmail         String
-  amountKrw         Int
-  depositorName     String
-  contact           String
-  guardianConfirmed Boolean  @default(false)
-  status            String   @default("PENDING")
-  note              String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  userId               String
+  userName             String
+  userEmail            String
+  amountKrw            Int
+  depositorName        String
+  contact              String
+  guardianConfirmed    Boolean  @default(false)
+  dividendPolicyAgreed Boolean  @default(false)
+  status               String   @default("PENDING")
+  note                 String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([userId])
   @@index([status])

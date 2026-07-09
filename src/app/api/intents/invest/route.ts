@@ -9,6 +9,7 @@ const schema = z.object({
   contact: z.string().min(4).max(80),
   guardianConfirmed: z.coerce.boolean().default(false),
   termsAgreed: z.literal("true"),
+  dividendPolicyAgreed: z.literal("true"),
   note: z.string().max(500).optional()
 });
 
@@ -20,7 +21,9 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     const error = parsed.error.issues.some((issue) => issue.path[0] === "termsAgreed")
       ? "terms_required"
-      : "invalid_investment";
+      : parsed.error.issues.some((issue) => issue.path[0] === "dividendPolicyAgreed")
+        ? "dividend_policy_required"
+        : "invalid_investment";
     return redirectWithFlash(request, "/intents", intentErrorFlash(error));
   }
 
@@ -32,6 +35,7 @@ export async function POST(request: Request) {
     depositorName: parsed.data.depositorName,
     contact: parsed.data.contact,
     guardianConfirmed: parsed.data.guardianConfirmed,
+    dividendPolicyAgreed: true,
     note: parsed.data.note
   });
 

@@ -46,6 +46,11 @@ async function readProductDescription() {
   return fs.readFile(filePath, "utf8");
 }
 
+async function readDividendPolicy() {
+  const filePath = path.join(process.cwd(), "content", "dividend-policy.md");
+  return fs.readFile(filePath, "utf8");
+}
+
 function IntentGate({ messages }: { messages: ToastMessage[] }) {
   return (
     <AppShell>
@@ -80,10 +85,11 @@ export default async function IntentsPage() {
   const flashMessages = await getFlashMessages();
   if (!user) return <IntentGate messages={flashMessages} />;
 
-  const [portfolio, store, termsMarkdown] = await Promise.all([
+  const [portfolio, store, termsMarkdown, dividendPolicyMarkdown] = await Promise.all([
     getManualPortfolioOverview(),
     readStore(),
-    readProductDescription()
+    readProductDescription(),
+    readDividendPolicy()
   ]);
   const withdrawalLimit = withdrawalLimitForUser(store, portfolio, user.id);
   const myInvestments = store.investmentIntents.filter((intent) => intent.userId === user.id);
@@ -138,6 +144,13 @@ export default async function IntentsPage() {
               <input id="investContact" name="contact" placeholder="010-0000-0000 또는 name@example.com" required />
             </Field>
             <TermsAgreement markdown={termsMarkdown} />
+            <TermsAgreement
+              markdown={dividendPolicyMarkdown}
+              modalDescription="투자 의향서 제출 전 확인해야 하는 배당 산정 원문입니다."
+              name="dividendPolicyAgreed"
+              title="배당 정책"
+              label="을 읽었고 배당금이 보장되지 않는다는 점에 동의합니다."
+            />
             <Field htmlFor="investNote" label="메모">
               <textarea id="investNote" name="note" />
             </Field>

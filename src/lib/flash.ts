@@ -116,9 +116,11 @@ export function intentErrorFlash(error: string): FlashMessage {
     title:
       error === "terms_required"
         ? "약관 동의가 필요합니다"
-        : error === "withdrawal_limit"
-          ? "출금 가능 금액을 다시 확인해주세요"
-          : "입력값을 다시 확인해주세요",
+        : error === "dividend_policy_required"
+          ? "배당 정책 확인 동의가 필요합니다"
+          : error === "withdrawal_limit"
+            ? "출금 가능 금액을 다시 확인해주세요"
+            : "입력값을 다시 확인해주세요",
     tone: "error"
   };
 }

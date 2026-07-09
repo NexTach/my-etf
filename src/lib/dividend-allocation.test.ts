@@ -61,4 +61,50 @@ describe("calculateDividendAllocation", () => {
     assert.equal(allocation.investorDistributionPoolKrw, 0);
     assert.equal(allocation.allocationKrw, 0);
   });
+
+  it("matches the published dividend policy examples", () => {
+    const examples = [
+      {
+        actualDividendKrw: 2000,
+        totalMarketValueKrw: 1250000,
+        expectedDistributionPoolKrw: 1680,
+        expectedCompanyRetainedDividendKrw: 320,
+        expectedAllocationKrw: 168
+      },
+      {
+        actualDividendKrw: 500,
+        totalMarketValueKrw: 1250000,
+        expectedDistributionPoolKrw: 420,
+        expectedCompanyRetainedDividendKrw: 80,
+        expectedAllocationKrw: 42
+      },
+      {
+        actualDividendKrw: 5000,
+        totalMarketValueKrw: 1250000,
+        expectedDistributionPoolKrw: 2500,
+        expectedCompanyRetainedDividendKrw: 2500,
+        expectedAllocationKrw: 250
+      },
+      {
+        actualDividendKrw: 2000,
+        totalMarketValueKrw: 950000,
+        expectedDistributionPoolKrw: 2000,
+        expectedCompanyRetainedDividendKrw: 0,
+        expectedAllocationKrw: 200
+      }
+    ];
+
+    for (const example of examples) {
+      const allocation = calculateDividendAllocation({
+        actualDividendKrw: example.actualDividendKrw,
+        investorPrincipalKrw: 1000000,
+        selectedInvestmentKrw: 100000,
+        totalMarketValueKrw: example.totalMarketValueKrw
+      });
+
+      assert.equal(allocation.investorDistributionPoolKrw, example.expectedDistributionPoolKrw);
+      assert.equal(allocation.companyRetainedDividendKrw, example.expectedCompanyRetainedDividendKrw);
+      assert.equal(allocation.allocationKrw, example.expectedAllocationKrw);
+    }
+  });
 });

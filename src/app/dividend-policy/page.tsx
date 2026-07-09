@@ -15,35 +15,34 @@ import {
 import { getUserSession } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: "상품 설명 | T-ETF",
-  description: "T-ETF 상품 설명 Markdown 문서"
+  title: "배당 정책 | T-ETF",
+  description: "T-ETF 배당 정책 Markdown 문서"
 };
 
-async function readProductDescription() {
-  const filePath = path.join(process.cwd(), "content", "product-description.md");
+async function readDividendPolicy() {
+  const filePath = path.join(process.cwd(), "content", "dividend-policy.md");
   return fs.readFile(filePath, "utf8");
 }
 
-export default async function ProductPage() {
+export default async function DividendPolicyPage() {
   const user = await getUserSession();
-
-  const markdown = await readProductDescription();
+  const markdown = await readDividendPolicy();
 
   return (
     <AppShell>
       <Navigation
-        title="T-ETF 상품 설명"
+        title="T-ETF 배당 정책"
         description={user ? `${user.name} · Markdown 문서` : "Markdown 문서"}
         actions={<AuthNavActions user={user} />}
       />
 
       <Top
         backLink={{ href: "/", label: "포트폴리오" }}
-        title="상품 설명"
+        title="배당 정책"
         actions={
           <>
-            <ButtonLink href="/dividend-policy" variant="secondary">
-              배당 정책
+            <ButtonLink href="/product" variant="secondary">
+              상품 설명
             </ButtonLink>
             <IntentLink signedIn={Boolean(user)} />
           </>
@@ -57,7 +56,7 @@ export default async function ProductPage() {
       </Panel>
 
       <Notice className="mt-18">
-        표시된 설명은 투자 권유나 투자자문이 아니며, 실제 계약 조건은 서비스 외부에서 별도로 확인해야 합니다.
+        표시된 배당 정책은 투자 권유나 투자자문이 아니며, 실제 계약 조건은 서비스 외부에서 별도로 확인해야 합니다.
       </Notice>
     </AppShell>
   );

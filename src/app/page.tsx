@@ -132,6 +132,9 @@ export default async function Home() {
             <ButtonLink href="/product" variant="secondary">
               상품 설명
             </ButtonLink>
+            <ButtonLink href="/dividend-policy" variant="secondary">
+              배당 정책
+            </ButtonLink>
             <ButtonLink href="/disclosures" variant="secondary">
               공시
             </ButtonLink>

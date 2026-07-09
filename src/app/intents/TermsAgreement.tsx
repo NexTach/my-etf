@@ -6,10 +6,18 @@ import { PolicyMarkdown } from "@/app/components/policy-markdown";
 
 export function TermsAgreement({
   markdown,
-  disabled = false
+  disabled = false,
+  name = "termsAgreed",
+  title = "투자에 관한 주의 사항 및 상품 설명",
+  label = "을 숙지하였고 이에 동의합니다.",
+  modalDescription = "의향서 제출 전 확인해야 하는 원문입니다."
 }: {
   markdown: string;
   disabled?: boolean;
+  name?: string;
+  title?: string;
+  label?: string;
+  modalDescription?: string;
 }) {
   const [open, setOpen] = useState(false);
   const checkboxId = useId();
@@ -38,16 +46,16 @@ export function TermsAgreement({
         <input
           disabled={disabled}
           id={checkboxId}
-          name="termsAgreed"
+          name={name}
           required={!disabled}
           type="checkbox"
           value="true"
         />
         <span>
           <button className="terms-link" type="button" onClick={() => setOpen(true)}>
-            투자에 관한 주의 사항 및 상품 설명
+            {title}
           </button>
-          <label htmlFor={checkboxId}>을 숙지하였고 이에 동의합니다.</label>
+          <label htmlFor={checkboxId}>{label}</label>
         </span>
       </div>
 
@@ -62,8 +70,8 @@ export function TermsAgreement({
           >
             <header className="terms-modal-header">
               <div>
-                <h2 id={titleId}>투자에 관한 주의 사항 및 상품 설명</h2>
-                <p>의향서 제출 전 확인해야 하는 원문입니다.</p>
+                <h2 id={titleId}>{title}</h2>
+                <p>{modalDescription}</p>
               </div>
               <button
                 ref={closeButtonRef}
