@@ -24,7 +24,7 @@ import {
 } from "@/app/components/tds";
 import {
   changeRateFromCandles,
-  dividendYieldCandlesFromSnapshots,
+  monthlyDividendYieldCandlesFromSnapshots,
   pointsFromCandles,
   pointsFromSnapshots,
   portfolioChangeRateFromMarketValue,
@@ -33,7 +33,7 @@ import {
 } from "@/lib/chart-metrics";
 import { isAdminUser } from "@/lib/admin";
 import { readDisclosures } from "@/lib/disclosures";
-import { forecastDividend, summarizePortfolioDividend } from "@/lib/dividends";
+import { forecastDividend, readMonthlyDividendRecords, summarizePortfolioDividend } from "@/lib/dividends";
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles } from "@/lib/market-data";
@@ -67,11 +67,13 @@ export default async function Home() {
   const isAdmin = user ? isAdminUser(user) : false;
 
   const portfolio = await getManualPortfolioOverview();
-  const [scheduledDividend, portfolioDividend, disclosures] = await Promise.all([
+  const [scheduledDividend, portfolioDividend, monthlyDividendRecords, disclosures] = await Promise.all([
     forecastDividend(portfolio, portfolio.totalMarketValueKrw),
     summarizePortfolioDividend(portfolio),
+    readMonthlyDividendRecords(),
     readDisclosures({ take: 3 })
   ]);
+  const currentDividendYield = portfolioDividend.dividendYield;
   const [dailyChartEntries, dailyChangeChartEntries] = await Promise.all([
     Promise.all(
       portfolio.holdings.map(async (holding) => [
@@ -95,7 +97,14 @@ export default async function Home() {
   });
   const portfolioDailyPoints = pointsFromSnapshots(portfolio.dailySnapshots);
   const holdingReturnPoints = pointsFromCandles(returnCandlesFromSnapshots(portfolio.dailySnapshots));
-  const yieldPoints = pointsFromCandles(dividendYieldCandlesFromSnapshots(portfolio.dailySnapshots));
+  const yieldPoints = pointsFromCandles(
+    monthlyDividendYieldCandlesFromSnapshots(
+      portfolio.dailySnapshots,
+      monthlyDividendRecords,
+      portfolioDividend.annualDividendKrw,
+      portfolio.totalMarketValueKrw
+    )
+  );
   const portfolioAllocation = [...portfolio.holdings]
     .filter((holding) => holding.marketValueKrw > 0)
     .sort((a, b) => b.marketValueKrw - a.marketValueKrw)
@@ -174,13 +183,13 @@ export default async function Home() {
           label={<TextLink className="metric-card-link" href="/metrics/dividend-yield">배당수익률</TextLink>}
           value={
             <div className="metric-detail">
-              <RatePill value={portfolioDividend.dividendYield} />
+              <RatePill value={currentDividendYield} />
               <TextLink className="chart-link" href="/metrics/dividend-yield">
                 <SparkLineChart
                   interactive={false}
                   label="배당수익률 추세"
                   points={yieldPoints}
-                  trendValue={portfolioDividend.dividendYield}
+                  trendValue={currentDividendYield}
                   valueFormat="percent"
                 />
               </TextLink>
@@ -273,7 +282,7 @@ export default async function Home() {
             <Grid columns={3} className="scheduled-dividend-summary">
               <Metric label="연 예정 배당" value={formatOptionalKrw(scheduledDividend.annualDividendKrw)} />
               <Metric label="월평균 예정 배당" value={formatOptionalKrw(scheduledDividend.monthlyAverageKrw)} />
-              <Metric label="현재 배당수익률" value={formatPercent(portfolioDividend.dividendYield)} />
+              <Metric label="현재 배당수익률" value={formatPercent(currentDividendYield)} />
             </Grid>
 
             <DividendForecastView lines={scheduledDividend.lines} mode="holding" />

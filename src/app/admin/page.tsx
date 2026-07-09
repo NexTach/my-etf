@@ -2,6 +2,7 @@ import { LockKeyhole, Megaphone } from "lucide-react";
 import { AdminHoldingForm } from "./AdminHoldingForm";
 import { DisclosureForm } from "./DisclosureForm";
 import { DividendAllocationCalculator } from "./DividendAllocationCalculator";
+import { MonthlyDividendRecordForm } from "./MonthlyDividendRecordForm";
 import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
 import { PaginatedPanelTable } from "@/app/components/client-pagination";
 import { ToastStack } from "@/app/components/toast";
@@ -19,7 +20,7 @@ import {
 } from "@/app/components/tds";
 import { isAdminUser } from "@/lib/admin";
 import { readDisclosures } from "@/lib/disclosures";
-import { readDividendRecords } from "@/lib/dividends";
+import { readDividendRecords, readMonthlyDividendRecords } from "@/lib/dividends";
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { formatCurrency, formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
@@ -32,6 +33,7 @@ const ADMIN_DISCLOSURES_PAGE_SIZE = 8;
 const ADMIN_PORTFOLIO_PAGE_SIZE = 8;
 const ADMIN_DIVIDEND_PAGE_SIZE = 8;
 const ADMIN_DETACHED_DIVIDEND_PAGE_SIZE = 8;
+const ADMIN_MONTHLY_DIVIDEND_PAGE_SIZE = 12;
 const ADMIN_INTENTS_PAGE_SIZE = 10;
 
 function statusClass(status: string): "accepted" | "rejected" | "pending" {
@@ -42,6 +44,16 @@ function statusClass(status: string): "accepted" | "rejected" | "pending" {
 
 function formatDividendAmount(value: number, currency: "KRW" | "USD") {
   return formatCurrency(value, currency, 4);
+}
+
+function formatPercent(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  return `${formatNumber(value * 100, 2)}%`;
+}
+
+function formatDividendMonth(value: string) {
+  const [year, month] = value.split("-");
+  return `${year}년 ${Number(month)}월`;
 }
 
 function StatusForm({
@@ -108,10 +120,11 @@ export default async function AdminPage() {
   if (!isAdminUser(user)) return <AdminGate user={user} />;
   const flashMessages = await getFlashMessages();
 
-  const [store, portfolio, dividendRecords, disclosures] = await Promise.all([
+  const [store, portfolio, dividendRecords, monthlyDividendRecords, disclosures] = await Promise.all([
     readStore(),
     getManualPortfolioOverview(),
     readDividendRecords(),
+    readMonthlyDividendRecords(),
     readDisclosures()
   ]);
   const acceptedInvestmentIntents = store.investmentIntents.filter((intent) => intent.status === "ACCEPTED");
@@ -335,6 +348,64 @@ export default async function AdminPage() {
             ))}
           </PaginatedPanelTable>
       ) : null}
+
+      <SectionHeader
+        id="admin-monthly-dividends"
+        title="실 배당 기록"
+        description="월별 실제 입금 배당금을 관리합니다."
+      />
+
+      <PaginatedPanelTable
+          className="monthly-dividend-table"
+          colSpan={6}
+          emptyText="등록된 실 배당 기록이 없습니다."
+          footerRows={
+            <tr>
+              <td colSpan={6}>
+                <MonthlyDividendRecordForm />
+              </td>
+            </tr>
+          }
+          header={
+            <tr>
+              <th>배당월</th>
+              <th>실 배당금</th>
+              <th>기준 평가금액</th>
+              <th>월 분배율</th>
+              <th>메모</th>
+              <th>삭제</th>
+            </tr>
+          }
+          label="실 배당 기록 페이지"
+          panelHeader={<h2>실 배당 기록 입력</h2>}
+          pageSize={ADMIN_MONTHLY_DIVIDEND_PAGE_SIZE}
+        >
+          {monthlyDividendRecords.map((record) => {
+            const marketValueKrw = record.referenceMarketValueKrw;
+            const dividendYield =
+              typeof marketValueKrw === "number" && marketValueKrw > 0
+                ? record.actualDividendKrw / marketValueKrw
+                : undefined;
+
+            return (
+              <tr key={record.dividendMonth}>
+                <td>{formatDividendMonth(record.dividendMonth)}</td>
+                <td>{formatKrw(record.actualDividendKrw)}</td>
+                <td>{typeof marketValueKrw === "number" ? formatKrw(marketValueKrw) : "-"}</td>
+                <td>{formatPercent(dividendYield)}</td>
+                <td>{record.memo ?? "-"}</td>
+                <td>
+                  <form action="/api/admin/dividends/monthly/delete" method="post">
+                    <input type="hidden" name="dividendMonth" value={record.dividendMonth} />
+                    <button className="ghost" type="submit">
+                      삭제
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            );
+          })}
+        </PaginatedPanelTable>
 
       <SectionHeader
         id="admin-investments"

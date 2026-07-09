@@ -1,5 +1,5 @@
 import type { MarketCandle, MarketChart } from "@/lib/market-data";
-import type { Holding, PortfolioDailySnapshot } from "@/lib/types";
+import type { Holding, MonthlyDividendRecord, PortfolioDailySnapshot } from "@/lib/types";
 
 export type ChartPoint = {
   date: string;
@@ -119,20 +119,84 @@ export function returnCandlesFromSnapshots(snapshots: PortfolioDailySnapshot[]) 
   });
 }
 
-export function dividendYieldCandlesFromSnapshots(snapshots: PortfolioDailySnapshot[]) {
+function monthlyDividendRecordsByMonth(records: MonthlyDividendRecord[]) {
+  return new Map(records.map((record) => [record.dividendMonth, record]));
+}
+
+export function dividendYieldCandlesFromSnapshots(
+  snapshots: PortfolioDailySnapshot[],
+  monthlyDividendRecords: MonthlyDividendRecord[] = [],
+  currentMonthEstimatedDividendKrw?: number
+) {
+  const actualRecordsByMonth = monthlyDividendRecordsByMonth(monthlyDividendRecords);
+  const usesMonthlyDividendRecords = monthlyDividendRecords.length > 0;
+
   return snapshots.flatMap((snapshot, index) => {
-    const annualDividendKrw = snapshotEffectiveAnnualDividendKrw(snapshot, index, snapshots);
+    const dividendKrw =
+      isLatestSnapshot(index, snapshots) && typeof currentMonthEstimatedDividendKrw === "number"
+        ? currentMonthEstimatedDividendKrw
+        : usesMonthlyDividendRecords
+          ? actualRecordsByMonth.get(snapshot.date.slice(0, 7))?.actualDividendKrw
+          : snapshotEffectiveAnnualDividendKrw(snapshot, index, snapshots);
     const totalMarketValueKrw = snapshotEffectiveTotalMarketValueKrw(snapshot, index, snapshots);
     if (
-      typeof annualDividendKrw !== "number" ||
-      annualDividendKrw <= 0 ||
+      typeof dividendKrw !== "number" ||
+      dividendKrw <= 0 ||
       typeof totalMarketValueKrw !== "number" ||
       totalMarketValueKrw <= 0
     ) {
       return [];
     }
-    return [pointCandle(snapshot.date, annualDividendKrw / totalMarketValueKrw)];
+    return [pointCandle(snapshot.date, dividendKrw / totalMarketValueKrw)];
   });
+}
+
+function monthDate(month: string) {
+  return `${month}-01T00:00:00.000Z`;
+}
+
+function currentMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function monthlyDividendYieldCandlesFromSnapshots(
+  _snapshots: PortfolioDailySnapshot[],
+  monthlyDividendRecords: MonthlyDividendRecord[] = [],
+  currentAnnualEstimatedDividendKrw?: number,
+  currentMarketValueKrw?: number,
+  currentMonth = currentMonthKey()
+) {
+  const records = [...monthlyDividendRecords]
+    .sort((a, b) => a.dividendMonth.localeCompare(b.dividendMonth));
+  const candles = records.flatMap((record, index) => {
+    const trailingRecords = records.slice(Math.max(0, index - 11), index + 1);
+    const actualDividendKrw =
+      trailingRecords.reduce((sum, item) => sum + item.actualDividendKrw, 0) *
+      (12 / trailingRecords.length);
+    const totalMarketValueKrw = record.referenceMarketValueKrw;
+    if (
+      actualDividendKrw <= 0 ||
+      typeof totalMarketValueKrw !== "number" ||
+      totalMarketValueKrw <= 0
+    ) {
+      return [];
+    }
+    return [pointCandle(monthDate(record.dividendMonth), actualDividendKrw / totalMarketValueKrw)];
+  });
+
+  if (
+    typeof currentAnnualEstimatedDividendKrw === "number" &&
+    currentAnnualEstimatedDividendKrw > 0 &&
+    typeof currentMarketValueKrw === "number" &&
+    currentMarketValueKrw > 0
+  ) {
+    const latestHistoricalMonth = records.at(-1)?.dividendMonth;
+    if (latestHistoricalMonth !== currentMonth) {
+      candles.push(pointCandle(monthDate(currentMonth), currentAnnualEstimatedDividendKrw / currentMarketValueKrw));
+    }
+  }
+
+  return candles;
 }
 
 function isLatestSnapshot(index: number, snapshots: PortfolioDailySnapshot[]) {

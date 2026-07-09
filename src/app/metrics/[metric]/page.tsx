@@ -13,11 +13,11 @@ import {
 } from "@/app/components/tds";
 import {
   candlesFromSnapshots,
-  dividendYieldCandlesFromSnapshots,
+  monthlyDividendYieldCandlesFromSnapshots,
   portfolioChangeRateFromMarketValue,
   returnCandlesFromSnapshots
 } from "@/lib/chart-metrics";
-import { summarizePortfolioDividend } from "@/lib/dividends";
+import { readMonthlyDividendRecords, summarizePortfolioDividend } from "@/lib/dividends";
 import { formatKrw, formatNumber } from "@/lib/format";
 import { fetchMarketCandles, type MarketChart } from "@/lib/market-data";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
@@ -40,7 +40,7 @@ const METRIC_LABELS = {
   },
   "dividend-yield": {
     title: "배당수익률",
-    description: "일별 확정 평가금액과 연 예상 배당금 기준으로 흐름을 보여줍니다."
+    description: "과거 월 실 배당금과 이번 달 예상 배당금 기준으로 흐름을 보여줍니다."
   }
 } as const;
 
@@ -75,7 +75,11 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
   if (!isMetricSlug(metric)) notFound();
 
   const portfolio = await getManualPortfolioOverview();
-  const portfolioDividend = await summarizePortfolioDividend(portfolio);
+  const [portfolioDividend, monthlyDividendRecords] = await Promise.all([
+    summarizePortfolioDividend(portfolio),
+    metric === "dividend-yield" ? readMonthlyDividendRecords() : Promise.resolve([])
+  ]);
+  const currentDividendYield = portfolioDividend.dividendYield;
   const dailyCharts: Map<string, MarketChart | null> =
     metric === "daily-change"
       ? new Map(
@@ -95,14 +99,19 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
     metric === "holding-return"
       ? returnCandlesFromSnapshots(portfolio.dailySnapshots)
       : metric === "dividend-yield"
-        ? dividendYieldCandlesFromSnapshots(portfolio.dailySnapshots)
+        ? monthlyDividendYieldCandlesFromSnapshots(
+            portfolio.dailySnapshots,
+            monthlyDividendRecords,
+            portfolioDividend.annualDividendKrw,
+            portfolio.totalMarketValueKrw
+          )
         : candlesFromSnapshots(portfolio.dailySnapshots);
   const valueFormat = metric === "daily-change" ? "krw" : "percent";
   const currentRate =
     metric === "holding-return"
       ? portfolioDividend.totalReturnRate
       : metric === "dividend-yield"
-        ? portfolioDividend.dividendYield
+        ? currentDividendYield
         : portfolioChangeRateFromMarketValue({
             holdings: portfolio.holdings,
             charts: dailyCharts,
@@ -124,12 +133,19 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
         <Metric label="현재 지표" value={<RatePill value={currentRate} />} />
         <Metric label="평가금액" value={formatKrw(portfolio.totalMarketValueKrw)} />
         <Metric label="매입원금" value={formatOptionalKrw(portfolioDividend.costBasisKrw)} />
-        <Metric label="연 예상 배당" value={formatOptionalKrw(portfolioDividend.annualDividendKrw)} />
+        <Metric
+          label="연 예상 배당"
+          value={formatOptionalKrw(portfolioDividend.annualDividendKrw)}
+        />
       </Grid>
 
       <SectionHeader
         title={metric === "daily-change" ? "평가금액 캔들 차트" : "캔들 차트"}
-        description="과거 날짜는 확정 마감 스냅샷, 최신 날짜는 현재 저장된 평가금액 기준입니다."
+        description={
+          metric === "dividend-yield"
+            ? "과거 월은 실 배당 기록을 연환산하고, 최신 월은 현재 포트폴리오 연 예상 배당 기준입니다."
+            : "과거 날짜는 확정 마감 스냅샷, 최신 날짜는 현재 저장된 평가금액 기준입니다."
+        }
       />
 
       <CandleChart
@@ -137,6 +153,7 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
         label={metric === "daily-change" ? "포트폴리오 평가금액 상세 캔들 차트" : `${labels.title} 상세 캔들 차트`}
         size="detail"
         valueFormat={valueFormat}
+        dateGranularity={metric === "dividend-yield" ? "month" : "day"}
       />
 
       <SectionHeader title="계산 기준" description="관리자 포트폴리오, 시장 가격, 일별 평가금액 스냅샷을 조합한 값입니다." />
@@ -156,8 +173,8 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
         />
         <ListRow
           title="배당수익률"
-          description="연 예상 배당금을 현재 평가금액으로 나눈 값"
-          value={<RatePill value={portfolioDividend.dividendYield} />}
+          description="과거 월 실 배당 기록의 연환산액 또는 현재 연 예상 배당금을 평가금액으로 나눈 값"
+          value={<RatePill value={currentDividendYield} />}
         />
       </List>
     </AppShell>

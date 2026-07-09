@@ -136,6 +136,15 @@ export type DividendRecord = {
   memo?: string;
 };
 
+export type MonthlyDividendRecord = {
+  dividendMonth: string;
+  actualDividendKrw: number;
+  referenceMarketValueKrw?: number;
+  memo?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DividendForecastLine = {
   symbol: string;
   name: string;

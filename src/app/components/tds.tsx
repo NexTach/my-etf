@@ -224,7 +224,7 @@ export function InlineFields({
   variant
 }: {
   children: ReactNode;
-  variant?: "exchange" | "holding" | "dividend";
+  variant?: "exchange" | "holding" | "dividend" | "monthly-dividend";
 }) {
   return <div className={cx("inline-fields", variant)}>{children}</div>;
 }

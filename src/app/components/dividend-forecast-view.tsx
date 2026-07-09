@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Empty, List, ListRow, RowMeta } from "@/app/components/tds";
+import { forecastLinePaymentAmount } from "@/lib/dividend-math";
 import { formatKrw, formatNumber } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { DividendForecastLine } from "@/lib/types";
@@ -11,11 +12,7 @@ type DividendForecastViewMode = "simulation" | "holding";
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
 
-export function forecastLinePaymentAmount(line: DividendForecastLine) {
-  if (typeof line.annualDividendKrw !== "number") return undefined;
-  if (line.expectedPaymentMonths.length === 0) return line.annualDividendKrw;
-  return line.annualDividendKrw / line.expectedPaymentMonths.length;
-}
+export { forecastLinePaymentAmount };
 
 function formatOptionalKrw(value?: number) {
   return typeof value === "number" && Number.isFinite(value) ? formatKrw(value) : "-";

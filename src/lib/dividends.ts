@@ -1,4 +1,10 @@
-import type { DividendForecast, DividendForecastLine, DividendRecord, PortfolioOverview } from "./types";
+import type {
+  DividendForecast,
+  DividendForecastLine,
+  DividendRecord,
+  MonthlyDividendRecord,
+  PortfolioOverview
+} from "./types";
 import { fetchDividendRecordFromMarket } from "./market-data";
 import { portfolioCostBasisKrw } from "./portfolio-math";
 import { prisma } from "./prisma";
@@ -63,6 +69,29 @@ function mapDividendRecord(row: {
     lastDividendPerShare: row.lastDividendPerShare ?? undefined,
     memo: row.memo ?? undefined
   };
+}
+
+function mapMonthlyDividendRecord(row: {
+  dividendMonth: string;
+  actualDividendKrw: number;
+  referenceMarketValueKrw: number | null;
+  memo: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): MonthlyDividendRecord {
+  return {
+    dividendMonth: row.dividendMonth,
+    actualDividendKrw: row.actualDividendKrw,
+    referenceMarketValueKrw: row.referenceMarketValueKrw ?? undefined,
+    memo: row.memo ?? undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  };
+}
+
+function normalizeDividendMonth(value: string) {
+  const month = value.trim();
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : undefined;
 }
 
 function dividendLookupKeys(symbol: string) {
@@ -173,6 +202,54 @@ export async function upsertDividendRecord(record: DividendRecord) {
 export async function deleteDividendRecord(symbol: string) {
   await prisma.dividendRecord.deleteMany({
     where: { symbol: symbol.toUpperCase() }
+  });
+}
+
+export async function readMonthlyDividendRecords(limit = 36): Promise<MonthlyDividendRecord[]> {
+  const rows = await prisma.monthlyDividendRecord.findMany({
+    orderBy: { dividendMonth: "desc" },
+    take: limit
+  });
+  return rows.map(mapMonthlyDividendRecord);
+}
+
+export async function upsertMonthlyDividendRecord(record: {
+  dividendMonth: string;
+  actualDividendKrw: number;
+  referenceMarketValueKrw?: number;
+  memo?: string;
+}) {
+  const dividendMonth = normalizeDividendMonth(record.dividendMonth);
+  if (!dividendMonth) throw new Error("Invalid dividend month");
+
+  const actualDividendKrw = Math.max(0, Math.round(record.actualDividendKrw));
+  const referenceMarketValueKrw =
+    typeof record.referenceMarketValueKrw === "number" && record.referenceMarketValueKrw > 0
+      ? record.referenceMarketValueKrw
+      : undefined;
+  const memo = record.memo?.trim() || undefined;
+
+  await prisma.monthlyDividendRecord.upsert({
+    where: { dividendMonth },
+    create: {
+      dividendMonth,
+      actualDividendKrw,
+      referenceMarketValueKrw,
+      memo
+    },
+    update: {
+      actualDividendKrw,
+      referenceMarketValueKrw,
+      memo
+    }
+  });
+}
+
+export async function deleteMonthlyDividendRecord(dividendMonth: string) {
+  const normalizedMonth = normalizeDividendMonth(dividendMonth);
+  if (!normalizedMonth) return;
+  await prisma.monthlyDividendRecord.deleteMany({
+    where: { dividendMonth: normalizedMonth }
   });
 }
 

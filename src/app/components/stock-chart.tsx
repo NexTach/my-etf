@@ -10,6 +10,7 @@ type ChartPoint = {
 };
 
 type ValueFormat = "number" | "krw" | "usd" | "percent";
+type DateGranularity = "day" | "month";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -18,7 +19,14 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatExactDate(value: string) {
+function formatExactDate(value: string, granularity: DateGranularity) {
+  if (granularity === "month") {
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "long"
+    }).format(new Date(value));
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "long",
@@ -26,8 +34,11 @@ function formatExactDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatAxisDate(value: string, showYear: boolean) {
+function formatAxisDate(value: string, showYear: boolean, granularity: DateGranularity) {
   const date = new Date(value);
+  if (granularity === "month") {
+    return showYear ? `${String(date.getFullYear()).slice(2)}.${date.getMonth() + 1}` : `${date.getMonth() + 1}월`;
+  }
   if (showYear) {
     return `${String(date.getFullYear()).slice(2)}.${date.getMonth() + 1}`;
   }
@@ -51,12 +62,14 @@ export function CandleChart({
   candles,
   size = "compact",
   label,
-  valueFormat = "number"
+  valueFormat = "number",
+  dateGranularity = "day"
 }: {
   candles: MarketCandle[];
   size?: "compact" | "detail";
   label?: string;
   valueFormat?: ValueFormat;
+  dateGranularity?: DateGranularity;
 }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -250,7 +263,7 @@ export function CandleChart({
                 <g className="chart-axis-tick" key={`${candles[index].date}-${index}`}>
                   <line x1={tickX} x2={tickX} y1={axisY} y2={axisY + 5} />
                   <text x={tickX} y={metrics.height - 8}>
-                    {formatAxisDate(candles[index].date, spansMultipleYears)}
+                    {formatAxisDate(candles[index].date, spansMultipleYears, dateGranularity)}
                   </text>
                 </g>
               );
@@ -270,7 +283,7 @@ export function CandleChart({
       </svg>
       {size === "detail" && activeCandle ? (
         <div className="chart-tooltip">
-          <strong>{formatExactDate(activeCandle.date)}</strong>
+          <strong>{formatExactDate(activeCandle.date, dateGranularity)}</strong>
           <span>시가 {formatValue(activeCandle.open, valueFormat)}</span>
           <span>고가 {formatValue(activeCandle.high, valueFormat)}</span>
           <span>저가 {formatValue(activeCandle.low, valueFormat)}</span>
@@ -304,14 +317,19 @@ export function SparkLineChart({
   const height = 46;
   const min = Math.min(...points.map((point) => point.value));
   const max = Math.max(...points.map((point) => point.value));
-  const range = max - min || 1;
+  const hasFlatRange = max === min;
+  const range = hasFlatRange ? 1 : max - min;
   const activePoint = interactive && activeIndex !== null ? points[activeIndex] : null;
+  const singlePoint = points.length === 1;
+  const visiblePoint = activePoint ?? (singlePoint ? points[0] : null);
+  const visiblePointIndex = activePoint ? activeIndex ?? 0 : 0;
 
   function x(index: number) {
     return points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
   }
 
   function y(value: number) {
+    if (hasFlatRange) return height / 2;
     return 5 + ((max - value) / range) * (height - 10);
   }
 
@@ -338,12 +356,12 @@ export function SparkLineChart({
               />
             ))
           : null}
-        {activePoint ? (
+        {visiblePoint ? (
           <circle
             className={isUp ? "sparkline-dot up" : "sparkline-dot down"}
-            cx={x(activeIndex ?? 0)}
-            cy={y(activePoint.value)}
-            r="3"
+            cx={x(visiblePointIndex)}
+            cy={y(visiblePoint.value)}
+            r={singlePoint ? "4" : "3"}
           />
         ) : null}
       </svg>

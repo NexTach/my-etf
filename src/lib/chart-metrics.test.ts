@@ -6,6 +6,7 @@ import {
   dividendYieldCandlesFromSnapshots,
   holdingDividendYieldCandles,
   holdingReturnCandles,
+  monthlyDividendYieldCandlesFromSnapshots,
   portfolioChangeRateFromMarketValue,
   pointsFromSnapshots,
   returnCandlesFromSnapshots
@@ -342,6 +343,128 @@ describe("dividendYieldCandlesFromSnapshots", () => {
 
     assert.equal(candles[0].close, 0.05);
     assert.equal(candles[1].close, 0.05);
+  });
+
+  it("uses actual monthly dividend records for history and an estimate for the latest month", () => {
+    const candles = dividendYieldCandlesFromSnapshots(
+      [
+        {
+          date: "2026-06-30",
+          totalMarketValueKrw: 100000,
+          exchangeRate: 1300,
+          annualDividendKrw: 10000,
+          closeTotalMarketValueKrw: 200000,
+          closeExchangeRate: 1300,
+          closeAnnualDividendKrw: 10000,
+          closedAt: "2026-06-30T14:55:00.000Z",
+          createdAt: "2026-06-30T00:00:00.000Z",
+          updatedAt: "2026-06-30T14:55:00.000Z"
+        },
+        {
+          date: "2026-07-09",
+          totalMarketValueKrw: 400000,
+          exchangeRate: 1310,
+          annualDividendKrw: 50000,
+          createdAt: "2026-07-09T00:00:00.000Z",
+          updatedAt: "2026-07-09T00:00:00.000Z"
+        }
+      ],
+      [
+        {
+          dividendMonth: "2026-06",
+          actualDividendKrw: 10000,
+          createdAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-01T00:00:00.000Z"
+        }
+      ],
+      20000
+    );
+
+    assert.equal(candles[0].close, 0.05);
+    assert.equal(candles[1].close, 0.05);
+  });
+});
+
+describe("monthlyDividendYieldCandlesFromSnapshots", () => {
+  it("annualizes actual monthly records and adds the current annual estimate", () => {
+    const candles = monthlyDividendYieldCandlesFromSnapshots(
+      [
+        {
+          date: "2026-06-10",
+          totalMarketValueKrw: 100000,
+          exchangeRate: 1300,
+          closeTotalMarketValueKrw: 100000,
+          closeExchangeRate: 1300,
+          closedAt: "2026-06-10T14:55:00.000Z",
+          createdAt: "2026-06-10T00:00:00.000Z",
+          updatedAt: "2026-06-10T14:55:00.000Z"
+        },
+        {
+          date: "2026-06-30",
+          totalMarketValueKrw: 120000,
+          exchangeRate: 1300,
+          closeTotalMarketValueKrw: 200000,
+          closeExchangeRate: 1300,
+          closedAt: "2026-06-30T14:55:00.000Z",
+          createdAt: "2026-06-30T00:00:00.000Z",
+          updatedAt: "2026-06-30T14:55:00.000Z"
+        },
+        {
+          date: "2026-07-09",
+          totalMarketValueKrw: 400000,
+          exchangeRate: 1310,
+          createdAt: "2026-07-09T00:00:00.000Z",
+          updatedAt: "2026-07-09T00:00:00.000Z"
+        }
+      ],
+      [
+        {
+          dividendMonth: "2026-05",
+          actualDividendKrw: 4000,
+          referenceMarketValueKrw: 300000,
+          createdAt: "2026-06-01T00:00:00.000Z",
+          updatedAt: "2026-06-01T00:00:00.000Z"
+        },
+        {
+          dividendMonth: "2026-06",
+          actualDividendKrw: 8000,
+          referenceMarketValueKrw: 200000,
+          createdAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-01T00:00:00.000Z"
+        }
+      ],
+      48000,
+      400000,
+      "2026-07"
+    );
+
+    assert.deepEqual(candles.map((candle) => candle.date), [
+      "2026-05-01T00:00:00.000Z",
+      "2026-06-01T00:00:00.000Z",
+      "2026-07-01T00:00:00.000Z"
+    ]);
+    assert.equal(candles[0].close, 0.16);
+    assert.equal(candles[1].close, 0.36);
+    assert.equal(candles[2].close, 0.12);
+  });
+
+  it("skips historical monthly records without a reference market value", () => {
+    const candles = monthlyDividendYieldCandlesFromSnapshots(
+      [],
+      [
+        {
+          dividendMonth: "2026-06",
+          actualDividendKrw: 8000,
+          createdAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-01T00:00:00.000Z"
+        }
+      ],
+      undefined,
+      undefined,
+      "2026-07"
+    );
+
+    assert.deepEqual(candles, []);
   });
 });
 

@@ -31,6 +31,8 @@ const adminErrorTitles: Record<string, string> = {
   invalid_dividend_delete: "삭제할 배당 데이터를 다시 확인해주세요",
   invalid_dividend_sync: "동기화할 종목을 다시 확인해주세요",
   dividend_sync_failed: "외부 배당 데이터를 가져오지 못했습니다",
+  invalid_monthly_dividend: "실 배당 입력값을 다시 확인해주세요",
+  invalid_monthly_dividend_delete: "삭제할 실 배당 기록을 다시 확인해주세요",
   invalid_snapshot: "확정할 스냅샷 날짜를 다시 확인해주세요",
   snapshot_not_found: "확정할 스냅샷을 찾을 수 없습니다",
   invalid_disclosure: "공시 입력값을 다시 확인해주세요",
@@ -54,7 +56,10 @@ export function adminErrorFlash(error: string): FlashMessage {
   };
 }
 
-export function adminSuccessFlash(kind: "updated" | "portfolio" | "dividend" | "disclosure", value?: string): FlashMessage {
+export function adminSuccessFlash(
+  kind: "updated" | "portfolio" | "dividend" | "monthlyDividend" | "disclosure",
+  value?: string
+): FlashMessage {
   if (kind === "updated") {
     return { id: "admin-updated", title: "상태가 저장되었습니다", tone: "success" };
   }
@@ -81,6 +86,14 @@ export function adminSuccessFlash(kind: "updated" | "portfolio" | "dividend" | "
           : value === "deleted"
             ? "배당 데이터가 삭제되었습니다"
             : "배당 데이터가 저장되었습니다",
+      tone: "success"
+    };
+  }
+
+  if (kind === "monthlyDividend") {
+    return {
+      id: `monthly-dividend-${value ?? "updated"}`,
+      title: value === "deleted" ? "실 배당 기록이 삭제되었습니다" : "실 배당 기록이 저장되었습니다",
       tone: "success"
     };
   }
