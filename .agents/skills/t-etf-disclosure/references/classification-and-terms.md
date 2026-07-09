@@ -36,7 +36,7 @@ Use the most specific subtype available.
 
 | Korean subtype | Definition                                                                                 | Example                                       |
 |----------------|--------------------------------------------------------------------------------------------|-----------------------------------------------|
-| `기본 증자`        | Regular weekly capital increase independent of outside investment.                         | Weekly regular increase, usually `원화 9,000원`. |
+| `정기 증자`        | Regular weekly capital increase independent of outside investment.                         | Weekly regular increase, usually `원화 10,000원`. |
 | `추가 증자`        | Increase linked to a fixed ratio of outside investor capital when outside investors exist. | External-investment-linked amount.            |
 | `정기 특별 증자`     | Special increase repeated according to a pre-announced period or cycle.                    | Monthly 9th, `원화 5,125원`.                     |
 | `수시 특별 증자`     | One-off special increase executed immediately without advance scheduling.                  | `34,148원` case, `3,954원` case.                |
