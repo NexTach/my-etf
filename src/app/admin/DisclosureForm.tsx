@@ -3,7 +3,7 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
-import { Field, Form } from "@/app/components/tds";
+import { Field, Form, TdsSelect } from "@/app/components/tds";
 import { currencySymbol } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { Disclosure, MarketCode, TradeSide } from "@/lib/types";
@@ -285,14 +285,14 @@ function TradeEditor({
 
       <div className="disclosure-trade-form-grid">
         <Field htmlFor={`side-${trade.clientId}`} label="구분">
-          <select
+          <TdsSelect
             id={`side-${trade.clientId}`}
             value={trade.side}
             onChange={(event) => update({ side: event.target.value as TradeSide })}
           >
             <option value="BUY">매수</option>
             <option value="SELL">매도</option>
-          </select>
+          </TdsSelect>
         </Field>
         <Field htmlFor={`symbol-${trade.clientId}`} label="심볼">
           <input
@@ -321,7 +321,7 @@ function TradeEditor({
           />
         </Field>
         <Field htmlFor={`market-${trade.clientId}`} label="시장">
-          <select
+          <TdsSelect
             id={`market-${trade.clientId}`}
             value={trade.marketCountry}
             onChange={(event) => {
@@ -339,17 +339,17 @@ function TradeEditor({
             <option value="AMEX">아메리칸증권거래소</option>
             <option value="KOSPI">유가증권시장</option>
             <option value="KOSDAQ">코스닥시장</option>
-          </select>
+          </TdsSelect>
         </Field>
         <Field htmlFor={`currency-${trade.clientId}`} label="통화">
-          <select
+          <TdsSelect
             id={`currency-${trade.clientId}`}
             value={trade.currency}
             onChange={(event) => update({ currency: event.target.value as "KRW" | "USD" })}
           >
             <option value="USD">USD</option>
             <option value="KRW">KRW</option>
-          </select>
+          </TdsSelect>
         </Field>
         <Field htmlFor={`quantity-${trade.clientId}`} label="수량">
           <input

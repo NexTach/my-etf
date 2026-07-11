@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
-import { Field, MutedText } from "@/app/components/tds";
+import { Field, MutedText, TdsSelect } from "@/app/components/tds";
 import { calculateDividendAllocation } from "@/lib/dividend-allocation";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 
@@ -55,7 +55,7 @@ export function DividendAllocationCalculator({
     <div className="dividend-allocation-calculator">
       <div className="dividend-allocation-controls">
         <Field htmlFor="dividend-allocation-intent" label="수락된 투자 의향서">
-          <select
+          <TdsSelect
             id="dividend-allocation-intent"
             value={selectedIntent?.id ?? ""}
             onChange={(event) => setSelectedIntentId(event.target.value)}
@@ -67,7 +67,7 @@ export function DividendAllocationCalculator({
                 {intent.userName} · {formatKrw(intent.amountKrw)} · {formatDateTime(intent.createdAt)}
               </option>
             ))}
-          </select>
+          </TdsSelect>
         </Field>
         <Field htmlFor="actual-dividend-krw" label="월 전체 실 배당금">
           <FormattedNumberInput

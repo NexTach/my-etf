@@ -135,7 +135,7 @@ export default async function Home() {
             <ButtonLink href="/dividend-policy" variant="secondary">
               배당 정책
             </ButtonLink>
-            <ButtonLink href="/disclosures" variant="secondary">
+            <ButtonLink href="/disclosures#roadmap" variant="secondary">
               공시
             </ButtonLink>
             <ButtonLink href="/simulation" variant="secondary">
@@ -219,7 +219,11 @@ export default async function Home() {
           </Panel>
 
           <section>
-            <SectionHeader title="최근 공시" description="운영 변경과 첨부 거래 이력을 확인합니다." />
+            <SectionHeader
+              title="최근 공시"
+              description="운영 변경과 첨부 거래 이력을 확인합니다."
+              actions={<TextLink href="/disclosures">전체 공시</TextLink>}
+            />
 
             <List className="disclosure-list">
               {disclosures.map((disclosure) => (

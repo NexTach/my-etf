@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
-import { ComputedValue, Field, Form } from "@/app/components/tds";
+import { ComputedValue, Field, Form, TdsSelect } from "@/app/components/tds";
 import { currencySymbol, formatCurrency } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { Holding, MarketCode, TradeSide } from "@/lib/types";
@@ -488,7 +488,7 @@ export function AdminHoldingForm({
               />
             </Field>
             <Field htmlFor={`market-${symbol ?? "new"}`} label="시장">
-              <select
+              <TdsSelect
                 id={`market-${symbol ?? "new"}`}
                 name="marketCountry"
                 value={form.marketCountry}
@@ -506,10 +506,10 @@ export function AdminHoldingForm({
                 <option value="AMEX">아메리칸증권거래소</option>
                 <option value="KOSPI">유가증권시장</option>
                 <option value="KOSDAQ">코스닥시장</option>
-              </select>
+              </TdsSelect>
             </Field>
             <Field htmlFor={`currency-${symbol ?? "new"}`} label="통화">
-              <select
+              <TdsSelect
                 id={`currency-${symbol ?? "new"}`}
                 name="currency"
                 value={form.currency}
@@ -519,7 +519,7 @@ export function AdminHoldingForm({
               >
                 <option value="USD">USD</option>
                 <option value="KRW">KRW</option>
-              </select>
+              </TdsSelect>
             </Field>
             <Field htmlFor={`quantity-${symbol ?? "new"}`} label="수량">
               <input

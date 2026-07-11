@@ -5,10 +5,12 @@ import { DividendAllocationCalculator } from "./DividendAllocationCalculator";
 import { MonthlyDividendRecordForm } from "./MonthlyDividendRecordForm";
 import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
 import { PaginatedPanelTable } from "@/app/components/client-pagination";
+import { RoadmapEditor } from "@/app/components/roadmap-editor";
 import { ToastStack } from "@/app/components/toast";
 import {
   AppShell,
   Badge,
+  ButtonLink,
   CtaPanel,
   Grid,
   Metric,
@@ -16,6 +18,7 @@ import {
   Navigation,
   Panel,
   SectionHeader,
+  TdsSelect,
   Top
 } from "@/app/components/tds";
 import { isAdminUser } from "@/lib/admin";
@@ -24,6 +27,7 @@ import { readDividendRecords, readMonthlyDividendRecords } from "@/lib/dividends
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { formatCurrency, formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
 import { getManualPortfolioOverview } from "@/lib/portfolio-store";
+import { kstDateKey, readRoadmapEvents, roadmapHorizonEndDate } from "@/lib/roadmap";
 import { getUserSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
@@ -69,11 +73,11 @@ function StatusForm({
     <form className="split-actions" action="/api/admin/status" method="post">
       <input type="hidden" name="type" value={type} />
       <input type="hidden" name="id" value={id} />
-      <select name="status" defaultValue={current} aria-label="상태">
+      <TdsSelect name="status" defaultValue={current} aria-label="상태">
         <option value="PENDING">대기</option>
         <option value="ACCEPTED">수락</option>
         <option value="REJECTED">거절</option>
-      </select>
+      </TdsSelect>
       <button className="secondary" type="submit">
         저장
       </button>
@@ -119,13 +123,16 @@ export default async function AdminPage() {
   const user = await getUserSession();
   if (!isAdminUser(user)) return <AdminGate user={user} />;
   const flashMessages = await getFlashMessages();
+  const roadmapToday = kstDateKey();
+  const roadmapHorizon = roadmapHorizonEndDate(roadmapToday);
 
-  const [store, portfolio, dividendRecords, monthlyDividendRecords, disclosures] = await Promise.all([
+  const [store, portfolio, dividendRecords, monthlyDividendRecords, disclosures, roadmapEvents] = await Promise.all([
     readStore(),
     getManualPortfolioOverview(),
     readDividendRecords(),
     readMonthlyDividendRecords(),
-    readDisclosures()
+    readDisclosures(),
+    readRoadmapEvents({ through: roadmapHorizon })
   ]);
   const acceptedInvestmentIntents = store.investmentIntents.filter((intent) => intent.status === "ACCEPTED");
   const acceptedInvestment = acceptedInvestmentIntents.reduce((sum, intent) => sum + intent.amountKrw, 0);
@@ -156,6 +163,11 @@ export default async function AdminPage() {
         title="의향서와 포트폴리오를 관리해요"
         description="운영 데이터가 사용자 화면의 예상 배당 계산과 제출 내역 상태에 바로 반영됩니다."
         backLink={{ href: "/" }}
+        actions={(
+          <ButtonLink href="/disclosures#roadmap" variant="secondary">
+            공개 로드맵 보기
+          </ButtonLink>
+        )}
       />
 
       <Grid columns={4} className="mt-16">
@@ -164,6 +176,13 @@ export default async function AdminPage() {
         <Metric label="대기 중 출금 의향" value={formatKrw(pendingWithdrawal)} />
         <Metric label="포트폴리오 평가금액" value={formatKrw(portfolio.totalMarketValueKrw)} />
       </Grid>
+
+      <RoadmapEditor
+        disclosures={disclosures}
+        events={roadmapEvents}
+        today={roadmapToday}
+        horizon={roadmapHorizon}
+      />
 
       <SectionHeader
         id="admin-disclosures"

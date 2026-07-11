@@ -4,6 +4,7 @@ import { AuthNavActions } from "@/app/components/auth-actions";
 import { DisclosureTradeDetails } from "@/app/components/disclosure-trades";
 import {
   AppShell,
+  ButtonLink,
   Navigation,
   Notice,
   Panel,
@@ -47,6 +48,11 @@ export default async function DisclosureDetailPage({ params }: DisclosureDetailP
         backLink={{ href: "/disclosures", label: "공시 목록" }}
         title={disclosure.title}
         description={`등록 ${formatDateTime(disclosure.createdAt)} · 수정 ${formatDateTime(disclosure.updatedAt)}`}
+        actions={(
+          <ButtonLink href="/disclosures#roadmap" variant="secondary">
+            로드맵 보기
+          </ButtonLink>
+        )}
       />
 
       <Panel className="disclosure-detail-panel">

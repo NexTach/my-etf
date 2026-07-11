@@ -1,5 +1,11 @@
-import type { CSSProperties, ElementType, FormHTMLAttributes, ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import type {
+  CSSProperties,
+  ElementType,
+  FormHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes
+} from "react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import Link from "next/link";
 
 type WithChildren = {
@@ -137,11 +143,13 @@ export function TextLink({
 export function SectionHeader({
   title,
   description,
-  id
+  id,
+  actions
 }: {
   title: string;
   description?: ReactNode;
   id?: string;
+  actions?: ReactNode;
 }) {
   return (
     <div className="section-title" id={id}>
@@ -149,6 +157,7 @@ export function SectionHeader({
         <h2>{title}</h2>
         {description ? <p>{description}</p> : null}
       </div>
+      {actions ? <div className="section-title-actions">{actions}</div> : null}
     </div>
   );
 }
@@ -197,6 +206,21 @@ export function Form({
     <form className={cx("form", compact && "compact", className)} {...props}>
       {children}
     </form>
+  );
+}
+
+export function TdsSelect({
+  children,
+  className,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="tds-select">
+      <select className={cx("tds-select-control", className)} {...props}>
+        {children}
+      </select>
+      <ChevronDown className="tds-select-icon" size={18} aria-hidden="true" />
+    </div>
   );
 }
 
