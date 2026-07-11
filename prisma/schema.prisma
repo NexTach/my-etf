@@ -65,14 +65,32 @@ model MonthlyDividendRecord {
 }
 
 model Disclosure {
-  id        String            @id @default(cuid())
-  title     String            @db.VarChar(160)
-  body      String            @db.Text
-  trades    DisclosureTrade[]
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  title         String            @db.VarChar(160)
+  body          String            @db.Text
+  trades        DisclosureTrade[]
+  roadmapEvents RoadmapEvent[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([createdAt])
+}
+
+model RoadmapEvent {
+  id           String     @id @default(cuid())
+  disclosureId String     @map("disclosure_id")
+  disclosure   Disclosure @relation(fields: [disclosureId], references: [id], onDelete: Cascade)
+  eventDate    String     @map("event_date") @db.VarChar(10)
+  kind         String     @default("PLANNED") @db.VarChar(20)
+  category     String     @default("OTHER") @db.VarChar(24)
+  label        String?    @db.VarChar(160)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@unique([disclosureId, eventDate], map: "uq_roadmap_events_disclosure_date")
+  @@index([eventDate], map: "idx_roadmap_events_event_date")
+  @@index([disclosureId], map: "idx_roadmap_events_disclosure_id")
+  @@map("roadmap_events")
 }
 
 model DisclosureTrade {
