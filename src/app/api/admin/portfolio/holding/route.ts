@@ -16,6 +16,10 @@ const schema = z.object({
   ),
   marketCountry: z.enum(["NASDAQ", "NYSE", "AMEX", "KOSPI", "KOSDAQ"]),
   currency: z.enum(["KRW", "USD"]),
+  riskLevel: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["LOW", "HIGH"]).optional()
+  ),
   quantity: z.coerce.number().positive(),
   lastPrice: z.coerce.number().positive(),
   averagePurchasePrice: z.coerce.number().positive(),

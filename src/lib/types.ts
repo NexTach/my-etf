@@ -74,6 +74,8 @@ export type MarketCode = "NASDAQ" | "NYSE" | "AMEX" | "KOSPI" | "KOSDAQ";
 
 export type TradeSide = "BUY" | "SELL";
 
+export type HoldingRiskLevel = "LOW" | "HIGH";
+
 export type Holding = {
   symbol: string;
   name: string;
@@ -91,6 +93,7 @@ export type Holding = {
   fxGainLossKrw?: number;
   profitLossKrw?: number;
   profitLossRate?: number;
+  riskLevel?: HoldingRiskLevel;
 };
 
 export type PortfolioOverview = {

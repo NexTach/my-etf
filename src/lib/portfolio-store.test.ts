@@ -82,4 +82,25 @@ describe("normalizeManualPortfolioStore", () => {
     );
     assert.equal(normalized.holdings[0].marketValueKrw, 28000);
   });
+
+  it("preserves assigned and unassigned holding risk levels", () => {
+    const store: ManualPortfolioStore = {
+      exchangeRate: 1400,
+      updatedAt: "2026-07-09T00:00:00.000Z",
+      holdings: [
+        holding({ symbol: "LOW", riskLevel: "LOW" }),
+        holding({ symbol: "HIGH", riskLevel: "HIGH" }),
+        holding({ symbol: "NONE" })
+      ]
+    };
+
+    const normalized = normalizeManualPortfolioStore(store);
+    const risks = Object.fromEntries(normalized.holdings.map((item) => [item.symbol, item.riskLevel]));
+
+    assert.deepEqual(risks, {
+      HIGH: "HIGH",
+      LOW: "LOW",
+      NONE: undefined
+    });
+  });
 });

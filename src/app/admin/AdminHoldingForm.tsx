@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
+import { RiskBadge } from "@/app/components/risk-badge";
 import { ComputedValue, Field, Form, TdsSelect } from "@/app/components/tds";
 import { currencySymbol, formatCurrency } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
@@ -29,6 +30,7 @@ type AdminHoldingFormProps = Partial<Pick<
   | "lastPrice"
   | "averagePurchasePrice"
   | "purchaseExchangeRate"
+  | "riskLevel"
 >>;
 
 type HoldingFormState = {
@@ -41,6 +43,7 @@ type HoldingFormState = {
   lastPrice: string;
   averagePurchasePrice: string;
   purchaseExchangeRate: string;
+  riskLevel: "" | "LOW" | "HIGH";
 };
 
 type TradeFormState = {
@@ -105,7 +108,8 @@ function createHoldingFormState({
   quantity,
   lastPrice,
   averagePurchasePrice,
-  purchaseExchangeRate
+  purchaseExchangeRate,
+  riskLevel
 }: AdminHoldingFormProps): HoldingFormState {
   const normalizedMarket = normalizeMarketCode(marketCountry, currency, symbol);
 
@@ -118,7 +122,8 @@ function createHoldingFormState({
     quantity: quantity?.toString() ?? "",
     lastPrice: lastPrice?.toString() ?? "",
     averagePurchasePrice: averagePurchasePrice?.toString() ?? "",
-    purchaseExchangeRate: purchaseExchangeRate?.toString() ?? ""
+    purchaseExchangeRate: purchaseExchangeRate?.toString() ?? "",
+    riskLevel: riskLevel ?? ""
   };
 }
 
@@ -143,7 +148,8 @@ export function AdminHoldingForm({
   quantity,
   lastPrice,
   averagePurchasePrice,
-  purchaseExchangeRate
+  purchaseExchangeRate,
+  riskLevel
 }: AdminHoldingFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -162,9 +168,10 @@ export function AdminHoldingForm({
         quantity,
         lastPrice,
         averagePurchasePrice,
-        purchaseExchangeRate
+        purchaseExchangeRate,
+        riskLevel
       }),
-    [alias, averagePurchasePrice, currency, lastPrice, marketCountry, name, purchaseExchangeRate, quantity, symbol]
+    [alias, averagePurchasePrice, currency, lastPrice, marketCountry, name, purchaseExchangeRate, quantity, riskLevel, symbol]
   );
   const [form, setForm] = useState<HoldingFormState>(initialForm);
   const initialTradeForm = useMemo(
@@ -357,6 +364,7 @@ export function AdminHoldingForm({
       <div className="holding-summary">
         <div>
           <strong>{stockPrimaryLabel(stock)}</strong>
+          <RiskBadge level={riskLevel} showUnassigned />
           {secondaryLabel ? <span>{secondaryLabel}</span> : null}
           <em>
             {formatHoldingNumber(quantity)}주 · 현재가 {formatHoldingCurrency(lastPrice, currency, 6)} · 평단{" "}
@@ -486,6 +494,23 @@ export function AdminHoldingForm({
                 placeholder="비워두면 종목명/심볼 기준으로 표시"
                 onChange={(event) => setForm((current) => ({ ...current, alias: event.target.value }))}
               />
+            </Field>
+            <Field htmlFor={`risk-level-${symbol ?? "new"}`} label="위험도" wide>
+              <TdsSelect
+                id={`risk-level-${symbol ?? "new"}`}
+                name="riskLevel"
+                value={form.riskLevel}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    riskLevel: event.target.value as HoldingFormState["riskLevel"]
+                  }))
+                }
+              >
+                <option value="">미지정</option>
+                <option value="LOW">저위험</option>
+                <option value="HIGH">고위험</option>
+              </TdsSelect>
             </Field>
             <Field htmlFor={`market-${symbol ?? "new"}`} label="시장">
               <TdsSelect

@@ -1,4 +1,5 @@
 import { AuthNavActions } from "@/app/components/auth-actions";
+import { RiskBadge } from "@/app/components/risk-badge";
 import { PaginatedList } from "@/app/components/client-pagination";
 import { DividendForecastView } from "@/app/components/dividend-forecast-view";
 import { DisclosureTradeSummary } from "@/app/components/disclosure-trades";
@@ -257,7 +258,12 @@ export default async function Home() {
               return (
                 <ListRow
                   key={holding.symbol}
-                  title={<TextLink href={href}>{stockPrimaryLabel(holding)}</TextLink>}
+                  title={
+                    <span className="holding-title-with-risk">
+                      <TextLink href={href}>{stockPrimaryLabel(holding)}</TextLink>
+                      <RiskBadge level={holding.riskLevel} />
+                    </span>
+                  }
                   description={`${secondaryLabel ? `${secondaryLabel} · ` : ""}${formatNumber(holding.quantity, 4)}주 · 원화 보유 수익률 ${formatPercent(holding.profitLossRate)}`}
                   value={
                     <div className="holding-row-value">

@@ -7,10 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum HoldingRiskLevel {
+  LOW
+  HIGH
+}
+
 model PortfolioHolding {
-  symbol               String   @id
+  symbol               String            @id
   name                 String
-  alias                String?  @db.VarChar(80)
+  alias                String?           @db.VarChar(80)
   marketCountry        String
   currency             String
   quantity             Float
@@ -18,8 +23,9 @@ model PortfolioHolding {
   averagePurchasePrice Float?
   purchaseExchangeRate Float?
   profitLossRate       Float?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  riskLevel            HoldingRiskLevel? @map("risk_level")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 }
 
 model PortfolioDailySnapshot {

@@ -912,6 +912,41 @@ button.full,
   margin: 0;
 }
 
+.holding-title-with-risk,
+.stock-detail-heading-meta {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--tds-space-2);
+}
+
+.risk-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  min-height: 22px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.risk-badge.low {
+  background: var(--chart-down-soft);
+  color: var(--chart-down);
+}
+
+.risk-badge.high {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.risk-badge.unassigned {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
 .list-row-sub {
   color: var(--muted);
   font-size: var(--tds-text-xs);
@@ -1794,6 +1829,20 @@ tbody tr:last-child td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.holding-summary .risk-badge {
+  justify-self: start;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.holding-summary .risk-badge.low {
+  color: var(--chart-down);
+}
+
+.holding-summary .risk-badge.high {
+  color: var(--danger);
 }
 
 .inline-fields.exchange {

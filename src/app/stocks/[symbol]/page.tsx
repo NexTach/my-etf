@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AuthNavActions } from "@/app/components/auth-actions";
+import { RiskBadge } from "@/app/components/risk-badge";
 import { CandleChart } from "@/app/components/stock-chart";
 import {
   AppShell,
@@ -128,7 +129,18 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
         actions={<AuthNavActions user={user} />}
       />
 
-      <Top title={primaryLabel} description={secondaryLabel} backLink={{ href: "/" }} />
+      <Top
+        title={primaryLabel}
+        description={
+          secondaryLabel || holding.riskLevel ? (
+            <span className="stock-detail-heading-meta">
+              {secondaryLabel ? <span>{secondaryLabel}</span> : null}
+              <RiskBadge level={holding.riskLevel} />
+            </span>
+          ) : undefined
+        }
+        backLink={{ href: "/" }}
+      />
 
       <Grid columns={4} className="mt-16">
         <Metric label="평가금액" value={formatKrw(holding.marketValueKrw)} />

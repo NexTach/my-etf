@@ -190,6 +190,7 @@ export async function readManualPortfolioStore(): Promise<ManualPortfolioStore> 
       lastPrice: holding.lastPrice,
       averagePurchasePrice: holding.averagePurchasePrice ?? undefined,
       purchaseExchangeRate: holding.purchaseExchangeRate ?? undefined,
+      riskLevel: holding.riskLevel ?? undefined,
       marketValue: 0,
       marketValueKrw: 0,
       profitLossRate: holding.profitLossRate ?? undefined
@@ -344,7 +345,8 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
       lastPrice: input.lastPrice,
       averagePurchasePrice: input.averagePurchasePrice,
       purchaseExchangeRate: input.purchaseExchangeRate,
-      profitLossRate
+      profitLossRate,
+      riskLevel: input.riskLevel ?? null
     },
     update: {
       name: input.name,
@@ -355,7 +357,8 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
       lastPrice: input.lastPrice,
       averagePurchasePrice: input.averagePurchasePrice,
       purchaseExchangeRate: input.purchaseExchangeRate,
-      profitLossRate
+      profitLossRate,
+      riskLevel: input.riskLevel ?? null
     }
   });
 }
