@@ -103,7 +103,7 @@ export default async function IntentsPage() {
       <ToastStack messages={flashMessages} clearCookieName={FLASH_COOKIE_NAME} />
 
       <Navigation
-        title="TDIV"
+        title="NXDI"
         actions={<AuthNavActions user={user} />}
       />
 

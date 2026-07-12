@@ -31,7 +31,7 @@ import type {
 } from "@/lib/roadmap";
 import {  TdsSelect } from "@/app/components/tds";
 
-const DRAG_MIME = "application/x-tdiv-roadmap-item";
+const DRAG_MIME = "application/x-nxdi-roadmap-item";
 const COLLAPSED_EDITOR_PINS_PER_DATE = 2;
 
 export type RoadmapEditorDisclosure = {

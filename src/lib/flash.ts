@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export const FLASH_COOKIE_NAME = "tdiv_flash";
+export const FLASH_COOKIE_NAME = "nxdi_flash";
 
 export type FlashMessage = {
   id: string;

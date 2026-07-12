@@ -16,7 +16,7 @@ export default async function LoginPage() {
       />
 
       <CtaPanel className="max-w-gate">
-        <h2>TDIV 계정</h2>
+        <h2>NXDI 계정</h2>
         <p className="lede">
           {user
             ? "이미 DataGSM 계정으로 로그인되어 있습니다."

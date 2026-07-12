@@ -1,9 +1,9 @@
 ---
-name: tdiv-disclosure
-description: Draft, revise, or review Korean NexTach Global Dividend Income Fund (TDIV) notices and disclosures. Use when Codex needs to write or check TDIV 공지/공시 documents for planned or completed capital increases, sales, reductions, rebalancing-related trades, execution reports, disclosure formatting, field selection, Korean ticker/name notation, date/time notation, amount wording, or pre-publication checklist validation.
+name: nxdi-disclosure
+description: Draft, revise, or review Korean NexTach Global Dividend Income Fund (NXDI) notices and disclosures. Use when Codex needs to write or check NXDI 공지/공시 documents for planned or completed capital increases, sales, reductions, rebalancing-related trades, execution reports, disclosure formatting, field selection, Korean ticker/name notation, date/time notation, amount wording, or pre-publication checklist validation.
 ---
 
-# NexTach Global Dividend Income Fund (TDIV) Disclosure Writing
+# NexTach Global Dividend Income Fund (NXDI) Disclosure Writing
 
 ## Output Contract
 

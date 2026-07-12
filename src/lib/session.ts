@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { AppUser } from "./types";
 
-const USER_COOKIE = "tdiv_session";
+const USER_COOKIE = "nxdi_session";
 const ONE_WEEK_SECONDS = 60 * 60 * 24 * 7;
 
 function secret() {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "NXDI Fund Disclosure"
+  short_description: "Draft Korean NXDI notices and disclosures"
+  default_prompt: "Use $nxdi-disclosure to draft a Korean NXDI disclosure or notice from the provided event details."
