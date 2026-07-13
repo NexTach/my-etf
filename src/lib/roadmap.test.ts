@@ -5,6 +5,7 @@ import {
   deriveRoadmapCategory,
   deriveRoadmapKind,
   groupRoadmapEventsByDate,
+  isRoadmapEventMoveDate,
   isValidDateKey,
   kstDateKey,
   normalizeRoadmapEventCategory,
@@ -82,6 +83,16 @@ describe("roadmap date helpers", () => {
     ]);
     assert.deepEqual(roadmapDateKeys("2026-07-12", "2026-07-11"), []);
     assert.deepEqual(roadmapDateKeys("9999-12-31", "9999-12-31"), ["9999-12-31"]);
+  });
+
+  it("allows roadmap events to move into the past through the future horizon", () => {
+    const today = "2026-07-14";
+
+    assert.equal(isRoadmapEventMoveDate("2025-01-01", today), true);
+    assert.equal(isRoadmapEventMoveDate(today, today), true);
+    assert.equal(isRoadmapEventMoveDate("2026-08-13", today), true);
+    assert.equal(isRoadmapEventMoveDate("2026-08-14", today), false);
+    assert.equal(isRoadmapEventMoveDate("2026-02-29", today), false);
   });
 });
 

@@ -5,10 +5,9 @@ import { isAdminUser } from "@/lib/admin";
 import {
   ROADMAP_EVENT_CATEGORIES,
   ROADMAP_EVENT_KINDS,
-  addDaysToDateKey,
   deleteRoadmapEvent,
+  isRoadmapEventMoveDate,
   isValidDateKey,
-  kstDateKey,
   updateRoadmapEvent
 } from "@/lib/roadmap";
 import { getUserSession } from "@/lib/session";
@@ -40,11 +39,6 @@ function errorCode(error: unknown) {
     return String(error.code);
   }
   return undefined;
-}
-
-function isEditableDate(date: string) {
-  const today = kstDateKey();
-  return date >= today && date <= addDaysToDateKey(today, 30);
 }
 
 async function authorizedEventId(context: RouteContext) {
@@ -85,9 +79,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  if (parsed.data.eventDate && !isEditableDate(parsed.data.eventDate)) {
+  if (parsed.data.eventDate && !isRoadmapEventMoveDate(parsed.data.eventDate)) {
     return NextResponse.json(
-      { error: "핀은 오늘부터 30일 안의 날짜로만 이동할 수 있습니다." },
+      { error: "핀은 과거 날짜 또는 오늘부터 30일 후까지 이동할 수 있습니다." },
       { status: 400 }
     );
   }

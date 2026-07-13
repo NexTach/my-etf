@@ -180,7 +180,7 @@ function RoadmapPinEditor({
   async function submit(eventObject: FormEvent<HTMLFormElement>) {
     eventObject.preventDefault();
     await onSave({
-      ...(isPast ? {} : { eventDate }),
+      eventDate,
       kind,
       category,
       label
@@ -208,7 +208,7 @@ function RoadmapPinEditor({
       {isPast ? (
         <p className="roadmap-editor-history-notice">
           <History size={16} aria-hidden="true" />
-          지난 기록의 날짜는 유지돼요. 상태, 분류, 표시 이름은 수정할 수 있습니다.
+          지난 기록도 날짜, 상태, 분류와 표시 이름을 수정할 수 있습니다.
         </p>
       ) : null}
 
@@ -218,10 +218,9 @@ function RoadmapPinEditor({
           <input
             id={`${formId}-date`}
             type="date"
-            min={today}
             max={horizon}
             value={eventDate}
-            disabled={isPast || busy}
+            disabled={busy}
             onChange={(changeEvent) => setEventDate(changeEvent.target.value)}
           />
         </div>
@@ -386,16 +385,12 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
   async function movePin(eventId: string, eventDate: string) {
     const currentEvent = roadmapEvents.find((event) => event.id === eventId);
     if (!currentEvent) return;
-    if (currentEvent.eventDate < today) {
-      setStatus({ tone: "error", text: "지난 기록의 날짜는 바꿀 수 없어요." });
-      return;
-    }
     if (currentEvent.eventDate === eventDate) {
       setStatus({ tone: "success", text: "핀이 이미 이 날짜에 있어요." });
       return;
     }
-    if (eventDate < today || eventDate > horizon) {
-      setStatus({ tone: "error", text: "오늘부터 30일 안의 날짜로 이동해 주세요." });
+    if (eventDate > horizon) {
+      setStatus({ tone: "error", text: "과거 날짜 또는 오늘부터 30일 후까지 이동해 주세요." });
       return;
     }
     if (duplicateExists(currentEvent.disclosureId, eventDate, currentEvent.id)) {
@@ -482,7 +477,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
   }
 
   function beginEventDrag(eventObject: DragEvent, roadmapEvent: RoadmapEvent) {
-    if (roadmapEvent.eventDate < today || busy) {
+    if (busy) {
       eventObject.preventDefault();
       return;
     }
@@ -508,7 +503,11 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
   }
 
   function allowDateDrop(eventObject: DragEvent, eventDate: string) {
-    if (busy || eventDate < today || eventDate > horizon) return;
+    if (
+      busy ||
+      eventDate > horizon ||
+      (eventDate < today && dragging?.type !== "event")
+    ) return;
     eventObject.preventDefault();
     eventObject.dataTransfer.dropEffect = dragging?.type === "event" ? "move" : "copy";
     setDropTargetDate(eventDate);
@@ -658,8 +657,8 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
                 <h3 id={`${editorId}-timeline-title`}>한 달 로드맵</h3>
               </div>
               <div className="roadmap-editor-legend" aria-label="핀 조작 안내">
-                <span><GripVertical size={14} aria-hidden="true" /> 미래 핀은 이동 가능</span>
-                <span><History size={14} aria-hidden="true" /> 지난 핀은 기록으로 유지</span>
+                <span><GripVertical size={14} aria-hidden="true" /> 핀은 과거 포함 이동 가능</span>
+                <span><History size={14} aria-hidden="true" /> 새 핀 추가는 오늘 이후</span>
               </div>
             </header>
 
@@ -674,7 +673,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
                   const hiddenPinCount = dateEvents.length - displayedEvents.length;
                   const isPast = eventDate < today;
                   const isToday = eventDate === today;
-                  const editable = !isPast && eventDate <= horizon;
+                  const editable = eventDate <= horizon;
                   return (
                     <li
                       key={eventDate}
@@ -703,9 +702,9 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
                                 selected ? "roadmap-editor-pin--selected" : ""
                               ].filter(Boolean).join(" ")}
                               type="button"
-                              draggable={!pinIsPast && !busy}
+                              draggable={!busy}
                               aria-pressed={selected}
-                              aria-label={`${eventLabel(roadmapEvent)}, ${formatDateKey(roadmapEvent.eventDate)}, ${roadmapKindLabel(roadmapEvent.kind)}. ${pinIsPast ? "지난 기록" : "드래그하여 이동 가능"}`}
+                              aria-label={`${eventLabel(roadmapEvent)}, ${formatDateKey(roadmapEvent.eventDate)}, ${roadmapKindLabel(roadmapEvent.kind)}. 드래그하여 이동 가능`}
                               onClick={() => setSelectedEventId(roadmapEvent.id)}
                               onDragStart={(event) => beginEventDrag(event, roadmapEvent)}
                               onDragEnd={finishDrag}
