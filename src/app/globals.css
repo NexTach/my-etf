@@ -3582,21 +3582,6 @@ button.roadmap-editor-add-button {
   padding-bottom: var(--tds-space-3);
 }
 
-.roadmap-editor-legend {
-  align-items: flex-end;
-  color: var(--muted);
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-  gap: 3px;
-}
-
-.roadmap-editor-legend span {
-  align-items: center;
-  display: flex;
-  gap: 4px;
-}
-
 .roadmap-editor-viewport {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -4000,10 +3985,6 @@ button.ghost.danger {
 
   .roadmap-editor-board-header {
     gap: var(--tds-space-2);
-  }
-
-  .roadmap-editor-legend {
-    align-items: flex-start;
   }
 
   .roadmap-editor-track {

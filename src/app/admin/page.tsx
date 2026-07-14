@@ -10,7 +10,6 @@ import { ToastStack } from "@/app/components/toast";
 import {
   AppShell,
   Badge,
-  ButtonLink,
   CtaPanel,
   Grid,
   Metric,
@@ -159,11 +158,6 @@ export default async function AdminPage() {
         title="의향서와 포트폴리오를 관리해요"
         description="운영 데이터가 사용자 화면의 예상 배당 계산과 제출 내역 상태에 바로 반영됩니다."
         backLink={{ href: "/" }}
-        actions={(
-          <ButtonLink href="/disclosures#roadmap" variant="secondary">
-            공개 로드맵 보기
-          </ButtonLink>
-        )}
       />
 
       <Grid columns={4} className="mt-16">

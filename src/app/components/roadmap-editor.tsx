@@ -656,10 +656,6 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
                 <span className="roadmap-editor-eyebrow">2. 날짜에 놓기</span>
                 <h3 id={`${editorId}-timeline-title`}>한 달 로드맵</h3>
               </div>
-              <div className="roadmap-editor-legend" aria-label="핀 조작 안내">
-                <span><GripVertical size={14} aria-hidden="true" /> 핀은 과거 포함 이동 가능</span>
-                <span><History size={14} aria-hidden="true" /> 새 핀 추가는 오늘 이후</span>
-              </div>
             </header>
 
             <div className="roadmap-editor-viewport" tabIndex={0} aria-label="가로 로드맵, 좌우로 스크롤할 수 있습니다">
