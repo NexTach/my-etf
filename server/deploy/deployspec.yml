@@ -1,0 +1,27 @@
+version: "1.0"
+
+hooks:
+  ApplicationStop:
+    - location: deploy/scripts/stop_application.sh
+      timeout: 120
+  AfterInstall:
+    - location: deploy/scripts/after_install.sh
+      timeout: 900
+  ApplicationStart:
+    - location: deploy/scripts/start_application.sh
+      timeout: 180
+  ValidateService:
+    - location: deploy/scripts/validate_service.sh
+      timeout: 180
+
+permissions:
+  - object: /
+    pattern: "**"
+    mode: "0644"
+    type:
+      - file
+  - object: deploy/scripts
+    pattern: "*.sh"
+    mode: "0755"
+    type:
+      - file
