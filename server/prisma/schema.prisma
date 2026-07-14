@@ -26,6 +26,8 @@ model PortfolioHolding {
   riskLevel            HoldingRiskLevel? @map("risk_level")
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
+
+  @@map("tb_portfolio_holdings")
 }
 
 model PortfolioDailySnapshot {
@@ -44,6 +46,7 @@ model PortfolioDailySnapshot {
 
   @@index([updatedAt])
   @@index([snapshotDate, closedAt])
+  @@map("tb_portfolio_daily_snapshots")
 }
 
 model DividendRecord {
@@ -56,6 +59,8 @@ model DividendRecord {
   memo                   String?  @db.VarChar(500)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+
+  @@map("tb_dividend_records")
 }
 
 model MonthlyDividendRecord {
@@ -67,7 +72,7 @@ model MonthlyDividendRecord {
   updatedAt               DateTime @updatedAt @map("updated_at")
 
   @@index([updatedAt], map: "idx_monthly_dividend_records_updated_at")
-  @@map("monthly_dividend_records")
+  @@map("tb_monthly_dividend_records")
 }
 
 model Disclosure {
@@ -80,6 +85,7 @@ model Disclosure {
   updatedAt     DateTime          @updatedAt
 
   @@index([createdAt])
+  @@map("tb_disclosures")
 }
 
 model RoadmapEvent {
@@ -96,7 +102,7 @@ model RoadmapEvent {
   @@unique([disclosureId, eventDate], map: "uq_roadmap_events_disclosure_date")
   @@index([eventDate], map: "idx_roadmap_events_event_date")
   @@index([disclosureId], map: "idx_roadmap_events_disclosure_id")
-  @@map("roadmap_events")
+  @@map("tb_roadmap_events")
 }
 
 model DisclosureTrade {
@@ -121,6 +127,7 @@ model DisclosureTrade {
 
   @@index([disclosureId])
   @@index([symbol])
+  @@map("tb_disclosure_trades")
 }
 
 model InvestmentIntent {
@@ -140,6 +147,7 @@ model InvestmentIntent {
 
   @@index([userId])
   @@index([status])
+  @@map("tb_investment_intents")
 }
 
 model WithdrawalIntent {
@@ -159,4 +167,5 @@ model WithdrawalIntent {
 
   @@index([userId])
   @@index([status])
+  @@map("tb_withdrawal_intents")
 }

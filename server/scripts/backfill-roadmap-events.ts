@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "../src/infrastructure/prisma.js";
 
 type SeedEvent = {
   eventDate: string;

@@ -1,0 +1,44 @@
+{
+  "name": "nxdi-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "node --import tsx --test 'test/**/*.test.ts'",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage 'test/**/*.test.ts'",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "prisma:generate": "prisma generate",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:backfill-roadmap": "tsx scripts/backfill-roadmap-events.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "@prisma/client": "^6.19.3",
+    "adm-zip": "^0.5.18",
+    "fast-xml-parser": "^5.9.3",
+    "fastify": "^5.6.2",
+    "mysql2": "^3.15.3",
+    "node-cron": "^4.2.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0"
+  }
+}

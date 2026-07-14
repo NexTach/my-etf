@@ -1,7 +1,7 @@
-import { readDividendRecords } from "../src/lib/dividends";
+import { syncScheduledDividendRecords } from "../src/infrastructure/dividends.js";
 
 async function main() {
-  await readDividendRecords();
+  await syncScheduledDividendRecords();
 }
 
 main()
