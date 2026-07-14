@@ -1,0 +1,71 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { AuthNavActions } from "@/app/components/auth-actions";
+import { DisclosureTradeDetails } from "@/app/components/disclosure-trades";
+import {
+  AppShell,
+  ButtonLink,
+  Navigation,
+  Notice,
+  Panel,
+  SectionHeader,
+  Top
+} from "@/app/components/tds";
+import { getDisclosure } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
+
+type DisclosureDetailProps = {
+  params: Promise<{ id: string }>;
+};
+
+export async function generateMetadata({ params }: DisclosureDetailProps): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getDisclosure(id);
+  const disclosure = result?.disclosure;
+
+  return {
+    title: disclosure ? `${disclosure.title} | NXDI 공시` : "공시 | NXDI",
+    description: disclosure?.body.slice(0, 120) ?? "NXDI 공시 상세"
+  };
+}
+
+export default async function DisclosureDetailPage({ params }: DisclosureDetailProps) {
+  const { id } = await params;
+  const result = await getDisclosure(id);
+  if (!result) notFound();
+  const { disclosure, user } = result;
+
+  return (
+    <AppShell>
+      <Navigation
+        actions={<AuthNavActions user={user} />}
+      />
+
+      <Top
+        backLink={{ href: "/disclosures", label: "공시 목록" }}
+        title={disclosure.title}
+        description={`등록 ${formatDateTime(disclosure.createdAt)} · 수정 ${formatDateTime(disclosure.updatedAt)}`}
+        actions={(
+          <ButtonLink href="/disclosures#roadmap" variant="secondary">
+            로드맵 보기
+          </ButtonLink>
+        )}
+      />
+
+      <Panel className="disclosure-detail-panel">
+        <article className="disclosure-body">{disclosure.body}</article>
+      </Panel>
+
+      {disclosure.trades.length > 0 ? (
+        <>
+          <SectionHeader title="첨부 거래 이력" description="거래별 세부 조건입니다." />
+          <DisclosureTradeDetails trades={disclosure.trades} />
+        </>
+      ) : null}
+
+      <Notice className="mt-18">
+        공시 내용은 운용 기록 안내이며, 표시된 거래 조건은 실제 체결·정산 조건과 차이가 있을 수 있습니다.
+      </Notice>
+    </AppShell>
+  );
+}
