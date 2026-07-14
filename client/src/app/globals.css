@@ -1617,6 +1617,135 @@ tbody tr:last-child td {
   gap: var(--tds-space-2);
 }
 
+.api-mutation-form[aria-busy="true"] button[type="submit"] {
+  cursor: progress;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.api-mutation-fields {
+  border: 0;
+  display: contents;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.loading-skeleton .skeleton-block {
+  animation: skeleton-ledger-pulse 1.45s ease-in-out infinite;
+  background: linear-gradient(100deg, #e8e8f1 18%, #f8f8fc 38%, #e8e8f1 58%);
+  background-size: 240% 100%;
+  border-radius: 999px;
+  display: block;
+}
+
+@keyframes skeleton-ledger-pulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.skeleton-hero {
+  align-items: flex-end;
+  background: var(--accent);
+  border-bottom-left-radius: var(--tds-radius-xl);
+  border-bottom-right-radius: var(--tds-radius-xl);
+  display: grid;
+  gap: var(--tds-space-5);
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0 calc(clamp(var(--tds-space-5), 3vw, 36px) * -1) var(--tds-space-2);
+  padding: 28px clamp(var(--tds-space-5), 3vw, 36px) 24px;
+}
+
+.skeleton-hero .skeleton-block {
+  background: rgba(255, 255, 255, 0.24);
+  animation: none;
+}
+
+.skeleton-eyebrow { height: 18px; margin-bottom: 14px; width: 156px; }
+.skeleton-title { height: 32px; margin-bottom: 10px; max-width: 360px; }
+.skeleton-copy { height: 14px; max-width: 560px; }
+
+.skeleton-actions {
+  display: flex;
+  gap: var(--tds-space-2);
+}
+
+.skeleton-actions .skeleton-block {
+  height: var(--tds-control-md);
+  width: 112px;
+}
+
+.skeleton-metrics { margin-top: var(--tds-space-4); }
+.skeleton-metric { min-height: 142px; }
+.skeleton-label { height: 12px; width: 45%; }
+.skeleton-value { height: 28px; margin-top: 12px; width: 64%; }
+.skeleton-value-tail { height: 12px; margin-top: 24px; width: 38%; }
+
+.skeleton-mini-chart {
+  align-items: flex-end;
+  display: flex;
+  gap: 5px;
+  height: 34px;
+  margin-top: 13px;
+  overflow: hidden;
+  width: 128px;
+}
+
+.skeleton-mini-chart span {
+  background: var(--accent-soft);
+  border-radius: 3px 3px 0 0;
+  flex: 1;
+}
+
+.skeleton-section-heading { margin: 24px 0 var(--tds-space-2); }
+.skeleton-heading { height: 20px; width: 168px; }
+.skeleton-heading-copy { height: 11px; margin-top: 7px; width: min(420px, 70%); }
+.skeleton-dashboard { margin-top: var(--tds-space-3); }
+.skeleton-panel-title { height: 18px; width: 42%; }
+
+.skeleton-composition-body {
+  align-items: center;
+  display: grid;
+  gap: var(--tds-space-4);
+  grid-template-columns: 148px minmax(0, 1fr);
+  margin-top: 26px;
+}
+
+.skeleton-ring {
+  background: conic-gradient(var(--line) 0 24%, var(--accent-soft) 24% 57%, #ececf5 57% 100%);
+  border: 24px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--line);
+  height: 148px;
+  width: 148px;
+}
+
+.skeleton-legend { display: grid; gap: 14px; }
+.skeleton-legend .skeleton-block { height: 13px; width: 100%; }
+.skeleton-legend .skeleton-block:nth-child(even) { width: 72%; }
+.skeleton-row-title { height: 14px; width: min(220px, 58%); }
+.skeleton-row-copy { height: 11px; margin-top: 9px; width: min(360px, 82%); }
+.skeleton-row-action { height: 24px; width: 46px; }
+
+.skeleton-holding-chart {
+  align-items: center;
+  display: flex;
+  gap: var(--tds-space-4);
+}
+
+.skeleton-holding-chart .skeleton-mini-chart { margin-top: 0; }
+.skeleton-price { height: 17px; width: 82px; }
+
 .field {
   display: grid;
   gap: 6px;
@@ -4006,6 +4135,10 @@ button.ghost.danger {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .loading-skeleton .skeleton-block {
+    animation: none;
+  }
+
   .roadmap-pin,
   .roadmap-node-core,
   .roadmap-disclosure-card,
@@ -4049,6 +4182,15 @@ button.ghost.danger {
 }
 
 @media (max-width: 980px) {
+  .skeleton-hero {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-actions {
+    flex-wrap: wrap;
+  }
+
   .home-shell .hero-band {
     align-items: flex-start;
     grid-template-columns: 1fr;
@@ -4134,6 +4276,31 @@ button.ghost.danger {
 }
 
 @media (max-width: 560px) {
+  .skeleton-hero {
+    border-bottom-left-radius: var(--tds-radius-lg);
+    border-bottom-right-radius: var(--tds-radius-lg);
+    margin: 0 calc(var(--tds-space-4) * -1) var(--tds-space-2);
+    padding: var(--tds-space-5) var(--tds-space-4);
+  }
+
+  .skeleton-actions .skeleton-block {
+    flex: 1 1 96px;
+  }
+
+  .skeleton-composition-body {
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-ring {
+    height: 132px;
+    width: 132px;
+  }
+
+  .skeleton-holding-chart {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .shell {
     padding: 0 var(--tds-space-4) 36px;
   }

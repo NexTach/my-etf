@@ -17,7 +17,6 @@ import {
 } from "@/app/components/tds";
 import { getSimulation } from "@/lib/api";
 import { formatKrw, formatNumber } from "@/lib/format";
-import { PRODUCT_MAX_INVESTMENT_KRW, PRODUCT_MIN_INVESTMENT_KRW } from "@/lib/product-policy";
 
 type SimulationPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -38,18 +37,15 @@ function formatOptionalKrw(value?: number) {
 
 export default async function SimulationPage({ searchParams }: SimulationPageProps) {
   const params = (await searchParams) ?? {};
-  const requestedAmount = Number(firstParam(params.amountKrw) ?? 100000) || 100000;
-  const amount = Math.min(
-    PRODUCT_MAX_INVESTMENT_KRW,
-    Math.max(PRODUCT_MIN_INVESTMENT_KRW, requestedAmount)
-  );
-  const simulation = await getSimulation(amount);
+  const requestedAmount = Number(firstParam(params.amountKrw) ?? 100000);
+  const simulation = await getSimulation(requestedAmount);
   const {
     user,
     amount: normalizedAmount,
     forecast,
     annualPortfolioDividendYield,
-    expectedPayout
+    expectedPayout,
+    policy
   } = simulation;
 
   return (
@@ -78,14 +74,16 @@ export default async function SimulationPage({ searchParams }: SimulationPagePro
               <FormattedNumberInput
                 defaultValue={normalizedAmount}
                 id="amountKrw"
-                max={PRODUCT_MAX_INVESTMENT_KRW}
-                min={PRODUCT_MIN_INVESTMENT_KRW}
+                max={policy.maxInvestmentKrw}
+                min={policy.minInvestmentKrw}
                 name="amountKrw"
                 placeholder="예: 100,000"
                 required
                 step="10000"
               />
-              <p className="field-help">1만원 이상 100만원 이하로 입력하면 쉼표가 자동으로 표시됩니다.</p>
+              <p className="field-help">
+                {formatKrw(policy.minInvestmentKrw)} 이상 {formatKrw(policy.maxInvestmentKrw)} 이하로 입력하면 쉼표가 자동으로 표시됩니다.
+              </p>
             </Field>
             <button type="submit">
               <RefreshCw size={17} />
@@ -102,12 +100,12 @@ export default async function SimulationPage({ searchParams }: SimulationPagePro
           />
           <ListRow
             title="정책 적용 월평균 지급액"
-            description="실배당 기반 배분, 당사 몫 20% 이전 및 월 상한 적용"
+            description={`실배당 기반 배분, 당사 몫 ${formatPercent(policy.companyDividendTransferRate)} 이전 및 월 ${formatPercent(policy.monthlyInvestorDividendCapRate)} 상한 적용`}
             value={formatOptionalKrw(expectedPayout?.monthlyExpectedDividendKrw)}
           />
           <ListRow
             title="정책 적용 예상 지급수익률"
-            description="가정 투자금 대비 연 예상 지급액, 단순 연 상한 10%"
+            description={`가정 투자금 대비 연 예상 지급액, 단순 연 상한 ${formatPercent(policy.annualInvestorDividendCapRate)}`}
             value={formatPercent(expectedPayout?.expectedAnnualPayoutRate)}
           />
           <ListRow

@@ -1,10 +1,25 @@
 import type {
   Holding,
-  MarketCandle,
-  MarketChart,
+  MarketCode,
   MonthlyDividendRecord,
   PortfolioDailySnapshot
-} from "@/lib/types";
+} from "./types.js";
+
+export type MarketCandle = {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+
+export type MarketChart = {
+  symbol?: string;
+  currency?: "KRW" | "USD";
+  marketCountry?: MarketCode;
+  candles: MarketCandle[];
+  previousClose?: number;
+};
 
 export type ChartPoint = {
   date: string;
@@ -71,9 +86,15 @@ export function portfolioChangeRateFromMarketValue({
 }
 
 export function samplePoints(points: ChartPoint[], maxPoints = 72) {
-  if (points.length <= maxPoints) return points;
-  const step = points.length / maxPoints;
-  return Array.from({ length: maxPoints }, (_, index) => points[Math.floor(index * step)]).filter(Boolean);
+  const limit = Math.max(0, Math.floor(maxPoints));
+  if (limit === 0) return [];
+  if (points.length <= limit) return points;
+  if (limit === 1) return [points.at(-1)!];
+
+  return Array.from({ length: limit }, (_, index) => {
+    const pointIndex = Math.round(index * (points.length - 1) / (limit - 1));
+    return points[pointIndex]!;
+  });
 }
 
 export function pointsFromCandles(candles: MarketCandle[]) {

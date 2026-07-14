@@ -2,11 +2,16 @@ type CacheEntry<T> = { expiresAt: number; value: T };
 
 export class TtlCache<T> {
   readonly #entries = new Map<string, CacheEntry<T>>();
+  readonly #now: () => number;
+
+  constructor(now: () => number = Date.now) {
+    this.#now = now;
+  }
 
   get(key: string) {
     const entry = this.#entries.get(key);
     if (!entry) return undefined;
-    if (entry.expiresAt <= Date.now()) {
+    if (entry.expiresAt <= this.#now()) {
       this.#entries.delete(key);
       return undefined;
     }
@@ -14,8 +19,12 @@ export class TtlCache<T> {
   }
 
   set(key: string, value: T, ttlMs: number) {
-    this.#entries.set(key, { expiresAt: Date.now() + ttlMs, value });
+    this.#entries.set(key, { expiresAt: this.#now() + ttlMs, value });
     return value;
+  }
+
+  delete(key: string) {
+    this.#entries.delete(key);
   }
 
   clear() {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ToastStack } from "@/app/components/toast";
 import { FUND_DESCRIPTION, FUND_KOREAN_NAME, FUND_NAME, FUND_TICKER } from "@/lib/brand";
 import "./globals.css";
 
@@ -12,7 +13,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ToastStack messages={[]} listenForRuntime />
+      </body>
     </html>
   );
 }

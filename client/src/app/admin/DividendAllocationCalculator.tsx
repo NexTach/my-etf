@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
 import { Field, MutedText, TdsSelect } from "@/app/components/tds";
 import { calculateDividendAllocation } from "@/lib/dividend-allocation";
-import { eligibleDividendIntents } from "@/lib/dividend-eligibility";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
 
 type DividendAllocationIntent = {
@@ -14,11 +13,14 @@ type DividendAllocationIntent = {
   amountKrw: number;
   createdAt: string;
   updatedAt: string;
+  eligibleFromMonth: string;
 };
 
 type DividendAllocationCalculatorProps = {
+  companyDividendTransferRate: number;
   intents: DividendAllocationIntent[];
   defaultDividendMonth: string;
+  monthlyInvestorDividendCapRate: number;
   totalMarketValueKrw: number;
 };
 
@@ -33,8 +35,10 @@ function formatPercent(value: number) {
 }
 
 export function DividendAllocationCalculator({
+  companyDividendTransferRate,
   intents,
   defaultDividendMonth,
+  monthlyInvestorDividendCapRate,
   totalMarketValueKrw
 }: DividendAllocationCalculatorProps) {
   const [actualDividend, setActualDividend] = useState("");
@@ -42,7 +46,7 @@ export function DividendAllocationCalculator({
   const [selectedIntentId, setSelectedIntentId] = useState(() => intents[0]?.id ?? "");
   const actualDividendKrw = parseInputAmount(actualDividend);
   const eligibleIntents = useMemo(
-    () => eligibleDividendIntents(intents, dividendMonth),
+    () => intents.filter((intent) => intent.eligibleFromMonth <= dividendMonth),
     [dividendMonth, intents]
   );
   const investorPrincipalKrw = eligibleIntents.reduce((sum, intent) => sum + intent.amountKrw, 0);
@@ -55,7 +59,9 @@ export function DividendAllocationCalculator({
     actualDividendKrw,
     selectedInvestmentKrw: selectedIntent?.amountKrw ?? 0,
     investorPrincipalKrw,
-    totalMarketValueKrw
+    totalMarketValueKrw,
+    companyDividendTransferRate,
+    monthlyInvestorDividendCapRate
   });
   const canCalculate = investorPrincipalKrw > 0 && Boolean(selectedIntent);
 

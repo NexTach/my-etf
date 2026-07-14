@@ -21,15 +21,6 @@ import {
   TextLink,
   Top
 } from "@/app/components/tds";
-import {
-  changeRateFromCandles,
-  monthlyDividendYieldCandlesFromSnapshots,
-  pointsFromCandles,
-  pointsFromSnapshots,
-  portfolioChangeRateFromMarketValue,
-  returnCandlesFromSnapshots,
-  samplePoints
-} from "@/lib/chart-metrics";
 import { getHome } from "@/lib/api";
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { formatDateTime, formatKrw, formatNumber } from "@/lib/format";
@@ -63,29 +54,14 @@ export default async function Home() {
     portfolio,
     scheduledDividend,
     portfolioDividend,
-    monthlyDividendRecords,
     disclosures,
-    dailyCharts: dailyChartRecord,
-    dailyChangeCharts: dailyChangeChartRecord
+    portfolioDailyChangeRate,
+    portfolioDailyPoints,
+    holdingReturnPoints,
+    dividendYieldPoints,
+    holdingCharts
   } = home;
   const currentDividendYield = portfolioDividend.dividendYield;
-  const dailyCharts = new Map(Object.entries(dailyChartRecord));
-  const dailyChangeCharts = new Map(Object.entries(dailyChangeChartRecord));
-  const portfolioDailyChangeRate = portfolioChangeRateFromMarketValue({
-    holdings: portfolio.holdings,
-    charts: dailyChangeCharts,
-    exchangeRate: portfolio.exchangeRate
-  });
-  const portfolioDailyPoints = pointsFromSnapshots(portfolio.dailySnapshots);
-  const holdingReturnPoints = pointsFromCandles(returnCandlesFromSnapshots(portfolio.dailySnapshots));
-  const yieldPoints = pointsFromCandles(
-    monthlyDividendYieldCandlesFromSnapshots(
-      portfolio.dailySnapshots,
-      monthlyDividendRecords,
-      portfolioDividend.annualDividendKrw,
-      portfolio.totalMarketValueKrw
-    )
-  );
   const portfolioAllocation = [...portfolio.holdings]
     .filter((holding) => holding.marketValueKrw > 0)
     .sort((a, b) => b.marketValueKrw - a.marketValueKrw)
@@ -137,7 +113,7 @@ export default async function Home() {
                 <SparkLineChart
                   interactive={false}
                   label="포트폴리오 1년 평가금액 추세"
-                  points={samplePoints(portfolioDailyPoints)}
+                  points={portfolioDailyPoints}
                   trendValue={portfolioDailyChangeRate}
                   valueFormat="krw"
                 />
@@ -171,7 +147,7 @@ export default async function Home() {
                 <SparkLineChart
                   interactive={false}
                   label="배당수익률 추세"
-                  points={yieldPoints}
+                  points={dividendYieldPoints}
                   trendValue={currentDividendYield}
                   valueFormat="percent"
                 />
@@ -231,10 +207,10 @@ export default async function Home() {
             pageSize={HOME_HOLDINGS_PAGE_SIZE}
           >
             {portfolio.holdings.map((holding) => {
-              const chart = dailyCharts.get(holding.symbol);
+              const chart = holdingCharts[holding.symbol];
               const href = `/stocks/${encodeURIComponent(holding.symbol)}`;
               const secondaryLabel = stockSecondaryLabel(holding);
-              const dailyChangeRate = changeRateFromCandles(chart?.candles ?? []);
+              const dailyChangeRate = chart?.dailyChangeRate;
 
               return (
                 <ListRow
@@ -252,7 +228,7 @@ export default async function Home() {
                         <SparkLineChart
                           interactive={false}
                           label={`${stockFullLabel(holding)} 최근 1년 가격 추세`}
-                          points={samplePoints(pointsFromCandles(chart?.candles ?? []))}
+                          points={chart?.points ?? []}
                           trendValue={dailyChangeRate}
                           valueFormat={holding.currency === "USD" ? "usd" : "krw"}
                         />

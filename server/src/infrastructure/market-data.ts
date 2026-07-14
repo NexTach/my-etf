@@ -3,7 +3,7 @@ import { XMLParser } from "fast-xml-parser";
 import type { DividendRecord, MarketCode } from "../domain/types.js";
 import { mapWithConcurrency } from "./concurrency.js";
 import { fetchExternal } from "./external-http.js";
-import { TtlCache } from "./ttl-cache.js";
+import { StaleWhileRevalidateCache } from "./stale-while-revalidate-cache.js";
 
 export type SymbolSearchResult = {
   symbol: string;
@@ -154,14 +154,21 @@ const DART_REPORTS = [
 let cachedCorpCodes: OpenDartCorpCodeRow[] | null = null;
 let cachedKrxSymbols: SymbolSearchResult[] | null = null;
 let cachedKrxSymbolsAt = 0;
-const chartCache = new TtlCache<MarketChart | null>();
-const chartRequests = new Map<string, Promise<MarketChart | null>>();
 
 const KRX_SYMBOL_CACHE_MS = 60 * 60 * 1000;
 const KRX_OPENAPI_TIMEOUT_MS = 4000;
 const KRX_DAILY_LOOKBACK_DAYS = 10;
 const OPENDART_SEARCH_TIMEOUT_MS = 1500;
 const CHART_CACHE_MS = 5 * 60 * 1000;
+const CHART_STALE_CACHE_MS = 6 * 60 * 60 * 1000;
+const chartCache = new StaleWhileRevalidateCache<MarketChart>({
+  freshTtlMs: CHART_CACHE_MS,
+  staleTtlMs: CHART_STALE_CACHE_MS,
+  backgroundConcurrency: 3,
+  onBackgroundError(error, key) {
+    console.warn(`Market chart background refresh failed: ${key}`, error instanceof Error ? error.name : "unknown");
+  }
+});
 const KRX_OPENAPI_BASE_URL = "https://data-dbg.krx.co.kr/svc/apis";
 const KRX_OPENAPI_PATHS: KrxOpenApiSource[] = [
   { path: "sto/stk_isu_base_info", exchange: "KOSPI", marketCountry: "KOSPI" },
@@ -572,16 +579,11 @@ export async function fetchMarketCandles(
   const trimmed = symbol.trim();
   if (!trimmed) return null;
   const cacheKey = `${trimmed.toUpperCase()}:${range}:${interval}:${limit}`;
-  const cached = chartCache.get(cacheKey);
-  if (cached !== undefined) return cached;
-  const inFlight = chartRequests.get(cacheKey);
-  if (inFlight) return inFlight;
-
-  const request = (async () => {
+  return chartCache.get(cacheKey, async () => {
     for (const yahooSymbol of yahooLookupSymbols(trimmed)) {
-    const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}`);
-    url.searchParams.set("range", range);
-    url.searchParams.set("interval", interval);
+      const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}`);
+      url.searchParams.set("range", range);
+      url.searchParams.set("interval", interval);
       const response = await fetchWithTimeout(url, {
         headers: { "User-Agent": "Mozilla/5.0" },
         cache: "no-store"
@@ -627,13 +629,13 @@ export async function fetchMarketCandles(
       const lastClose = candles.at(-1)?.close;
       const previousCandleClose = candles.at(-2)?.close;
       const changeRate =
-      typeof previousCandleClose === "number" && previousCandleClose > 0 && typeof lastClose === "number"
-        ? (lastClose - previousCandleClose) / previousCandleClose
-        : typeof previousClose === "number" && previousClose > 0 && typeof lastClose === "number"
-          ? (lastClose - previousClose) / previousClose
-        : undefined;
+        typeof previousCandleClose === "number" && previousCandleClose > 0 && typeof lastClose === "number"
+          ? (lastClose - previousCandleClose) / previousCandleClose
+          : typeof previousClose === "number" && previousClose > 0 && typeof lastClose === "number"
+            ? (lastClose - previousClose) / previousClose
+            : undefined;
 
-      return chartCache.set(cacheKey, {
+      return {
         symbol: normalizeSymbolForStorage(meta.symbol, meta.currency),
         currency: inferCurrency(meta.symbol, meta.currency),
         marketCountry: inferMarketCode(meta.symbol, meta.currency, meta.fullExchangeName ?? meta.exchangeName),
@@ -641,17 +643,11 @@ export async function fetchMarketCandles(
         previousClose,
         regularMarketPrice: meta.regularMarketPrice,
         changeRate
-      }, CHART_CACHE_MS);
+      };
     }
 
-    return chartCache.set(cacheKey, null, 30_000);
-  })();
-  chartRequests.set(cacheKey, request);
-  try {
-    return await request;
-  } finally {
-    if (chartRequests.get(cacheKey) === request) chartRequests.delete(cacheKey);
-  }
+    return null;
+  });
 }
 
 function mergeSearchResults(

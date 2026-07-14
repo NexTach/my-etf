@@ -8,7 +8,7 @@ import type {
   Disclosure,
   DividendForecast,
   DividendRecord,
-  MarketChart,
+  MarketCandle,
   MonthlyDividendRecord,
   PortfolioDividendSummary,
   PortfolioOverview,
@@ -61,13 +61,25 @@ export type SessionResponse = {
 };
 
 export type HomeResponse = SessionResponse & {
-  portfolio: PortfolioOverview;
+  portfolio: Omit<PortfolioOverview, "dailySnapshots">;
   scheduledDividend: DividendForecast;
   portfolioDividend: PortfolioDividendSummary;
-  monthlyDividendRecords: MonthlyDividendRecord[];
   disclosures: Disclosure[];
-  dailyCharts: Record<string, MarketChart | null>;
-  dailyChangeCharts: Record<string, MarketChart | null>;
+  portfolioDailyChangeRate?: number;
+  portfolioDailyPoints: ChartPoint[];
+  holdingReturnPoints: ChartPoint[];
+  dividendYieldPoints: ChartPoint[];
+  holdingCharts: Record<string, HoldingChart>;
+};
+
+export type ChartPoint = {
+  date: string;
+  value: number;
+};
+
+export type HoldingChart = {
+  dailyChangeRate?: number;
+  points: ChartPoint[];
 };
 
 export type DisclosuresResponse = {
@@ -88,21 +100,23 @@ export type DisclosureResponse = {
 
 export type StockResponse = {
   user: AppUser | null;
-  portfolio: PortfolioOverview;
   holding: PortfolioOverview["holdings"][number];
   dividendRecord: DividendRecord | null;
-  dailyChart: MarketChart | null;
-  weeklyChart: MarketChart | null;
-  monthlyChart: MarketChart | null;
+  dailyChangeRate?: number;
+  annualDividendKrw?: number;
+  holdingDividendYield?: number;
+  returnCandles: MarketCandle[];
+  yieldCandles: MarketCandle[];
+  weeklyCandles: MarketCandle[];
 };
 
 export type MetricResponse = {
   user: AppUser | null;
   metric: string;
-  portfolio: PortfolioOverview;
+  totalMarketValueKrw: number;
   portfolioDividend: PortfolioDividendSummary;
-  monthlyDividendRecords: MonthlyDividendRecord[];
-  dailyCharts: Record<string, MarketChart | null>;
+  candles: MarketCandle[];
+  currentRate?: number;
 };
 
 export type ExpectedPayout = {
@@ -111,21 +125,38 @@ export type ExpectedPayout = {
   expectedAnnualPayoutRate?: number;
 };
 
+export type ProductPolicyDto = {
+  minInvestmentKrw: number;
+  maxInvestmentKrw: number;
+  companyDividendTransferRate: number;
+  annualInvestorDividendCapRate: number;
+  monthlyInvestorDividendCapRate: number;
+};
+
+export type DividendAllocationIntentDto = {
+  id: string;
+  userName: string;
+  userEmail: string;
+  amountKrw: number;
+  createdAt: string;
+  updatedAt: string;
+  eligibleFromMonth: string;
+};
+
 export type SimulationResponse = {
   user: AppUser | null;
   amount: number;
-  portfolio: PortfolioOverview;
   forecast: DividendForecast;
-  currentInvestorPrincipalKrw: number;
   annualPortfolioDividendYield?: number;
   expectedPayout?: ExpectedPayout;
+  policy: ProductPolicyDto;
 };
 
 export type IntentsResponse = {
   user: AppUser;
   store: AppStore;
-  portfolio: PortfolioOverview;
   withdrawalLimit: WithdrawalLimit;
+  policy: ProductPolicyDto;
 };
 
 export type AdminDashboardResponse = {
@@ -138,6 +169,8 @@ export type AdminDashboardResponse = {
   roadmapEvents: RoadmapEvent[];
   roadmapToday: string;
   roadmapHorizon: string;
+  dividendAllocationIntents: DividendAllocationIntentDto[];
+  policy: ProductPolicyDto;
 };
 
 export function getSession() {

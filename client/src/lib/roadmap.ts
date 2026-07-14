@@ -160,43 +160,6 @@ export function stripDisclosureTag(title: string) {
     .trim();
 }
 
-function matchesAny(text: string, patterns: readonly RegExp[]) {
-  return patterns.some((pattern) => pattern.test(text));
-}
-
-const CANCELLED_PATTERNS = [/취소/u, /철회/u, /중단/u, /백지화/u, /무산/u];
-const DELAYED_PATTERNS = [/연기/u, /지연/u, /순연/u];
-const COMPLETED_PATTERNS = [/체결/u, /완료/u, /실행\s*결과/u, /진행\s*결과/u, /운용\s*결과/u, /종료/u];
-const PLANNED_PATTERNS = [/예정/u, /계획/u, /추진/u, /진행\s*안내/u, /시행\s*안내/u];
-
-function deriveKindFromText(text: string): RoadmapEventKind | null {
-  if (matchesAny(text, CANCELLED_PATTERNS)) return "CANCELLED";
-  if (matchesAny(text, DELAYED_PATTERNS)) return "DELAYED";
-  if (matchesAny(text, COMPLETED_PATTERNS)) return "COMPLETED";
-  if (matchesAny(text, PLANNED_PATTERNS)) return "PLANNED";
-  return null;
-}
-
-export function deriveRoadmapKind(title: string, body = ""): RoadmapEventKind {
-  const fromTitle = deriveKindFromText(stripDisclosureTag(title));
-  if (fromTitle) return fromTitle;
-
-  const fromBody = deriveKindFromText(body);
-  if (fromBody) return fromBody;
-
-  if (/^\s*\[\s*공시\s*\]/u.test(title)) return "COMPLETED";
-  return "PLANNED";
-}
-
-export function deriveRoadmapCategory(title: string, body = ""): RoadmapEventCategory {
-  const text = `${stripDisclosureTag(title)}\n${body}`;
-  if (/감자|자본\s*감소/u.test(text)) return "REDUCTION";
-  if (/증자|자본금?\s*증가|출자/u.test(text)) return "CAPITAL_INCREASE";
-  if (/리밸런싱|종목\s*조정|비중\s*조정|편입|편출/u.test(text)) return "REBALANCING";
-  if (/매수|매도|매매|거래|주문|체결/u.test(text)) return "TRADE";
-  return "OTHER";
-}
-
 const ROADMAP_KIND_LABELS: Record<RoadmapEventKind, string> = {
   PLANNED: "예정",
   COMPLETED: "완료",

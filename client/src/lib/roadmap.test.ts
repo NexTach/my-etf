@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   addDaysToDateKey,
-  deriveRoadmapCategory,
-  deriveRoadmapKind,
   groupRoadmapEventsByDate,
   isRoadmapEventMoveDate,
   isValidDateKey,
@@ -101,32 +99,6 @@ describe("roadmap disclosure defaults", () => {
     assert.equal(stripDisclosureTag("  [공지] 정기 증자 예정 안내  "), "정기 증자 예정 안내");
     assert.equal(stripDisclosureTag("[공시] [공지] 매도 안내"), "매도 안내");
     assert.equal(stripDisclosureTag("제목 [공시] 유지"), "제목 [공시] 유지");
-  });
-
-  it("derives status from the title before potentially stale body wording", () => {
-    assert.equal(
-      deriveRoadmapKind(
-        "[공시] YMAX 외 수시 특별 증자 체결 안내",
-        "기존 계획의 일정 연기에 따른 보완 조치입니다."
-      ),
-      "COMPLETED"
-    );
-    assert.equal(deriveRoadmapKind("[공지] SLVO 외 수시 특별 증자 일정 연기 안내"), "DELAYED");
-    assert.equal(deriveRoadmapKind("[공지] 정기 증자 진행 예정 안내"), "PLANNED");
-    assert.equal(deriveRoadmapKind("운용 계획 철회 안내"), "CANCELLED");
-    assert.equal(deriveRoadmapKind("[공시] 운용 현황"), "COMPLETED");
-    assert.equal(deriveRoadmapKind("[공지] 운용 현황"), "PLANNED");
-  });
-
-  it("derives the business category from title and body", () => {
-    assert.equal(deriveRoadmapCategory("[공지] 정기 증자 예정 안내"), "CAPITAL_INCREASE");
-    assert.equal(deriveRoadmapCategory("[공지] 자본 감소를 위한 감자 안내"), "REDUCTION");
-    assert.equal(
-      deriveRoadmapCategory("[공시] RPAR 매도 및 ITUB 매수 체결 안내", "리밸런싱을 위한 거래입니다."),
-      "REBALANCING"
-    );
-    assert.equal(deriveRoadmapCategory("[공시] 보유 종목 매도 체결 안내"), "TRADE");
-    assert.equal(deriveRoadmapCategory("[공지] 정기 운영 안내"), "OTHER");
   });
 
   it("provides Korean labels and safe fallbacks for stored strings", () => {

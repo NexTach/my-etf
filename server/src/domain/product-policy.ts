@@ -5,3 +5,23 @@ export const PRODUCT_COMPANY_DIVIDEND_TRANSFER_RATE = 0.2;
 export const PRODUCT_ANNUAL_INVESTOR_DIVIDEND_CAP_RATE = 0.1;
 export const PRODUCT_MONTHLY_INVESTOR_DIVIDEND_CAP_RATE =
   PRODUCT_ANNUAL_INVESTOR_DIVIDEND_CAP_RATE / 12;
+
+export type ProductPolicyDto = Readonly<{
+  minInvestmentKrw: number;
+  maxInvestmentKrw: number;
+  companyDividendTransferRate: number;
+  annualInvestorDividendCapRate: number;
+  monthlyInvestorDividendCapRate: number;
+}>;
+
+const PRODUCT_POLICY_DTO: ProductPolicyDto = Object.freeze({
+  minInvestmentKrw: PRODUCT_MIN_INVESTMENT_KRW,
+  maxInvestmentKrw: PRODUCT_MAX_INVESTMENT_KRW,
+  companyDividendTransferRate: PRODUCT_COMPANY_DIVIDEND_TRANSFER_RATE,
+  annualInvestorDividendCapRate: PRODUCT_ANNUAL_INVESTOR_DIVIDEND_CAP_RATE,
+  monthlyInvestorDividendCapRate: PRODUCT_MONTHLY_INVESTOR_DIVIDEND_CAP_RATE
+});
+
+export function productPolicyDto(): ProductPolicyDto {
+  return PRODUCT_POLICY_DTO;
+}

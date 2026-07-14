@@ -390,7 +390,7 @@ export function CompositionChart({
           <circle className="tds-composition-track" cx={center} cy={center} r={radius} />
           {chartItems.map((item) => (
             item.href ? (
-              <a
+              <Link
                 aria-label={`${item.label} 상세 보기`}
                 className="tds-composition-slice-link"
                 href={item.href}
@@ -407,7 +407,7 @@ export function CompositionChart({
                 >
                   <title>{`${item.label} ${formatTdsPercent(item.ratio)}`}</title>
                 </circle>
-              </a>
+              </Link>
             ) : (
               <circle
                 className="tds-composition-slice"

@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { ArrowDownToLine, ArrowUpRight, CircleDollarSign, LockKeyhole } from "lucide-react";
 import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
+import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
 import { ToastStack, type ToastMessage } from "@/app/components/toast";
 import {
@@ -10,7 +11,6 @@ import {
   CtaPanel,
   Empty,
   Field,
-  Form,
   Grid,
   List,
   ListRow,
@@ -25,7 +25,6 @@ import {
 import { getMyIntents } from "@/lib/api";
 import { formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
-import { PRODUCT_MAX_INVESTMENT_KRW, PRODUCT_MIN_INVESTMENT_KRW } from "@/lib/product-policy";
 import { TermsAgreement } from "./TermsAgreement";
 import { WithdrawalAmountSlider } from "./WithdrawalAmountSlider";
 
@@ -80,7 +79,7 @@ function IntentGate({ messages }: { messages: ToastMessage[] }) {
 export default async function IntentsPage() {
   const [data, flashMessages] = await Promise.all([getMyIntents(), getFlashMessages()]);
   if (!data) return <IntentGate messages={flashMessages} />;
-  const { user, store, withdrawalLimit } = data;
+  const { user, store, withdrawalLimit, policy } = data;
 
   const [termsMarkdown, dividendPolicyMarkdown] = await Promise.all([
     readProductDescription(),
@@ -119,18 +118,22 @@ export default async function IntentsPage() {
           <h2>
             <ArrowUpRight size={18} /> 투자 의향서
           </h2>
-          <p className="lede">의향 금액은 1회 기준 최소 1만원부터 최대 100만원까지 제출할 수 있습니다.</p>
-          <Form action="/api/intents/invest" method="post">
+          <p className="lede">
+            의향 금액은 1회 기준 최소 {formatKrw(policy.minInvestmentKrw)}부터 최대 {formatKrw(policy.maxInvestmentKrw)}까지 제출할 수 있습니다.
+          </p>
+          <ApiMutationForm action="/api/intents/invest" className="form" method="post" resetOnSuccess>
             <Field htmlFor="investAmount" label="의향 금액 (원화)">
               <FormattedNumberInput
                 id="investAmount"
-                max={PRODUCT_MAX_INVESTMENT_KRW}
-                min={PRODUCT_MIN_INVESTMENT_KRW}
+                max={policy.maxInvestmentKrw}
+                min={policy.minInvestmentKrw}
                 name="amountKrw"
                 placeholder="예: 100,000"
                 required
               />
-              <p className="field-help">원화 기준 1만원 이상 100만원 이하이며, 입력 중 쉼표가 자동으로 표시됩니다.</p>
+              <p className="field-help">
+                원화 기준 {formatKrw(policy.minInvestmentKrw)} 이상 {formatKrw(policy.maxInvestmentKrw)} 이하이며, 입력 중 쉼표가 자동으로 표시됩니다.
+              </p>
             </Field>
             <Field htmlFor="depositorName" label="입금자명">
               <input id="depositorName" name="depositorName" defaultValue={user.name} required />
@@ -153,7 +156,7 @@ export default async function IntentsPage() {
               <CircleDollarSign size={17} />
               제출
             </button>
-          </Form>
+          </ApiMutationForm>
         </Panel>
 
         <Panel>
@@ -163,7 +166,7 @@ export default async function IntentsPage() {
           <p className="lede">
             잔여 승인 원금이 있을 때만 제출할 수 있으며, 승인·대기 출금과 포트폴리오 하락률을 반영한 상한 안에서 선택합니다.
           </p>
-          <Form action="/api/intents/withdraw" method="post">
+          <ApiMutationForm action="/api/intents/withdraw" className="form" method="post" resetOnSuccess>
             <WithdrawalAmountSlider
               disabled={!canRequestWithdrawal}
               maxAmountKrw={withdrawalLimit.maxAmountKrw}
@@ -196,7 +199,7 @@ export default async function IntentsPage() {
             <button type="submit" disabled={!canRequestWithdrawal}>
               제출
             </button>
-          </Form>
+          </ApiMutationForm>
         </Panel>
       </Grid>
 

@@ -7,7 +7,7 @@ import {
   fetchDataGsmUser,
   toEligibleAppUser
 } from "../infrastructure/datagsm.js";
-import { errorFlash, redirectWithFlash } from "../http/flash.js";
+import { errorFlash, redirectWithFlash, successFlash } from "../http/flash.js";
 
 const OAUTH_STATE_COOKIE = "datagsm_oauth_state";
 const OAUTH_VERIFIER_COOKIE = "datagsm_code_verifier";
@@ -67,7 +67,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/logout", async (_request, reply) => {
     clearUserSession(reply);
-    return reply.redirect("/", 303);
+    return redirectWithFlash(reply, "/", successFlash("logged-out", "로그아웃되었습니다"));
   });
 
   app.post("/api/auth/dev-login", async (request, reply) => {

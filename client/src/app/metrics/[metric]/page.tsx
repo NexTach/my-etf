@@ -11,12 +11,6 @@ import {
   SectionHeader,
   Top
 } from "@/app/components/tds";
-import {
-  candlesFromSnapshots,
-  monthlyDividendYieldCandlesFromSnapshots,
-  portfolioChangeRateFromMarketValue,
-  returnCandlesFromSnapshots
-} from "@/lib/chart-metrics";
 import { getMetric } from "@/lib/api";
 import { formatKrw, formatNumber } from "@/lib/format";
 
@@ -70,31 +64,9 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
   if (!isMetricSlug(metric)) notFound();
   const result = await getMetric(metric);
   if (!result) notFound();
-  const { user, portfolio, portfolioDividend, monthlyDividendRecords } = result;
+  const { user, portfolioDividend, candles, currentRate, totalMarketValueKrw } = result;
   const currentDividendYield = portfolioDividend.dividendYield;
-  const dailyCharts = new Map(Object.entries(result.dailyCharts));
-  const candles =
-    metric === "holding-return"
-      ? returnCandlesFromSnapshots(portfolio.dailySnapshots)
-      : metric === "dividend-yield"
-        ? monthlyDividendYieldCandlesFromSnapshots(
-            portfolio.dailySnapshots,
-            monthlyDividendRecords,
-            portfolioDividend.annualDividendKrw,
-            portfolio.totalMarketValueKrw
-          )
-        : candlesFromSnapshots(portfolio.dailySnapshots);
   const valueFormat = metric === "daily-change" ? "krw" : "percent";
-  const currentRate =
-    metric === "holding-return"
-      ? portfolioDividend.totalReturnRate
-      : metric === "dividend-yield"
-        ? currentDividendYield
-        : portfolioChangeRateFromMarketValue({
-            holdings: portfolio.holdings,
-            charts: dailyCharts,
-            exchangeRate: portfolio.exchangeRate
-          });
   const labels = METRIC_LABELS[metric];
 
   return (
@@ -107,7 +79,7 @@ export default async function MetricDetailPage({ params }: MetricDetailProps) {
 
       <Grid columns={4} className="mt-16">
         <Metric label="현재 지표" value={<RatePill value={currentRate} />} />
-        <Metric label="평가금액" value={formatKrw(portfolio.totalMarketValueKrw)} />
+        <Metric label="평가금액" value={formatKrw(totalMarketValueKrw)} />
         <Metric label="매입원금" value={formatOptionalKrw(portfolioDividend.costBasisKrw)} />
         <Metric
           label="연 예상 배당"

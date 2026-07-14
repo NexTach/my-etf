@@ -17,6 +17,24 @@ export type BuildAppOptions = {
   healthCheck?: () => Promise<void>;
 };
 
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function mutationOriginAllowed(request: FastifyRequest) {
+  if (!MUTATION_METHODS.has(request.method) || !(request.url === "/api" || request.url.startsWith("/api/"))) {
+    return true;
+  }
+
+  const origin = request.headers.origin;
+  if (!origin) return request.headers["sec-fetch-site"] !== "cross-site";
+
+  try {
+    const publicOrigin = new URL(process.env.PUBLIC_APP_URL ?? "http://localhost:3000").origin;
+    return new URL(origin).origin === publicOrigin;
+  } catch {
+    return false;
+  }
+}
+
 export async function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({
     logger: options.logger ?? false,
@@ -27,6 +45,12 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(cookie);
   await app.register(formbody);
   await app.register(rateLimit, { global: false });
+
+  app.addHook("onRequest", async (request, reply) => {
+    if (!mutationOriginAllowed(request)) {
+      return reply.code(403).send({ error: "cross_origin_request_rejected" });
+    }
+  });
 
   app.addHook("onSend", async (request, reply, payload) => {
     if (request.url === "/api" || request.url.startsWith("/api/")) {

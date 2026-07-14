@@ -1,8 +1,9 @@
 "use client";
 
 import { Save } from "lucide-react";
+import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
-import { Field, Form, InlineFields } from "@/app/components/tds";
+import { Field, InlineFields } from "@/app/components/tds";
 
 function currentMonthValue() {
   const date = new Date();
@@ -11,7 +12,12 @@ function currentMonthValue() {
 
 export function MonthlyDividendRecordForm() {
   return (
-    <Form action="/api/admin/dividends/monthly/record" className="monthly-dividend-form" compact method="post">
+    <ApiMutationForm
+      action="/api/admin/dividends/monthly/record"
+      className="form compact monthly-dividend-form"
+      method="post"
+      resetOnSuccess
+    >
       <InlineFields variant="monthly-dividend">
         <Field htmlFor="actual-dividend-month" label="배당월">
           <input
@@ -48,6 +54,6 @@ export function MonthlyDividendRecordForm() {
           저장
         </button>
       </InlineFields>
-    </Form>
+    </ApiMutationForm>
   );
 }

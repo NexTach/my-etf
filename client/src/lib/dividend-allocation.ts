@@ -1,30 +1,18 @@
-import {
-  PRODUCT_ANNUAL_INVESTOR_DIVIDEND_CAP_RATE,
-  PRODUCT_COMPANY_DIVIDEND_TRANSFER_RATE,
-  PRODUCT_MONTHLY_INVESTOR_DIVIDEND_CAP_RATE
-} from "./product-policy";
-
-export {
-  PRODUCT_ANNUAL_INVESTOR_DIVIDEND_CAP_RATE,
-  PRODUCT_COMPANY_DIVIDEND_TRANSFER_RATE,
-  PRODUCT_MONTHLY_INVESTOR_DIVIDEND_CAP_RATE
-};
-
 export type DividendAllocationInput = {
   actualDividendKrw: number;
   selectedInvestmentKrw: number;
   investorPrincipalKrw: number;
   totalMarketValueKrw: number;
-  companyDividendTransferRate?: number;
-  monthlyInvestorDividendCapRate?: number;
+  companyDividendTransferRate: number;
+  monthlyInvestorDividendCapRate: number;
 };
 
 function positiveAmount(value: number) {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-function cappedRate(value: number | undefined, fallback: number) {
-  const rate = Number.isFinite(value) ? Number(value) : fallback;
+function cappedRate(value: number) {
+  const rate = Number.isFinite(value) ? Number(value) : 0;
   return Math.min(Math.max(rate, 0), 1);
 }
 
@@ -34,12 +22,10 @@ export function calculateDividendAllocation(input: DividendAllocationInput) {
   const investorPrincipalKrw = positiveAmount(input.investorPrincipalKrw);
   const totalMarketValueKrw = positiveAmount(input.totalMarketValueKrw);
   const companyDividendTransferRate = cappedRate(
-    input.companyDividendTransferRate,
-    PRODUCT_COMPANY_DIVIDEND_TRANSFER_RATE
+    input.companyDividendTransferRate
   );
   const monthlyInvestorDividendCapRate = cappedRate(
-    input.monthlyInvestorDividendCapRate,
-    PRODUCT_MONTHLY_INVESTOR_DIVIDEND_CAP_RATE
+    input.monthlyInvestorDividendCapRate
   );
 
   const companyPrincipalKrw = Math.max(totalMarketValueKrw - investorPrincipalKrw, 0);
@@ -82,46 +68,5 @@ export function calculateDividendAllocation(input: DividendAllocationInput) {
     companyRetainedDividendKrw: Math.max(actualDividendKrw - investorDistributionPoolKrw, 0),
     selectedInvestorWeight,
     allocationKrw
-  };
-}
-
-export type ExpectedInvestorDividendInput = {
-  investmentKrw: number;
-  currentPortfolioMarketValueKrw: number;
-  annualPortfolioDividendYield: number;
-  currentInvestorPrincipalKrw?: number;
-};
-
-export function calculateExpectedInvestorDividend(input: ExpectedInvestorDividendInput) {
-  const investmentKrw = positiveAmount(input.investmentKrw);
-  const currentPortfolioMarketValueKrw = positiveAmount(input.currentPortfolioMarketValueKrw);
-  const annualPortfolioDividendYield = positiveAmount(input.annualPortfolioDividendYield);
-  const currentInvestorPrincipalKrw = positiveAmount(input.currentInvestorPrincipalKrw ?? 0);
-  const projectedTotalMarketValueKrw = currentPortfolioMarketValueKrw + investmentKrw;
-  const projectedInvestorPrincipalKrw = currentInvestorPrincipalKrw + investmentKrw;
-  const projectedMonthlyActualDividendKrw =
-    projectedTotalMarketValueKrw * annualPortfolioDividendYield / 12;
-  const allocation = calculateDividendAllocation({
-    actualDividendKrw: projectedMonthlyActualDividendKrw,
-    selectedInvestmentKrw: investmentKrw,
-    investorPrincipalKrw: projectedInvestorPrincipalKrw,
-    totalMarketValueKrw: projectedTotalMarketValueKrw
-  });
-  const monthlyExpectedDividendKrw = allocation.allocationKrw;
-  const annualExpectedDividendKrw = monthlyExpectedDividendKrw * 12;
-
-  return {
-    ...allocation,
-    investmentKrw,
-    currentInvestorPrincipalKrw,
-    annualPortfolioDividendYield,
-    projectedTotalMarketValueKrw,
-    projectedInvestorPrincipalKrw,
-    projectedMonthlyActualDividendKrw,
-    monthlyExpectedDividendKrw,
-    annualExpectedDividendKrw,
-    expectedAnnualPayoutRate:
-      investmentKrw > 0 ? annualExpectedDividendKrw / investmentKrw : undefined,
-    annualPayoutCapRate: PRODUCT_ANNUAL_INVESTOR_DIVIDEND_CAP_RATE
   };
 }

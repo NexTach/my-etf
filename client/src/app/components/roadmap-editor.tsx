@@ -17,8 +17,6 @@ import {
   ROADMAP_EVENT_CATEGORIES,
   ROADMAP_EVENT_KINDS,
   addDaysToDateKey,
-  deriveRoadmapCategory,
-  deriveRoadmapKind,
   roadmapCategoryLabel,
   roadmapKindLabel,
   stripDisclosureTag
@@ -29,7 +27,8 @@ import type {
   RoadmapEventKind,
   UpdateRoadmapEventInput
 } from "@/lib/roadmap";
-import {  TdsSelect } from "@/app/components/tds";
+import { TdsSelect } from "@/app/components/tds";
+import { showToast } from "@/app/components/toast";
 
 const DRAG_MIME = "application/x-nxdi-roadmap-item";
 const COLLAPSED_EDITOR_PINS_PER_DATE = 2;
@@ -332,9 +331,16 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
   }
 
   function setError(error: unknown, fallback: string) {
+    const text = error instanceof Error && error.message ? error.message : fallback;
     setStatus({
       tone: "error",
-      text: error instanceof Error && error.message ? error.message : fallback
+      text
+    });
+    showToast({
+      id: "roadmap-server-error",
+      title: "로드맵 요청을 처리하지 못했습니다",
+      description: text,
+      tone: "error"
     });
   }
 
@@ -362,9 +368,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
           method: "POST",
           body: JSON.stringify({
             disclosureId,
-            eventDate,
-            kind: deriveRoadmapKind(disclosure.title, disclosure.body),
-            category: deriveRoadmapCategory(disclosure.title, disclosure.body)
+            eventDate
           })
         }
       );

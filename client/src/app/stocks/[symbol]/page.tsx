@@ -14,11 +14,6 @@ import {
   TextLink,
   Top
 } from "@/app/components/tds";
-import {
-  changeRateFromCandles,
-  holdingDividendYieldCandles,
-  holdingReturnCandles as buildHoldingReturnCandles
-} from "@/lib/chart-metrics";
 import { getStock } from "@/lib/api";
 import { formatCurrency, formatKrw, formatNumber } from "@/lib/format";
 import { stockFullLabel, stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
@@ -75,24 +70,17 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
   const symbol = decodeURIComponent(symbolParam).toUpperCase();
   const result = await getStock(symbol);
   if (!result) notFound();
-  const { user, portfolio, holding, dividendRecord, dailyChart, weeklyChart, monthlyChart } = result;
-  const annualDividendKrw = dividendRecord
-    ? holding.quantity *
-      (dividendRecord.currency === "USD"
-        ? dividendRecord.annualDividendPerShare * portfolio.exchangeRate
-        : dividendRecord.annualDividendPerShare)
-    : undefined;
-  const holdingDividendYield =
-    typeof annualDividendKrw === "number" && holding.marketValueKrw > 0
-      ? annualDividendKrw / holding.marketValueKrw
-      : undefined;
-  const returnCandles = buildHoldingReturnCandles(monthlyChart?.candles ?? [], holding, portfolio.exchangeRate);
-  const yieldCandles = holdingDividendYieldCandles(
-    monthlyChart?.candles ?? [],
-    annualDividendKrw ?? 0,
+  const {
+    user,
     holding,
-    portfolio.exchangeRate
-  );
+    dividendRecord,
+    dailyChangeRate,
+    annualDividendKrw,
+    holdingDividendYield,
+    returnCandles,
+    yieldCandles,
+    weeklyCandles
+  } = result;
   const primaryLabel = stockPrimaryLabel(holding);
   const secondaryLabel = stockSecondaryLabel(holding);
   const fullLabel = stockFullLabel(holding);
@@ -120,7 +108,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
         <Metric label="평가금액" value={formatKrw(holding.marketValueKrw)} />
         <Metric
           label={<TextLink className="metric-card-link" href="#price-chart">전일 등락률</TextLink>}
-          value={<RatePill value={changeRateFromCandles(dailyChart?.candles ?? [])} />}
+          value={<RatePill value={dailyChangeRate} />}
         />
         <Metric
           label={<TextLink className="metric-card-link" href="#holding-return-chart">보유 수익률</TextLink>}
@@ -135,7 +123,7 @@ export default async function StockDetailPage({ params }: StockDetailProps) {
       <SectionHeader id="price-chart" title="가격 차트" description="최근 1년 실제 주봉 OHLC 데이터 기준입니다." />
 
       <CandleChart
-        candles={weeklyChart?.candles ?? []}
+        candles={weeklyCandles}
         label={`${fullLabel} 최근 1년 주봉 캔들 차트`}
         size="detail"
         valueFormat={holding.currency === "USD" ? "usd" : "krw"}

@@ -5,6 +5,7 @@ import { isAdminUser } from "../auth/admin.js";
 import { requestUser } from "../auth/session.js";
 import {
   deleteDisclosure,
+  readDisclosure,
   upsertDisclosure,
   type DisclosureTradeInput
 } from "../infrastructure/disclosures.js";
@@ -28,6 +29,8 @@ import {
   addDaysToDateKey,
   createRoadmapEvent,
   deleteRoadmapEvent,
+  deriveRoadmapCategory,
+  deriveRoadmapKind,
   isRoadmapEventMoveDate,
   isValidDateKey,
   kstDateKey,
@@ -41,7 +44,7 @@ function admin(request: FastifyRequest) {
 }
 
 function rejectAdminForm(reply: FastifyReply) {
-  return reply.redirect("/admin", 303);
+  return redirectWithFlash(reply, "/admin", errorFlash("admin_required"));
 }
 
 function formBody(request: FastifyRequest) {
@@ -142,12 +145,14 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       symbol,
       purchaseExchangeRate: parsed.data.currency === "USD" ? parsed.data.purchaseExchangeRate : undefined
     });
-    try {
-      const dividend = await fetchDividendRecordFromMarket(symbol);
-      if (dividend) await upsertDividendRecord(dividend);
-    } catch (error) {
-      request.log.warn({ symbol, err: error instanceof Error ? error.message : "unknown" }, "Dividend sync failed after holding update");
-    }
+    void fetchDividendRecordFromMarket(symbol)
+      .then((dividend) => dividend ? upsertDividendRecord(dividend) : undefined)
+      .catch((error) => {
+        request.log.warn(
+          { symbol, err: error instanceof Error ? error.message : "unknown" },
+          "Dividend sync failed after holding update"
+        );
+      });
     return adminSuccess(reply, "portfolio-updated", "포트폴리오가 저장되었습니다");
   });
 
@@ -298,8 +303,6 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const parsed = z.object({
       disclosureId: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/),
       eventDate: z.string().refine(isValidDateKey),
-      kind: z.enum(ROADMAP_EVENT_KINDS),
-      category: z.enum(ROADMAP_EVENT_CATEGORIES),
       label: z.string().trim().max(160).optional()
     }).strict().safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "입력값을 확인해 주세요.", fields: parsed.error.flatten().fieldErrors });
@@ -308,7 +311,15 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "핀은 오늘부터 30일 안의 날짜에만 추가할 수 있습니다." });
     }
     try {
-      return reply.code(201).send({ event: await createRoadmapEvent(parsed.data) });
+      const disclosure = await readDisclosure(parsed.data.disclosureId);
+      if (!disclosure) return reply.code(404).send({ error: "공시를 찾을 수 없습니다." });
+      return reply.code(201).send({
+        event: await createRoadmapEvent({
+          ...parsed.data,
+          kind: deriveRoadmapKind(disclosure.title, disclosure.body),
+          category: deriveRoadmapCategory(disclosure.title, disclosure.body)
+        })
+      });
     } catch (error) {
       const code = prismaCode(error);
       if (code === "P2002") return reply.code(409).send({ error: "같은 공시가 이미 이 날짜에 등록되어 있습니다." });

@@ -10,6 +10,12 @@ export type ToastMessage = {
   tone?: "success" | "error" | "info";
 };
 
+export const TOAST_EVENT_NAME = "nxdi:toast";
+
+export function showToast(message: ToastMessage) {
+  window.dispatchEvent(new CustomEvent<ToastMessage>(TOAST_EVENT_NAME, { detail: message }));
+}
+
 function ToastIcon({ tone }: { tone: NonNullable<ToastMessage["tone"]> }) {
   if (tone === "error") return <AlertCircle size={18} />;
   if (tone === "success") return <CheckCircle2 size={18} />;
@@ -43,8 +49,35 @@ function ToastItem({ message }: { message: ToastMessage }) {
   );
 }
 
-export function ToastStack({ messages, clearCookieName }: { messages: ToastMessage[]; clearCookieName?: string }) {
-  const visibleMessages = messages.filter(Boolean);
+export function ToastStack({
+  messages,
+  clearCookieName,
+  listenForRuntime = false
+}: {
+  messages: ToastMessage[];
+  clearCookieName?: string;
+  listenForRuntime?: boolean;
+}) {
+  const [runtimeMessages, setRuntimeMessages] = useState<ToastMessage[]>([]);
+  const visibleMessages = [...messages.filter(Boolean), ...runtimeMessages];
+
+  useEffect(() => {
+    if (!listenForRuntime) return;
+
+    let sequence = 0;
+    const receiveToast = (event: Event) => {
+      const message = (event as CustomEvent<ToastMessage>).detail;
+      if (!message || typeof message.title !== "string") return;
+      sequence += 1;
+      setRuntimeMessages((current) => [
+        ...current.slice(-4),
+        { ...message, id: `${message.id}-${Date.now()}-${sequence}` }
+      ]);
+    };
+
+    window.addEventListener(TOAST_EVENT_NAME, receiveToast);
+    return () => window.removeEventListener(TOAST_EVENT_NAME, receiveToast);
+  }, [listenForRuntime]);
 
   useEffect(() => {
     if (!clearCookieName || visibleMessages.length === 0) return;

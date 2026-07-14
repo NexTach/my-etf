@@ -9,10 +9,11 @@ import {
   monthlyDividendYieldCandlesFromSnapshots,
   portfolioChangeRateFromMarketValue,
   pointsFromSnapshots,
-  returnCandlesFromSnapshots
-} from "./chart-metrics";
-import type { MarketChart } from "./types";
-import type { Holding } from "./types";
+  returnCandlesFromSnapshots,
+  samplePoints
+} from "../src/domain/chart-metrics.js";
+import type { MarketChart } from "../src/domain/chart-metrics.js";
+import type { Holding } from "../src/domain/types.js";
 
 function holding(overrides: Partial<Holding>): Holding {
   return {
@@ -42,8 +43,8 @@ function chart(overrides: Partial<MarketChart>): MarketChart {
   };
 }
 
-describe("portfolioChangeRateFromMarketValue", () => {
-  it("uses current holding market value instead of the latest chart close", () => {
+describe("Given portfolio holdings and market charts, when the daily change is calculated", () => {
+  it("then uses current holding market value instead of the latest chart close", () => {
     const rate = portfolioChangeRateFromMarketValue({
       holdings: [holding({})],
       charts: new Map([["TEST", chart({})]]),
@@ -53,7 +54,7 @@ describe("portfolioChangeRateFromMarketValue", () => {
     assert.equal(rate, 0.1);
   });
 
-  it("prefers the previous candle close over range chartPreviousClose", () => {
+  it("then prefers the previous candle close over range chartPreviousClose", () => {
     const rate = portfolioChangeRateFromMarketValue({
       holdings: [holding({})],
       charts: new Map([["TEST", chart({ previousClose: 80 })]]),
@@ -63,7 +64,7 @@ describe("portfolioChangeRateFromMarketValue", () => {
     assert.equal(rate, 0.1);
   });
 
-  it("uses current exchange rate for USD previous market value", () => {
+  it("then uses current exchange rate for USD previous market value", () => {
     const rate = portfolioChangeRateFromMarketValue({
       holdings: [
         holding({
@@ -93,7 +94,7 @@ describe("portfolioChangeRateFromMarketValue", () => {
     assert.equal(rate, 0.1);
   });
 
-  it("falls back to the previous candle close when chart previousClose is missing", () => {
+  it("then falls back to the previous candle close when chart previousClose is missing", () => {
     const rate = portfolioChangeRateFromMarketValue({
       holdings: [holding({})],
       charts: new Map([["TEST", chart({ previousClose: undefined })]]),
@@ -103,7 +104,7 @@ describe("portfolioChangeRateFromMarketValue", () => {
     assert.equal(rate, 0.1);
   });
 
-  it("does not estimate a total rate from partial holding coverage", () => {
+  it("then does not estimate a total rate from partial holding coverage", () => {
     const rate = portfolioChangeRateFromMarketValue({
       holdings: [
         holding({}),
@@ -124,8 +125,8 @@ describe("portfolioChangeRateFromMarketValue", () => {
   });
 });
 
-describe("changeRateFromSnapshots", () => {
-  it("does not estimate from unclosed previous snapshots", () => {
+describe("Given portfolio snapshots, when the daily change is calculated", () => {
+  it("then does not estimate from unclosed previous snapshots", () => {
     const rate = changeRateFromSnapshots([
       {
         date: "2026-07-07",
@@ -146,7 +147,7 @@ describe("changeRateFromSnapshots", () => {
     assert.equal(rate, undefined);
   });
 
-  it("compares the latest market value with the previous closed market value", () => {
+  it("then compares the latest market value with the previous closed market value", () => {
     const rate = changeRateFromSnapshots([
       {
         date: "2026-07-07",
@@ -173,7 +174,7 @@ describe("changeRateFromSnapshots", () => {
     assert.equal(rate, 0.01);
   });
 
-  it("does not estimate a rate when fewer than two snapshots exist", () => {
+  it("then does not estimate a rate when fewer than two snapshots exist", () => {
     const rate = changeRateFromSnapshots([
       {
         date: "2026-07-08",
@@ -188,8 +189,8 @@ describe("changeRateFromSnapshots", () => {
   });
 });
 
-describe("snapshot market value series", () => {
-  it("uses closed values for historical points and latest values for the current point", () => {
+describe("Given portfolio snapshots, when a market-value series is built", () => {
+  it("then uses closed values for historical points and latest values for the current point", () => {
     const snapshots = [
       {
         date: "2026-07-07",
@@ -217,11 +218,11 @@ describe("snapshot market value series", () => {
       { date: "2026-07-07", value: 101000 },
       { date: "2026-07-08", value: 102500 }
     ]);
-    assert.equal(candlesFromSnapshots(snapshots)[0].close, 101000);
-    assert.equal(candlesFromSnapshots(snapshots)[1].close, 102500);
+    assert.equal(candlesFromSnapshots(snapshots).at(0)?.close, 101000);
+    assert.equal(candlesFromSnapshots(snapshots).at(1)?.close, 102500);
   });
 
-  it("omits unclosed historical points instead of using stale values", () => {
+  it("then omits unclosed historical points instead of using stale values", () => {
     const snapshots = [
       {
         date: "2026-07-07",
@@ -246,8 +247,32 @@ describe("snapshot market value series", () => {
   });
 });
 
-describe("returnCandlesFromSnapshots", () => {
-  it("uses stored market value and cost basis snapshots", () => {
+describe("Given a long chart series, when it is sampled for a compact response", () => {
+  it("then preserves both the first and latest points", () => {
+    const points = Array.from({ length: 252 }, (_, index) => ({
+      date: `day-${index}`,
+      value: index
+    }));
+
+    const sampled = samplePoints(points, 72);
+
+    assert.equal(sampled.length, 72);
+    assert.deepEqual(sampled[0], points[0]);
+    assert.deepEqual(sampled.at(-1), points.at(-1));
+  });
+
+  it("then keeps the latest point when only one point can be returned", () => {
+    const points = [
+      { date: "first", value: 1 },
+      { date: "latest", value: 2 }
+    ];
+
+    assert.deepEqual(samplePoints(points, 1), [points[1]]);
+  });
+});
+
+describe("Given portfolio snapshots, when return candles are built", () => {
+  it("then uses stored market value and cost basis snapshots", () => {
     const candles = returnCandlesFromSnapshots([
       {
         date: "2026-07-08",
@@ -260,10 +285,10 @@ describe("returnCandlesFromSnapshots", () => {
       }
     ]);
 
-    assert.equal(candles[0].close, 0.43);
+    assert.equal(candles.at(0)?.close, 0.43);
   });
 
-  it("uses closed market value and closed cost basis for historical returns", () => {
+  it("then uses closed market value and closed cost basis for historical returns", () => {
     const candles = returnCandlesFromSnapshots([
       {
         date: "2026-07-07",
@@ -291,13 +316,13 @@ describe("returnCandlesFromSnapshots", () => {
       }
     ]);
 
-    assert.equal(candles[0].close, 0.5);
-    assert.equal(candles[1].close, 0.2);
+    assert.equal(candles.at(0)?.close, 0.5);
+    assert.equal(candles.at(1)?.close, 0.2);
   });
 });
 
-describe("dividendYieldCandlesFromSnapshots", () => {
-  it("uses stored annual dividend and market value snapshots", () => {
+describe("Given portfolio snapshots, when dividend-yield candles are built", () => {
+  it("then uses stored annual dividend and market value snapshots", () => {
     const candles = dividendYieldCandlesFromSnapshots([
       {
         date: "2026-07-08",
@@ -310,10 +335,10 @@ describe("dividendYieldCandlesFromSnapshots", () => {
       }
     ]);
 
-    assert.equal(candles[0].close, 0.05);
+    assert.equal(candles.at(0)?.close, 0.05);
   });
 
-  it("uses closed annual dividend and closed market value for historical dividend yield", () => {
+  it("then uses closed annual dividend and closed market value for historical dividend yield", () => {
     const candles = dividendYieldCandlesFromSnapshots([
       {
         date: "2026-07-07",
@@ -341,11 +366,11 @@ describe("dividendYieldCandlesFromSnapshots", () => {
       }
     ]);
 
-    assert.equal(candles[0].close, 0.05);
-    assert.equal(candles[1].close, 0.05);
+    assert.equal(candles.at(0)?.close, 0.05);
+    assert.equal(candles.at(1)?.close, 0.05);
   });
 
-  it("uses actual monthly dividend records for history and an estimate for the latest month", () => {
+  it("then uses actual monthly dividend records for history and an estimate for the latest month", () => {
     const candles = dividendYieldCandlesFromSnapshots(
       [
         {
@@ -380,13 +405,13 @@ describe("dividendYieldCandlesFromSnapshots", () => {
       20000
     );
 
-    assert.equal(candles[0].close, 0.05);
-    assert.equal(candles[1].close, 0.05);
+    assert.equal(candles.at(0)?.close, 0.05);
+    assert.equal(candles.at(1)?.close, 0.05);
   });
 });
 
-describe("monthlyDividendYieldCandlesFromSnapshots", () => {
-  it("annualizes actual monthly records and adds the current annual estimate", () => {
+describe("Given monthly dividend history, when monthly yield candles are built", () => {
+  it("then annualizes actual monthly records and adds the current annual estimate", () => {
     const candles = monthlyDividendYieldCandlesFromSnapshots(
       [
         {
@@ -443,12 +468,12 @@ describe("monthlyDividendYieldCandlesFromSnapshots", () => {
       "2026-06-01T00:00:00.000Z",
       "2026-07-01T00:00:00.000Z"
     ]);
-    assert.equal(candles[0].close, 0.16);
-    assert.equal(candles[1].close, 0.36);
-    assert.equal(candles[2].close, 0.12);
+    assert.equal(candles.at(0)?.close, 0.16);
+    assert.equal(candles.at(1)?.close, 0.36);
+    assert.equal(candles.at(2)?.close, 0.12);
   });
 
-  it("skips historical monthly records without a reference market value", () => {
+  it("then skips historical monthly records without a reference market value", () => {
     const candles = monthlyDividendYieldCandlesFromSnapshots(
       [],
       [
@@ -468,8 +493,8 @@ describe("monthlyDividendYieldCandlesFromSnapshots", () => {
   });
 });
 
-describe("holdingReturnCandles", () => {
-  it("uses current exchange rate for market value and purchase exchange rate for cost basis", () => {
+describe("Given a holding and market candles, when holding-return candles are built", () => {
+  it("then uses current exchange rate for market value and purchase exchange rate for cost basis", () => {
     const candles = holdingReturnCandles(
       [{ date: "2026-01-02T00:00:00.000Z", open: 10, high: 12, low: 9, close: 11 }],
       holding({
@@ -482,12 +507,12 @@ describe("holdingReturnCandles", () => {
       1300
     );
 
-    assert.equal(candles[0].close, 0.43);
+    assert.equal(candles.at(0)?.close, 0.43);
   });
 });
 
-describe("holdingDividendYieldCandles", () => {
-  it("uses current exchange rate adjusted holding market value as denominator", () => {
+describe("Given a holding and market candles, when holding dividend-yield candles are built", () => {
+  it("then uses current exchange rate adjusted holding market value as denominator", () => {
     const candles = holdingDividendYieldCandles(
       [{ date: "2026-01-02T00:00:00.000Z", open: 10, high: 12, low: 9, close: 11 }],
       2860,
@@ -499,6 +524,6 @@ describe("holdingDividendYieldCandles", () => {
       1300
     );
 
-    assert.equal(candles[0].close, 0.1);
+    assert.equal(candles.at(0)?.close, 0.1);
   });
 });

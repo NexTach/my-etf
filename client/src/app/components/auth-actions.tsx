@@ -1,4 +1,5 @@
 import { LogOut } from "lucide-react";
+import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { ButtonLink } from "@/app/components/tds";
 import type { AppUser } from "@/lib/types";
 
@@ -21,11 +22,11 @@ export function AuthNavActions({ user, isAdmin = false }: { user: AppUser | null
           관리자
         </ButtonLink>
       ) : null}
-      <form action="/api/auth/logout" method="post">
+      <ApiMutationForm action="/api/auth/logout" method="post">
         <button className="ghost" type="submit" title="로그아웃">
           <LogOut size={18} />
         </button>
-      </form>
+      </ApiMutationForm>
     </>
   );
 }

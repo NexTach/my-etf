@@ -2,9 +2,10 @@
 
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
 import { RiskBadge } from "@/app/components/risk-badge";
-import { ComputedValue, Field, Form, TdsSelect } from "@/app/components/tds";
+import { ComputedValue, Field, TdsSelect } from "@/app/components/tds";
 import { currencySymbol, formatCurrency } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { Holding, MarketCode, TradeSide } from "@/lib/types";
@@ -422,7 +423,12 @@ export function AdminHoldingForm({
           </button>
         </header>
 
-        <Form action="/api/admin/portfolio/holding" className="holding-form holding-modal-form" compact method="post">
+        <ApiMutationForm
+          action="/api/admin/portfolio/holding"
+          className="form compact holding-form holding-modal-form"
+          method="post"
+          onSuccess={closeModal}
+        >
           <div className="symbol-search">
             <Field htmlFor={`search-${symbol ?? "new"}`} label="종목 검색">
               <div className="search-control">
@@ -715,7 +721,7 @@ export function AdminHoldingForm({
               <button type="submit">{submitLabel}</button>
             </div>
           </footer>
-        </Form>
+        </ApiMutationForm>
       </section>
     </div>
   );

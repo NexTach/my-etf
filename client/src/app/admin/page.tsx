@@ -3,6 +3,7 @@ import { AdminHoldingForm } from "./AdminHoldingForm";
 import { DisclosureForm } from "./DisclosureForm";
 import { DividendAllocationCalculator } from "./DividendAllocationCalculator";
 import { MonthlyDividendRecordForm } from "./MonthlyDividendRecordForm";
+import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
 import { PaginatedPanelTable } from "@/app/components/client-pagination";
 import { RoadmapEditor } from "@/app/components/roadmap-editor";
@@ -63,7 +64,7 @@ function StatusForm({
   current: IntentStatus;
 }) {
   return (
-    <form className="split-actions" action="/api/admin/status" method="post">
+    <ApiMutationForm className="split-actions" action="/api/admin/status" method="post">
       <input type="hidden" name="type" value={type} />
       <input type="hidden" name="id" value={id} />
       <TdsSelect name="status" defaultValue={current} aria-label="상태">
@@ -74,7 +75,7 @@ function StatusForm({
       <button className="secondary" type="submit">
         저장
       </button>
-    </form>
+    </ApiMutationForm>
   );
 }
 
@@ -125,7 +126,9 @@ export default async function AdminPage() {
     disclosures,
     roadmapEvents,
     roadmapToday,
-    roadmapHorizon
+    roadmapHorizon,
+    dividendAllocationIntents,
+    policy
   } = dashboard;
   const flashMessages = await getFlashMessages();
   const acceptedInvestmentIntents = store.investmentIntents.filter((intent) => intent.status === "ACCEPTED");
@@ -214,12 +217,12 @@ export default async function AdminPage() {
               <td>
                 <div className="split-actions">
                   <DisclosureForm disclosure={disclosure} />
-                  <form action="/api/admin/disclosures/delete" method="post">
+                  <ApiMutationForm action="/api/admin/disclosures/delete" method="post">
                     <input type="hidden" name="id" value={disclosure.id} />
                     <button className="ghost" type="submit">
                       삭제
                     </button>
-                  </form>
+                  </ApiMutationForm>
                 </div>
               </td>
             </tr>
@@ -308,12 +311,12 @@ export default async function AdminPage() {
                     : "-"}
                 </td>
                 <td>
-                  <form action="/api/admin/dividends/sync" method="post">
+                  <ApiMutationForm action="/api/admin/dividends/sync" method="post">
                     <input type="hidden" name="symbol" value={holding.symbol} />
                     <button className="secondary" type="submit">
                       외부 동기화
                     </button>
-                  </form>
+                  </ApiMutationForm>
                 </td>
               </tr>
             );
@@ -343,12 +346,12 @@ export default async function AdminPage() {
                 <td>{record.symbol}</td>
                 <td>{formatDividendAmount(record.annualDividendPerShare, record.currency)}</td>
                 <td>
-                  <form action="/api/admin/dividends/delete" method="post">
+                  <ApiMutationForm action="/api/admin/dividends/delete" method="post">
                     <input type="hidden" name="symbol" value={record.symbol} />
                     <button className="ghost" type="submit">
                       삭제
                     </button>
-                  </form>
+                  </ApiMutationForm>
                 </td>
               </tr>
             ))}
@@ -401,12 +404,12 @@ export default async function AdminPage() {
                 <td>{formatPercent(dividendYield)}</td>
                 <td>{record.memo ?? "-"}</td>
                 <td>
-                  <form action="/api/admin/dividends/monthly/delete" method="post">
+                  <ApiMutationForm action="/api/admin/dividends/monthly/delete" method="post">
                     <input type="hidden" name="dividendMonth" value={record.dividendMonth} />
                     <button className="ghost" type="submit">
                       삭제
                     </button>
-                  </form>
+                  </ApiMutationForm>
                 </td>
               </tr>
             );
@@ -522,14 +525,9 @@ export default async function AdminPage() {
         <h2>실 배당금 지급 계산</h2>
         <DividendAllocationCalculator
           defaultDividendMonth={roadmapToday.slice(0, 7)}
-          intents={acceptedInvestmentIntents.map((intent) => ({
-            id: intent.id,
-            userName: intent.userName,
-            userEmail: intent.userEmail,
-            amountKrw: intent.amountKrw,
-            createdAt: intent.createdAt,
-            updatedAt: intent.updatedAt
-          }))}
+          companyDividendTransferRate={policy.companyDividendTransferRate}
+          intents={dividendAllocationIntents}
+          monthlyInvestorDividendCapRate={policy.monthlyInvestorDividendCapRate}
           totalMarketValueKrw={portfolio.totalMarketValueKrw}
         />
       </Panel>

@@ -1,5 +1,22 @@
 import { calculateExpectedInvestorDividend } from "../domain/dividend-allocation.js";
-import { PRODUCT_MAX_INVESTMENT_KRW, PRODUCT_MIN_INVESTMENT_KRW } from "../domain/product-policy.js";
+import {
+  candlesFromSnapshots,
+  changeRateFromCandles,
+  holdingDividendYieldCandles,
+  holdingReturnCandles,
+  monthlyDividendYieldCandlesFromSnapshots,
+  pointsFromCandles,
+  pointsFromSnapshots,
+  portfolioChangeRateFromMarketValue,
+  returnCandlesFromSnapshots,
+  samplePoints
+} from "../domain/chart-metrics.js";
+import { dividendEligibleFromMonth } from "../domain/dividend-eligibility.js";
+import {
+  PRODUCT_MAX_INVESTMENT_KRW,
+  PRODUCT_MIN_INVESTMENT_KRW,
+  productPolicyDto
+} from "../domain/product-policy.js";
 import { withdrawalLimitForUser } from "../domain/withdrawal-limit.js";
 import { readDisclosure, readDisclosures } from "../infrastructure/disclosures.js";
 import {
@@ -54,7 +71,14 @@ async function settleBefore<T>(promise: Promise<T>, milliseconds: number, fallba
 
 export async function publicHomeReadModel() {
   const portfolio = await getManualPortfolioOverview();
-  const [scheduledDividend, portfolioDividend, monthlyDividendRecords, disclosures, dailyCharts, dailyChangeCharts] =
+  const [
+    scheduledDividend,
+    portfolioDividend,
+    monthlyDividendRecords,
+    disclosures,
+    dailyChartRecord,
+    dailyChangeChartRecord
+  ] =
     await Promise.all([
       forecastDividend(portfolio, portfolio.totalMarketValueKrw),
       summarizePortfolioDividend(portfolio),
@@ -63,7 +87,48 @@ export async function publicHomeReadModel() {
       chartsFor(portfolio.holdings.map((holding) => holding.symbol), { range: "1y", interval: "1d", limit: 252 }),
       chartsFor(portfolio.holdings.map((holding) => holding.symbol), { range: "1d", interval: "1d", limit: 1 })
     ]);
-  return { portfolio, scheduledDividend, portfolioDividend, monthlyDividendRecords, disclosures, dailyCharts, dailyChangeCharts };
+  const dailyCharts = new Map<string, MarketChart | null>(Object.entries(dailyChartRecord));
+  const dailyChangeCharts = new Map<string, MarketChart | null>(Object.entries(dailyChangeChartRecord));
+  const { dailySnapshots, ...portfolioWithoutDailySnapshots } = portfolio;
+  const portfolioDailyChangeRate = portfolioChangeRateFromMarketValue({
+    holdings: portfolio.holdings,
+    charts: dailyChangeCharts,
+    exchangeRate: portfolio.exchangeRate
+  });
+  const portfolioDailyPoints = samplePoints(pointsFromSnapshots(dailySnapshots));
+  const holdingReturnPoints = samplePoints(pointsFromCandles(returnCandlesFromSnapshots(dailySnapshots)));
+  const dividendYieldPoints = samplePoints(pointsFromCandles(
+    monthlyDividendYieldCandlesFromSnapshots(
+      dailySnapshots,
+      monthlyDividendRecords,
+      portfolioDividend.annualDividendKrw,
+      portfolio.totalMarketValueKrw
+    )
+  ));
+  const holdingCharts = Object.fromEntries(
+    portfolio.holdings.map((holding) => {
+      const chart = dailyCharts.get(holding.symbol);
+      return [
+        holding.symbol,
+        {
+          dailyChangeRate: changeRateFromCandles(chart?.candles ?? []),
+          points: samplePoints(pointsFromCandles(chart?.candles ?? []))
+        }
+      ] as const;
+    })
+  );
+
+  return {
+    portfolio: portfolioWithoutDailySnapshots,
+    scheduledDividend,
+    portfolioDividend,
+    disclosures,
+    portfolioDailyChangeRate,
+    portfolioDailyPoints,
+    holdingReturnPoints,
+    dividendYieldPoints,
+    holdingCharts
+  };
 }
 
 export async function disclosuresReadModel() {
@@ -91,7 +156,33 @@ export async function stockReadModel(symbol: string) {
     fetchMarketCandles(holding.symbol, { range: "1y", interval: "1wk", limit: 52 }).catch(() => null),
     fetchMarketCandles(holding.symbol, { range: "5y", interval: "1mo", limit: 60 }).catch(() => null)
   ]);
-  return { portfolio, holding, dividendRecord: dividendRecord ?? null, dailyChart, weeklyChart, monthlyChart };
+  const annualDividendKrw = dividendRecord
+    ? holding.quantity * (
+        dividendRecord.currency === "USD"
+          ? dividendRecord.annualDividendPerShare * portfolio.exchangeRate
+          : dividendRecord.annualDividendPerShare
+      )
+    : undefined;
+  const holdingDividendYield =
+    typeof annualDividendKrw === "number" && holding.marketValueKrw > 0
+      ? annualDividendKrw / holding.marketValueKrw
+      : undefined;
+
+  return {
+    holding,
+    dividendRecord: dividendRecord ?? null,
+    dailyChangeRate: changeRateFromCandles(dailyChart?.candles ?? []),
+    annualDividendKrw,
+    holdingDividendYield,
+    returnCandles: holdingReturnCandles(monthlyChart?.candles ?? [], holding, portfolio.exchangeRate),
+    yieldCandles: holdingDividendYieldCandles(
+      monthlyChart?.candles ?? [],
+      annualDividendKrw ?? 0,
+      holding,
+      portfolio.exchangeRate
+    ),
+    weeklyCandles: weeklyChart?.candles ?? []
+  };
 }
 
 export const METRIC_SLUGS = ["daily-change", "holding-return", "dividend-yield"] as const;
@@ -106,7 +197,34 @@ export async function metricReadModel(metric: MetricSlug) {
       ? chartsFor(portfolio.holdings.map((holding) => holding.symbol), { range: "1d", interval: "1d", limit: 1 })
       : Promise.resolve({})
   ]);
-  return { metric, portfolio, portfolioDividend, monthlyDividendRecords, dailyCharts };
+  const dailyChartMap = new Map<string, MarketChart | null>(Object.entries(dailyCharts));
+  const candles = metric === "holding-return"
+    ? returnCandlesFromSnapshots(portfolio.dailySnapshots)
+    : metric === "dividend-yield"
+      ? monthlyDividendYieldCandlesFromSnapshots(
+          portfolio.dailySnapshots,
+          monthlyDividendRecords,
+          portfolioDividend.annualDividendKrw,
+          portfolio.totalMarketValueKrw
+        )
+      : candlesFromSnapshots(portfolio.dailySnapshots);
+  const currentRate = metric === "holding-return"
+    ? portfolioDividend.totalReturnRate
+    : metric === "dividend-yield"
+      ? portfolioDividend.dividendYield
+      : portfolioChangeRateFromMarketValue({
+          holdings: portfolio.holdings,
+          charts: dailyChartMap,
+          exchangeRate: portfolio.exchangeRate
+        });
+
+  return {
+    metric,
+    totalMarketValueKrw: portfolio.totalMarketValueKrw,
+    portfolioDividend,
+    candles,
+    currentRate
+  };
 }
 
 export async function simulationReadModel(requestedAmount: number) {
@@ -123,7 +241,7 @@ export async function simulationReadModel(requestedAmount: number) {
     forecast.amountKrw > 0 && typeof forecast.annualDividendKrw === "number"
       ? forecast.annualDividendKrw / forecast.amountKrw
       : undefined;
-  const expectedPayout = typeof annualPortfolioDividendYield === "number"
+  const expectedPayoutProjection = typeof annualPortfolioDividendYield === "number"
     ? calculateExpectedInvestorDividend({
         investmentKrw: amount,
         currentPortfolioMarketValueKrw: portfolio.totalMarketValueKrw,
@@ -131,12 +249,29 @@ export async function simulationReadModel(requestedAmount: number) {
         annualPortfolioDividendYield
       })
     : undefined;
-  return { amount, portfolio, forecast, currentInvestorPrincipalKrw, annualPortfolioDividendYield, expectedPayout };
+  const expectedPayout = expectedPayoutProjection
+    ? {
+        annualExpectedDividendKrw: expectedPayoutProjection.annualExpectedDividendKrw,
+        monthlyExpectedDividendKrw: expectedPayoutProjection.monthlyExpectedDividendKrw,
+        expectedAnnualPayoutRate: expectedPayoutProjection.expectedAnnualPayoutRate
+      }
+    : undefined;
+  return {
+    amount,
+    forecast,
+    annualPortfolioDividendYield,
+    expectedPayout,
+    policy: productPolicyDto()
+  };
 }
 
 export async function intentsReadModel(userId: string) {
   const [store, portfolio] = await Promise.all([readStoreForUser(userId), getManualPortfolioOverview()]);
-  return { store, portfolio, withdrawalLimit: withdrawalLimitForUser(store, portfolio, userId) };
+  return {
+    store,
+    withdrawalLimit: withdrawalLimitForUser(store, portfolio, userId),
+    policy: productPolicyDto()
+  };
 }
 
 export async function adminDashboardReadModel() {
@@ -150,5 +285,33 @@ export async function adminDashboardReadModel() {
     readDisclosures(),
     readRoadmapEvents({ through: roadmapHorizon })
   ]);
-  return { store, portfolio, dividendRecords, monthlyDividendRecords, disclosures, roadmapEvents, roadmapToday, roadmapHorizon };
+  const dividendAllocationIntents = store.investmentIntents
+    .filter((intent) => intent.status === "ACCEPTED")
+    .map((intent) => {
+      const eligibleFromMonth = dividendEligibleFromMonth(intent.updatedAt);
+      if (!eligibleFromMonth) {
+        throw new Error(`Accepted investment intent ${intent.id} has an invalid updatedAt timestamp`);
+      }
+      return {
+        id: intent.id,
+        userName: intent.userName,
+        userEmail: intent.userEmail,
+        amountKrw: intent.amountKrw,
+        createdAt: intent.createdAt,
+        updatedAt: intent.updatedAt,
+        eligibleFromMonth
+      };
+    });
+  return {
+    store,
+    portfolio,
+    dividendRecords,
+    monthlyDividendRecords,
+    disclosures,
+    roadmapEvents,
+    roadmapToday,
+    roadmapHorizon,
+    dividendAllocationIntents,
+    policy: productPolicyDto()
+  };
 }

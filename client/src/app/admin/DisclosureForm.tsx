@@ -2,8 +2,9 @@
 
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
-import { Field, Form, TdsSelect } from "@/app/components/tds";
+import { Field, TdsSelect } from "@/app/components/tds";
 import { currencySymbol } from "@/lib/format";
 import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { Disclosure, MarketCode, TradeSide } from "@/lib/types";
@@ -506,7 +507,12 @@ export function DisclosureForm({ disclosure }: { disclosure?: Disclosure }) {
               </button>
             </header>
 
-            <Form action="/api/admin/disclosures" className="holding-modal-form" method="post">
+            <ApiMutationForm
+              action="/api/admin/disclosures"
+              className="form holding-modal-form"
+              method="post"
+              onSuccess={closeModal}
+            >
               <input name="id" type="hidden" value={disclosure?.id ?? ""} />
               <input name="tradesJson" type="hidden" value={tradesJson} />
               <div className="disclosure-form-grid">
@@ -562,7 +568,7 @@ export function DisclosureForm({ disclosure }: { disclosure?: Disclosure }) {
                   <button type="submit">{disclosure ? "변경 저장" : "공시 등록"}</button>
                 </div>
               </footer>
-            </Form>
+            </ApiMutationForm>
           </section>
         </div>
       ) : null}

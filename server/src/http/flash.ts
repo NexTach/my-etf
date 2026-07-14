@@ -8,6 +8,7 @@ const errors: Record<string, string> = {
   dividend_policy_required: "배당 정책 확인 동의가 필요합니다",
   withdrawal_limit: "출금 가능 금액을 다시 확인해주세요",
   login_required: "로그인이 필요합니다",
+  admin_required: "관리자 권한이 필요합니다",
   trade_not_found: "거래를 적용할 종목을 찾을 수 없습니다",
   trade_insufficient: "매도 수량이 현재 보유 수량보다 큽니다",
   invalid_exchange_rate: "환율 입력값을 다시 확인해주세요",
@@ -40,6 +41,13 @@ export function setFlash(reply: FastifyReply, message: FlashMessage) {
 }
 
 export function redirectWithFlash(reply: FastifyReply, path: string, message: FlashMessage, statusCode = 303) {
+  const accept = reply.request.headers.accept ?? "";
+  if (accept.split(",").some((value) => value.trim().split(";", 1)[0] === "application/json")) {
+    return reply
+      .code(message.tone === "error" ? 400 : 200)
+      .send({ redirectTo: path, message });
+  }
+
   setFlash(reply, message);
   return reply.redirect(path, statusCode);
 }
