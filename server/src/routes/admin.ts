@@ -26,14 +26,12 @@ import {
 import {
   ROADMAP_EVENT_CATEGORIES,
   ROADMAP_EVENT_KINDS,
-  addDaysToDateKey,
   createRoadmapEvent,
   deleteRoadmapEvent,
   deriveRoadmapCategory,
   deriveRoadmapKind,
   isRoadmapEventMoveDate,
   isValidDateKey,
-  kstDateKey,
   updateRoadmapEvent
 } from "../infrastructure/roadmap.js";
 import { updateIntentStatus } from "../infrastructure/store.js";
@@ -306,9 +304,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       label: z.string().trim().max(160).optional()
     }).strict().safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "입력값을 확인해 주세요.", fields: parsed.error.flatten().fieldErrors });
-    const today = kstDateKey();
-    if (parsed.data.eventDate < today || parsed.data.eventDate > addDaysToDateKey(today, 30)) {
-      return reply.code(400).send({ error: "핀은 오늘부터 30일 안의 날짜에만 추가할 수 있습니다." });
+    if (!isRoadmapEventMoveDate(parsed.data.eventDate)) {
+      return reply.code(400).send({ error: "핀은 과거 날짜부터 오늘 기준 30일 후까지 추가할 수 있습니다." });
     }
     try {
       const disclosure = await readDisclosure(parsed.data.disclosureId);

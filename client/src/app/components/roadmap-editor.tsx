@@ -350,8 +350,8 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
       setStatus({ tone: "error", text: "핀으로 만들 공시를 선택해 주세요." });
       return;
     }
-    if (eventDate < today || eventDate > horizon) {
-      setStatus({ tone: "error", text: "오늘부터 30일 안의 날짜를 선택해 주세요." });
+    if (eventDate > horizon) {
+      setStatus({ tone: "error", text: "과거 날짜 또는 오늘부터 30일 후까지 선택해 주세요." });
       return;
     }
     if (duplicateExists(disclosureId, eventDate)) {
@@ -507,11 +507,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
   }
 
   function allowDateDrop(eventObject: DragEvent, eventDate: string) {
-    if (
-      busy ||
-      eventDate > horizon ||
-      (eventDate < today && dragging?.type !== "event")
-    ) return;
+    if (busy || eventDate > horizon) return;
     eventObject.preventDefault();
     eventObject.dataTransfer.dropEffect = dragging?.type === "event" ? "move" : "copy";
     setDropTargetDate(eventDate);
@@ -601,7 +597,6 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
                 <input
                   id={`${editorId}-fallback-date`}
                   type="date"
-                  min={today}
                   max={horizon}
                   value={fallbackDate}
                   disabled={busy}
