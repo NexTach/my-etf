@@ -218,8 +218,10 @@ describe("Given portfolio snapshots, when a market-value series is built", () =>
       { date: "2026-07-07", value: 101000 },
       { date: "2026-07-08", value: 102500 }
     ]);
-    assert.equal(candlesFromSnapshots(snapshots).at(0)?.close, 101000);
-    assert.equal(candlesFromSnapshots(snapshots).at(1)?.close, 102500);
+    assert.deepEqual(candlesFromSnapshots(snapshots), [
+      { date: "2026-07-07", open: 101000, high: 101000, low: 101000, close: 101000 },
+      { date: "2026-07-08", open: 101000, high: 102500, low: 101000, close: 102500 }
+    ]);
   });
 
   it("then omits unclosed historical points instead of using stale values", () => {
@@ -317,7 +319,13 @@ describe("Given portfolio snapshots, when return candles are built", () => {
     ]);
 
     assert.equal(candles.at(0)?.close, 0.5);
-    assert.equal(candles.at(1)?.close, 0.2);
+    assert.deepEqual(candles.at(1), {
+      date: "2026-07-08",
+      open: 0.5,
+      high: 0.5,
+      low: 0.2,
+      close: 0.2
+    });
   });
 });
 
@@ -470,7 +478,13 @@ describe("Given monthly dividend history, when monthly yield candles are built",
     ]);
     assert.equal(candles.at(0)?.close, 0.16);
     assert.equal(candles.at(1)?.close, 0.36);
-    assert.equal(candles.at(2)?.close, 0.12);
+    assert.deepEqual(candles.at(2), {
+      date: "2026-07-01T00:00:00.000Z",
+      open: 0.36,
+      high: 0.36,
+      low: 0.12,
+      close: 0.12
+    });
   });
 
   it("then skips historical monthly records without a reference market value", () => {

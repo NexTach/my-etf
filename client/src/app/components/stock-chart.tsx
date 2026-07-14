@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import React, { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { formatCurrency } from "@/lib/format";
 import type { MarketCandle } from "@/lib/types";
 
@@ -225,13 +225,17 @@ export function CandleChart({
         {candles.map((candle, index) => {
           const itemX = x(index);
           const center = itemX + metrics.candleWidth / 2;
-          const up = candle.close >= candle.open;
+          const direction = candle.close > candle.open
+            ? "up"
+            : candle.close < candle.open
+              ? "down"
+              : "flat";
           const bodyY = Math.min(y(candle.open), y(candle.close));
           const bodyHeight = Math.max(2, Math.abs(y(candle.open) - y(candle.close)));
 
           return (
             <g
-              className={up ? "candle up" : "candle down"}
+              className={`candle ${direction}`}
               key={`${candle.date}-${index}`}
               onMouseEnter={() => setActiveIndex(index)}
               onFocus={() => setActiveIndex(index)}

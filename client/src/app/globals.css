@@ -1201,6 +1201,12 @@ button.full,
   stroke: var(--chart-down);
 }
 
+.candle.flat line,
+.candle.flat .candle-body {
+  fill: var(--weak);
+  stroke: var(--weak);
+}
+
 .sparkline-chart {
   height: 42px;
   position: relative;
