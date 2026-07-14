@@ -4,7 +4,7 @@ import { calculateDividendAllocation, type DividendAllocationInput } from "./div
 
 const SERVER_POLICY = {
   companyDividendTransferRate: 0.2,
-  monthlyInvestorDividendCapRate: 0.1 / 12
+  monthlyInvestorDividendCapRate: 0.18 / 12
 };
 
 function previewInput(overrides: Partial<DividendAllocationInput> = {}): DividendAllocationInput {
@@ -24,7 +24,7 @@ describe("Given the policy DTO supplied by the server", () => {
       const allocation = calculateDividendAllocation(previewInput());
 
       assert.equal(allocation.companyDividendTransferRate, 0.2);
-      assert.equal(allocation.monthlyInvestorDividendCapRate, 0.1 / 12);
+      assert.equal(allocation.monthlyInvestorDividendCapRate, 0.18 / 12);
       assert.equal(allocation.companyTransferredDividendKrw, 10_000);
       assert.equal(allocation.investorDistributionPoolKrw, 60_000);
       assert.equal(allocation.selectedInvestorWeight, 0.5);

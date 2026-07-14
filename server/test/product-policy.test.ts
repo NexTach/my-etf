@@ -12,8 +12,8 @@ describe("ProductPolicyDto", () => {
           minInvestmentKrw: 10_000,
           maxInvestmentKrw: 1_000_000,
           companyDividendTransferRate: 0.2,
-          annualInvestorDividendCapRate: 0.1,
-          monthlyInvestorDividendCapRate: 0.1 / 12
+          annualInvestorDividendCapRate: 0.18,
+          monthlyInvestorDividendCapRate: 0.18 / 12
         });
         assert.doesNotThrow(() => JSON.stringify(policy));
       });
