@@ -33,6 +33,20 @@ target_tables=(
   "tb_withdrawal_intents"
 )
 
+cleanup_completed_backups() {
+  local backups=()
+  shopt -s nullglob
+  backups=("${BACKUP_DIR}"/nxdi-before-table-rename-*.sql)
+  shopt -u nullglob
+
+  if (( ${#backups[@]} == 0 )); then
+    return 0
+  fi
+
+  rm -f -- "${backups[@]}"
+  echo "Removed ${#backups[@]} completed table-rename backup(s)."
+}
+
 mysql_exec() {
   docker exec -i "$MYSQL_CONTAINER" sh -c \
     'exec mysql --protocol=socket --user=root --password="$MYSQL_ROOT_PASSWORD" --batch --skip-column-names "$0"' \
@@ -85,6 +99,7 @@ target_count="$(table_count "${target_tables[@]}")"
 expected_count="${#legacy_tables[@]}"
 
 if [[ "$legacy_count" == "0" && "$target_count" == "$expected_count" ]]; then
+  cleanup_completed_backups
   echo "NXDI tables already use the canonical tb_ names."
   exit 0
 fi
@@ -148,4 +163,5 @@ if [[ "$invalid_foreign_keys" != "0" ]]; then
   exit 1
 fi
 
-echo "Renamed ${expected_count} NXDI tables. Backup: ${backup_file}"
+cleanup_completed_backups
+echo "Renamed ${expected_count} NXDI tables. Backup removed after verification."
