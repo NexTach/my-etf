@@ -11,7 +11,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import {
   ROADMAP_EVENT_CATEGORIES,
@@ -289,6 +289,9 @@ function RoadmapPinEditor({
 
 export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEditorProps) {
   const editorId = useId();
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const latestPinRef = useRef<HTMLLIElement>(null);
+  const didInitialScrollRef = useRef(false);
   const [roadmapEvents, setRoadmapEvents] = useState(() => sortEvents(events));
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedDisclosureId, setSelectedDisclosureId] = useState(disclosures[0]?.id ?? "");
@@ -311,6 +314,10 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
     () => [...pastEventDates, ...dateKeysBetween(today, horizon)],
     [horizon, pastEventDates, today]
   );
+  const latestPinDate = roadmapEvents.reduce<string | null>(
+    (latest, event) => latest === null || event.eventDate > latest ? event.eventDate : latest,
+    null
+  );
   const eventsByDate = useMemo(() => {
     const grouped = new Map<string, RoadmapEvent[]>();
     for (const event of roadmapEvents) {
@@ -320,6 +327,24 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
     }
     return grouped;
   }, [roadmapEvents]);
+
+  useEffect(() => {
+    if (didInitialScrollRef.current || !latestPinDate) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const viewport = viewportRef.current;
+      const latestPin = latestPinRef.current;
+      if (!viewport || !latestPin) return;
+
+      viewport.scrollTo({
+        left: Math.max(0, latestPin.offsetLeft - (viewport.clientWidth - latestPin.clientWidth) / 2),
+        behavior: "auto"
+      });
+      didInitialScrollRef.current = true;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [latestPinDate]);
 
   function duplicateExists(disclosureId: string, eventDate: string, exceptId?: string) {
     return roadmapEvents.some(
@@ -550,9 +575,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
       <header className="roadmap-editor-header">
         <div>
           <span className="roadmap-editor-eyebrow">로드맵 편집</span>
-          <h2 id={`${editorId}-title`}>
-            <MapPinned size={20} aria-hidden="true" /> 앞으로의 계획을 핀으로 관리해요
-          </h2>
+          <h2 id={`${editorId}-title`}>앞으로의 계획을 핀으로 관리해요</h2>
           <p>공시를 날짜 위에 놓아 핀을 만들고, 핀을 끌어서 일정을 조정할 수 있습니다.</p>
         </div>
         <div className="roadmap-editor-window" aria-label="편집 가능한 기간">
@@ -657,7 +680,12 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
               </div>
             </header>
 
-            <div className="roadmap-editor-viewport" tabIndex={0} aria-label="가로 로드맵, 좌우로 스크롤할 수 있습니다">
+            <div
+              className="roadmap-editor-viewport"
+              ref={viewportRef}
+              tabIndex={0}
+              aria-label="가로 로드맵, 좌우로 스크롤할 수 있습니다"
+            >
               <ol className="roadmap-track roadmap-editor-track">
                 {timelineDates.map((eventDate) => {
                   const dateEvents = eventsByDate.get(eventDate) ?? [];
@@ -672,6 +700,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
                   return (
                     <li
                       key={eventDate}
+                      ref={eventDate === latestPinDate ? latestPinRef : undefined}
                       className={[
                         "roadmap-stop",
                         "roadmap-editor-stop",

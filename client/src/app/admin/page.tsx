@@ -1,4 +1,4 @@
-import { LockKeyhole, Megaphone } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import { AdminHoldingForm } from "./AdminHoldingForm";
 import { DisclosureForm } from "./DisclosureForm";
 import { DividendAllocationCalculator } from "./DividendAllocationCalculator";
@@ -232,9 +232,7 @@ export default async function AdminPage() {
           label="관리자 공시 페이지"
           panelHeader={
             <div className="admin-panel-header">
-              <h2>
-                <Megaphone size={18} /> 공시 관리
-              </h2>
+              <h2>공시 관리</h2>
               <DisclosureForm />
             </div>
           }
