@@ -48,15 +48,22 @@ jobs:
       - name: Prepare runtime environment
         shell: bash
         env:
+          DATA_ENCRYPTION_KEY_BASE64: ${{ secrets.DATA_ENCRYPTION_KEY_BASE64 }}
           SERVER_ENV: ${{ secrets.SERVER_ENV }}
         run: |
           if [[ -z "$SERVER_ENV" ]]; then
             echo "SERVER_ENV secret is required." >&2
             exit 1
           fi
+          if [[ -z "$DATA_ENCRYPTION_KEY_BASE64" ]]; then
+            echo "DATA_ENCRYPTION_KEY_BASE64 secret is required." >&2
+            exit 1
+          fi
 
           umask 077
           printf '%s\n' "$SERVER_ENV" > server/runtime.env
+          sed -i '/^DATA_ENCRYPTION_KEY_BASE64=/d' server/runtime.env
+          printf 'DATA_ENCRYPTION_KEY_BASE64=%s\n' "$DATA_ENCRYPTION_KEY_BASE64" >> server/runtime.env
 
       - name: Deploy over SSH
         uses: 8G4B/GSM-SV-Deploy@f1639b120bc52e6535bc7e80fefafd282a4290cb # v1.2.1
