@@ -2136,6 +2136,64 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
+.distribution-receipt-reversal-trigger {
+  display: flex;
+  margin-top: var(--tds-space-2);
+  min-height: var(--tds-control-sm);
+  padding: 0 var(--tds-space-3);
+  width: fit-content;
+}
+
+.distribution-receipt-reversal-modal {
+  width: min(600px, calc(100vw - 40px));
+}
+
+.distribution-receipt-reversal-summary {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--tds-radius-md);
+  display: grid;
+  gap: var(--tds-space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: var(--tds-space-4);
+}
+
+.distribution-receipt-reversal-summary div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.distribution-receipt-reversal-summary .reference {
+  grid-column: 1 / -1;
+}
+
+.distribution-receipt-reversal-summary dt {
+  color: var(--muted);
+  font-size: var(--tds-text-xs);
+  font-weight: 700;
+}
+
+.distribution-receipt-reversal-summary dd {
+  font-size: var(--tds-text-md);
+  font-weight: 800;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.distribution-receipt-reversal-actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+button.distribution-receipt-reversal-confirm {
+  background: var(--danger);
+}
+
+button.distribution-receipt-reversal-confirm:hover {
+  background: #cf363c;
+}
+
 .monthly-dividend-table {
   overflow-x: auto;
 }
@@ -4440,6 +4498,14 @@ button.ghost.danger {
 }
 
 @media (max-width: 560px) {
+  .distribution-receipt-reversal-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .distribution-receipt-reversal-summary .reference {
+    grid-column: auto;
+  }
+
   .skeleton-hero {
     border-bottom-left-radius: var(--tds-radius-lg);
     border-bottom-right-radius: var(--tds-radius-lg);

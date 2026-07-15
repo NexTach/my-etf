@@ -6,6 +6,7 @@ import { ConfirmCapitalForm } from "./ConfirmCapitalForm";
 import { ApproveComplianceForm } from "./ApproveComplianceForm";
 import { MonthlyDividendRecordForm } from "./MonthlyDividendRecordForm";
 import { RecordDistributionReceiptForm } from "./RecordDistributionReceiptForm";
+import { ReverseDistributionReceiptForm } from "./ReverseDistributionReceiptForm";
 import { SettleWithdrawalForm } from "./SettleWithdrawalForm";
 import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
@@ -493,11 +494,12 @@ export default async function AdminPage() {
             <td>
               <strong>{formatKrw(receipt.netAmountKrw)}</strong>
               {!receipt.reversedAt ? (
-                <ApiMutationForm action="/api/admin/dividends/receipt/reverse" className="form compact" method="post">
-                  <input name="receiptId" type="hidden" value={receipt.id} />
-                  <input maxLength={500} name="reason" placeholder="오류 정정 사유" required />
-                  <button className="ghost" type="submit">반대분개</button>
-                </ApiMutationForm>
+                <ReverseDistributionReceiptForm
+                  netAmountKrw={receipt.netAmountKrw}
+                  receiptId={receipt.id}
+                  statementReference={receipt.statementReference}
+                  symbol={receipt.symbol}
+                />
               ) : <><br /><MutedText>{receipt.reversalReason}</MutedText></>}
             </td>
           </tr>
