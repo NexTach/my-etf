@@ -15,7 +15,7 @@ import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
 import { Field, TdsSelect } from "@/app/components/tds";
 import { exactPortfolioHolding, searchPortfolioHoldings } from "@/lib/holding-search";
-import { stockFullLabel } from "@/lib/stock-display";
+import { stockPrimaryLabel, stockSecondaryLabel } from "@/lib/stock-display";
 import type { Holding } from "@/lib/types";
 
 function currentKstDateTimeLocal() {
@@ -116,22 +116,25 @@ function HoldingCombobox({ holdings }: { holdings: readonly SearchableHolding[] 
 
   const listbox = open && listboxPosition ? (
     <div className="holding-combobox-results" id={listboxId} role="listbox" style={listboxPosition}>
-      {matches.length > 0 ? matches.map((holding, index) => (
-        <button
-          aria-selected={index === activeIndex}
-          className={index === activeIndex ? "active" : undefined}
-          id={`${listboxId}-${index}`}
-          key={holding.symbol}
-          role="option"
-          type="button"
-          onMouseDown={(event) => event.preventDefault()}
-          onMouseEnter={() => setActiveIndex(index)}
-          onClick={() => selectHolding(holding)}
-        >
-          <strong>{holding.symbol}</strong>
-          <span>{stockFullLabel(holding)}</span>
-        </button>
-      )) : (
+      {matches.length > 0 ? matches.map((holding, index) => {
+        const secondaryLabel = stockSecondaryLabel(holding);
+        return (
+          <button
+            aria-selected={index === activeIndex}
+            className={index === activeIndex ? "active" : undefined}
+            id={`${listboxId}-${index}`}
+            key={holding.symbol}
+            role="option"
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onMouseEnter={() => setActiveIndex(index)}
+            onClick={() => selectHolding(holding)}
+          >
+            <strong>{stockPrimaryLabel(holding)}</strong>
+            {secondaryLabel ? <span>{secondaryLabel}</span> : null}
+          </button>
+        );
+      }) : (
         <p>현재 운용 포트폴리오에서 일치하는 종목이 없습니다.</p>
       )}
     </div>
