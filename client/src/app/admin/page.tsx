@@ -149,16 +149,15 @@ export default async function AdminPage() {
       />
 
       <Top
-        title="의향서와 포트폴리오를 관리해요"
-        description="포트폴리오, 투자 의향과 증권사에서 확인한 월별 실배당 합계를 관리합니다."
+        title="운영 관리"
         backLink={{ href: "/" }}
       />
 
       <Grid columns={4} className="mt-16">
-        <Metric label="완료된 투자 의향" value={formatKrw(completedInvestment)} />
-        <Metric label="완료된 출금 의향" value={formatKrw(completedWithdrawal)} />
-        <Metric label="월별 실배당 합계 기록" value={`${monthlyDividendRecords.length}개월`} />
-        <Metric label="운용종목 평가금액" value={formatKrw(portfolio.totalMarketValueKrw)} />
+        <Metric label="완료 투자 의향" value={formatKrw(completedInvestment)} />
+        <Metric label="완료 출금 의향" value={formatKrw(completedWithdrawal)} />
+        <Metric label="실배당 기록" value={`${monthlyDividendRecords.length}개월`} />
+        <Metric label="포트폴리오 평가액" value={formatKrw(portfolio.totalMarketValueKrw)} />
       </Grid>
 
       <RoadmapEditor
@@ -171,7 +170,6 @@ export default async function AdminPage() {
       <SectionHeader
         id="admin-disclosures"
         title="공시"
-        description="사용자에게 노출되는 공시와 첨부 거래 이력을 관리합니다."
       />
 
       <PaginatedPanelTable
@@ -188,7 +186,7 @@ export default async function AdminPage() {
           label="관리자 공시 페이지"
           panelHeader={
             <div className="admin-panel-header">
-              <h2>공시 관리</h2>
+              <h2>공시 목록</h2>
               <DisclosureForm />
             </div>
           }
@@ -224,7 +222,6 @@ export default async function AdminPage() {
       <SectionHeader
         id="admin-portfolio"
         title="운영 포트폴리오"
-        description="보유 종목, 수량, 현재가, USD 매입환율을 관리합니다."
       />
 
       <PaginatedPanelTable
@@ -245,8 +242,20 @@ export default async function AdminPage() {
             </tr>
           }
           label="운영 포트폴리오 페이지"
-          panelHeader={<h2>운영 포트폴리오 관리</h2>}
+          panelHeader={<h2>보유 종목</h2>}
           pageSize={ADMIN_PORTFOLIO_PAGE_SIZE}
+          search={{
+            ariaLabel: "운영 포트폴리오 종목 검색",
+            noResultsText: "일치하는 운영 종목이 없습니다.",
+            placeholder: "종목 검색",
+            texts: portfolio.holdings.map((holding) => [
+              holding.symbol,
+              holding.name,
+              holding.alias,
+              stockPrimaryLabel(holding),
+              stockSecondaryLabel(holding)
+            ].filter(Boolean).join(" "))
+          }}
         >
           {portfolio.holdings.map((holding) => (
             <tr key={holding.symbol}>
@@ -261,7 +270,6 @@ export default async function AdminPage() {
       <SectionHeader
         id="admin-dividends"
         title="배당 데이터"
-        description="포트폴리오 종목의 배당 데이터는 외부 데이터로 동기화합니다."
       />
 
       <PaginatedPanelTable
@@ -279,7 +287,7 @@ export default async function AdminPage() {
             </tr>
           }
           label="배당 데이터 페이지"
-          panelHeader={<h2>배당 데이터 동기화</h2>}
+          panelHeader={<h2>종목별 배당</h2>}
           pageSize={ADMIN_DIVIDEND_PAGE_SIZE}
         >
           {portfolio.holdings.map((holding) => {
@@ -352,14 +360,13 @@ export default async function AdminPage() {
 
       <SectionHeader
         id="admin-monthly-dividends"
-        title="월별 외부 원장 합계"
-        description="증권사 관리 화면에서 월말 확인을 마친 뒤 원화 실배당 합계와 외부 기록 근거만 옮겨 적습니다."
+        title="월별 실배당"
       />
 
       <PaginatedPanelTable
           className="monthly-dividend-table"
           colSpan={5}
-          emptyText="등록된 월별 외부 원장 합계가 없습니다."
+          emptyText="등록된 월별 실배당 합계가 없습니다."
           footerRows={
             <tr>
               <td colSpan={5}>
@@ -370,21 +377,21 @@ export default async function AdminPage() {
           header={
             <tr>
               <th>배당월</th>
-              <th>외부 원장 실배당 합계</th>
-              <th>증권사 기록 근거</th>
+              <th>실배당 합계</th>
+              <th>기록 ID</th>
               <th>갱신일</th>
               <th>삭제</th>
             </tr>
           }
-          label="월별 외부 원장 합계 페이지"
-          panelHeader={<h2>월 원장 합계</h2>}
+          label="월별 실배당 합계 페이지"
+          panelHeader={<h2>월별 실배당</h2>}
           pageSize={ADMIN_MONTHLY_DIVIDEND_PAGE_SIZE}
         >
           {monthlyDividendRecords.map((record) => (
               <tr key={record.dividendMonth}>
                 <td>{formatDividendMonth(record.dividendMonth)}</td>
                 <td>{formatKrw(record.actualDividendKrw)}</td>
-                <td>{record.memo ?? "외부 근거 미등록"}</td>
+                <td>{record.recordId}</td>
                 <td>{formatDateTime(record.updatedAt)}</td>
                 <td>
                   <ApiMutationForm action="/api/admin/dividends/monthly/delete" method="post">
@@ -401,7 +408,6 @@ export default async function AdminPage() {
       <SectionHeader
         id="admin-investments"
         title="투자 의향서"
-        description="신청자 정보와 필수 동의 여부를 보고 상태를 저장합니다."
       />
 
       <PaginatedPanelTable
@@ -450,7 +456,7 @@ export default async function AdminPage() {
       <SectionHeader
         id="admin-withdrawals"
         title="출금 의향서"
-        description="완료된 출금 의향 금액은 해당 투자자의 배당 계산 원금에서 차감됩니다."
+        description="완료 금액은 배당 계산 원금에서 차감됩니다."
       />
 
       <PaginatedPanelTable
@@ -489,12 +495,11 @@ export default async function AdminPage() {
       </PaginatedPanelTable>
 
       <SectionHeader
-        title="실 배당금 지급 계산기"
-        description="증권사에서 확인한 월별 실배당 합계를 바탕으로 투자 의향별 참고 지급액을 계산합니다."
+        title="배당 계산"
       />
 
       <Panel>
-        <h2>실 배당금 지급 계산</h2>
+        <h2>의향별 지급액</h2>
         <DividendAllocationCalculator
           defaultDividendMonth={monthlyDividendRecords[0]?.dividendMonth ?? roadmapToday.slice(0, 7)}
           companyDividendTransferRate={policy.companyDividendTransferRate}

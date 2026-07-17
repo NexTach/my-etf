@@ -120,9 +120,9 @@ export type DividendRecord = {
 
 export type MonthlyDividendRecord = {
   dividendMonth: string;
+  recordId: string;
   actualDividendKrw: number;
   referenceMarketValueKrw?: number;
-  memo?: string;
   createdAt: string;
   updatedAt: string;
 };

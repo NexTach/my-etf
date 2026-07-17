@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   DividendForecast,
   DividendForecastLine,
@@ -5,6 +6,7 @@ import type {
   MonthlyDividendRecord,
   PortfolioOverview
 } from "../domain/types.js";
+import { monthlyDividendRecordId } from "../domain/monthly-dividend-record.js";
 import { portfolioCostBasisKrw } from "../domain/portfolio-math.js";
 import { mapWithConcurrency } from "./concurrency.js";
 import { fetchDividendRecordFromMarket } from "./market-data.js";
@@ -75,17 +77,17 @@ function mapDividendRecord(row: {
 
 function mapMonthlyDividendRecord(row: {
   dividendMonth: string;
+  recordId: string;
   actualDividendKrw: number;
   referenceMarketValueKrw: number | null;
-  memo: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): MonthlyDividendRecord {
   return {
     dividendMonth: row.dividendMonth,
+    recordId: row.recordId,
     actualDividendKrw: row.actualDividendKrw,
     referenceMarketValueKrw: row.referenceMarketValueKrw ?? undefined,
-    memo: row.memo ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };
@@ -255,7 +257,6 @@ export async function upsertMonthlyDividendRecord(record: {
   dividendMonth: string;
   actualDividendKrw: number;
   referenceMarketValueKrw?: number;
-  memo?: string;
 }) {
   const dividendMonth = normalizeDividendMonth(record.dividendMonth);
   if (!dividendMonth) throw new Error("Invalid dividend month");
@@ -265,20 +266,18 @@ export async function upsertMonthlyDividendRecord(record: {
     typeof record.referenceMarketValueKrw === "number" && record.referenceMarketValueKrw > 0
       ? record.referenceMarketValueKrw
       : undefined;
-  const memo = record.memo?.trim() || undefined;
 
   await prisma.monthlyDividendRecord.upsert({
     where: { dividendMonth },
     create: {
       dividendMonth,
+      recordId: monthlyDividendRecordId(randomUUID()),
       actualDividendKrw,
-      referenceMarketValueKrw,
-      memo
+      referenceMarketValueKrw
     },
     update: {
       actualDividendKrw,
-      referenceMarketValueKrw,
-      memo
+      referenceMarketValueKrw
     }
   });
 }

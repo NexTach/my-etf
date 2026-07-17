@@ -65,9 +65,9 @@ model DividendRecord {
 
 model MonthlyDividendRecord {
   dividendMonth           String   @id @map("dividend_month") @db.VarChar(7)
+  recordId                String   @unique(map: "uq_monthly_dividend_records_record_id") @map("record_id") @db.VarChar(36)
   actualDividendKrw       Int      @map("actual_dividend_krw")
   referenceMarketValueKrw Float?   @map("reference_market_value_krw")
-  memo                    String?  @db.VarChar(500)
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime @updatedAt @map("updated_at")
 

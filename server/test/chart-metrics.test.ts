@@ -405,6 +405,7 @@ describe("Given portfolio snapshots, when dividend-yield candles are built", () 
       [
         {
           dividendMonth: "2026-06",
+          recordId: "mdr_20260600000000000000000000000000",
           actualDividendKrw: 10000,
           createdAt: "2026-07-01T00:00:00.000Z",
           updatedAt: "2026-07-01T00:00:00.000Z"
@@ -453,6 +454,7 @@ describe("Given monthly dividend history, when monthly yield candles are built",
       [
         {
           dividendMonth: "2026-05",
+          recordId: "mdr_20260500000000000000000000000000",
           actualDividendKrw: 4000,
           referenceMarketValueKrw: 300000,
           createdAt: "2026-06-01T00:00:00.000Z",
@@ -460,6 +462,7 @@ describe("Given monthly dividend history, when monthly yield candles are built",
         },
         {
           dividendMonth: "2026-06",
+          recordId: "mdr_20260600000000000000000000000000",
           actualDividendKrw: 8000,
           referenceMarketValueKrw: 200000,
           createdAt: "2026-07-01T00:00:00.000Z",
@@ -493,6 +496,7 @@ describe("Given monthly dividend history, when monthly yield candles are built",
       [
         {
           dividendMonth: "2026-06",
+          recordId: "mdr_20260600000000000000000000000000",
           actualDividendKrw: 8000,
           createdAt: "2026-07-01T00:00:00.000Z",
           updatedAt: "2026-07-01T00:00:00.000Z"

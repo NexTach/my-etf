@@ -271,16 +271,14 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!admin(request)) return rejectAdminForm(reply);
     const parsed = z.object({
       dividendMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-      actualDividendKrw: z.coerce.number().int().nonnegative(),
-      externalReference: z.string().trim().min(1).max(500)
+      actualDividendKrw: z.coerce.number().int().nonnegative()
     }).safeParse(formBody(request));
     if (!parsed.success) return adminError(reply, "invalid_monthly_dividend");
     await upsertMonthlyDividendRecord({
       dividendMonth: parsed.data.dividendMonth,
-      actualDividendKrw: parsed.data.actualDividendKrw,
-      memo: parsed.data.externalReference
+      actualDividendKrw: parsed.data.actualDividendKrw
     });
-    return adminSuccess(reply, "monthly-dividend-updated", "증권사 기준 월별 실배당 합계가 저장되었습니다");
+    return adminSuccess(reply, "monthly-dividend-updated", "월별 실배당 합계가 저장되었습니다");
   });
 
   app.post("/api/admin/dividends/monthly/delete", async (request, reply) => {
@@ -288,7 +286,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const parsed = z.object({ dividendMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) }).safeParse(formBody(request));
     if (!parsed.success) return adminError(reply, "invalid_monthly_dividend_delete");
     await deleteMonthlyDividendRecord(parsed.data.dividendMonth);
-    return adminSuccess(reply, "monthly-dividend-deleted", "월별 외부 원장 합계가 삭제되었습니다");
+    return adminSuccess(reply, "monthly-dividend-deleted", "월별 실배당 합계가 삭제되었습니다");
   });
 
   app.post("/api/admin/disclosures", async (request, reply) => {

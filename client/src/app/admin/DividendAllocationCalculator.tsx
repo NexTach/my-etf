@@ -18,8 +18,8 @@ type DividendAllocationIntent = {
 
 type MonthlyDividendRecord = {
   dividendMonth: string;
+  recordId: string;
   actualDividendKrw: number;
-  memo?: string;
 };
 
 type DividendAllocationCalculatorProps = {
@@ -117,13 +117,6 @@ export function DividendAllocationCalculator({
             readOnly
             value={monthlyDividendRecord ? formatKrw(actualDividendKrw) : "등록된 월 합계 없음"}
           />
-          <p className="field-help">
-            {monthlyDividendRecord?.memo
-              ? `증권사 기록 근거: ${monthlyDividendRecord.memo}`
-              : monthlyDividendRecord
-                ? "외부 기록 근거가 없는 기존 합계입니다. 증권사 기록을 확인해 갱신해 주세요."
-                : "증권사 관리 화면에서 확인한 월별 원화 합계를 사용합니다."}
-          </p>
         </Field>
       </div>
 
@@ -200,8 +193,7 @@ export function DividendAllocationCalculator({
             </MutedText>
           </div>
           <MutedText>
-            완료 상태는 외부 확인 결과를 계산에 반영하기 위한 관리 상태입니다. 이 결과는 지급 검토용 계산값이며,
-            실제 입금·세금·지급·월말 확정은 증권사와 은행의 외부 기록을 기준으로 처리합니다.
+            참고 계산값입니다. 실제 지급은 증권사와 은행의 확정 기록을 따릅니다.
           </MutedText>
         </div>
       )}

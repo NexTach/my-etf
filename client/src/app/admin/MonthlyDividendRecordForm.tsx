@@ -27,21 +27,12 @@ export function MonthlyDividendRecordForm() {
             required
           />
         </Field>
-        <Field htmlFor="monthly-ledger-dividend-krw" label="외부 원장 실배당 합계 (원)">
+        <Field htmlFor="monthly-ledger-dividend-krw" label="실배당 합계 (원)">
           <FormattedNumberInput
             id="monthly-ledger-dividend-krw"
             min="0"
             name="actualDividendKrw"
-            placeholder="증권사 월 합계"
-            required
-          />
-        </Field>
-        <Field htmlFor="actual-dividend-reference" label="증권사 기록 근거" wide>
-          <input
-            id="actual-dividend-reference"
-            maxLength={500}
-            name="externalReference"
-            placeholder="월간 거래내역 식별값 또는 확인 경로"
+            placeholder="실배당 합계"
             required
           />
         </Field>

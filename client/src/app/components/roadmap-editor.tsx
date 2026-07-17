@@ -147,7 +147,6 @@ async function requestJson<T>(url: string, init: RequestInit) {
 
 function RoadmapPinEditor({
   event,
-  today,
   horizon,
   busy,
   onClose,
@@ -155,7 +154,6 @@ function RoadmapPinEditor({
   onDelete
 }: {
   event: RoadmapEvent;
-  today: string;
   horizon: string;
   busy: boolean;
   onClose: () => void;
@@ -167,7 +165,6 @@ function RoadmapPinEditor({
   const [kind, setKind] = useState<RoadmapEventKind>(event.kind);
   const [category, setCategory] = useState<RoadmapEventCategory>(event.category);
   const [label, setLabel] = useState(event.label ?? "");
-  const isPast = event.eventDate < today;
 
   useEffect(() => {
     setEventDate(event.eventDate);
@@ -203,13 +200,6 @@ function RoadmapPinEditor({
           <X size={18} aria-hidden="true" />
         </button>
       </header>
-
-      {isPast ? (
-        <p className="roadmap-editor-history-notice">
-          <History size={16} aria-hidden="true" />
-          지난 기록도 날짜, 상태, 분류와 표시 이름을 수정할 수 있습니다.
-        </p>
-      ) : null}
 
       <form className="roadmap-editor-inspector-form" onSubmit={submit}>
         <div className="roadmap-editor-field">
@@ -574,9 +564,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
     <section className="roadmap-editor" aria-labelledby={`${editorId}-title`}>
       <header className="roadmap-editor-header">
         <div>
-          <span className="roadmap-editor-eyebrow">로드맵 편집</span>
-          <h2 id={`${editorId}-title`}>앞으로의 계획을 핀으로 관리해요</h2>
-          <p>공시를 날짜 위에 놓아 핀을 만들고, 핀을 끌어서 일정을 조정할 수 있습니다.</p>
+          <h2 id={`${editorId}-title`}>로드맵 편집</h2>
         </div>
         <div className="roadmap-editor-window" aria-label="편집 가능한 기간">
           <CalendarDays size={17} aria-hidden="true" />
@@ -597,7 +585,6 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
           </header>
 
           <form className="roadmap-editor-add-form" onSubmit={submitFallback}>
-            <p>드래그가 어렵다면 여기에서 공시와 날짜를 선택하세요.</p>
             <div className="roadmap-editor-field roadmap-editor-field--wide">
               <label htmlFor={`${editorId}-disclosure`}>공시</label>
               <TdsSelect
@@ -778,22 +765,23 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
               <span>핀을 이곳에 놓으면 삭제돼요</span>
             </div>
 
-            <div
-              className={`roadmap-editor-status${status ? ` roadmap-editor-status--${status.tone}` : ""}`}
-              role={status?.tone === "error" ? "alert" : "status"}
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {status?.tone === "success" ? <Check size={16} aria-hidden="true" /> : null}
-              {status?.text ?? "공시를 날짜에 놓거나 핀을 선택해 편집하세요."}
-            </div>
+            {status ? (
+              <div
+                className={`roadmap-editor-status roadmap-editor-status--${status.tone}`}
+                role={status.tone === "error" ? "alert" : "status"}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {status.tone === "success" ? <Check size={16} aria-hidden="true" /> : null}
+                {status.text}
+              </div>
+            ) : null}
           </section>
 
           {selectedEvent ? (
             <RoadmapPinEditor
               key={selectedEvent.id}
               event={selectedEvent}
-              today={today}
               horizon={horizon}
               busy={busy}
               onClose={() => setSelectedEventId(null)}
@@ -804,8 +792,7 @@ export function RoadmapEditor({ events, disclosures, today, horizon }: RoadmapEd
             <section className="roadmap-editor-inspector roadmap-editor-inspector--empty">
               <MapPinned size={22} aria-hidden="true" />
               <div>
-                <h3>핀을 선택하면 자세히 편집할 수 있어요</h3>
-                <p>날짜, 상태, 분류와 로드맵에 표시할 이름을 바꿀 수 있습니다.</p>
+                <h3>핀을 선택하세요</h3>
               </div>
             </section>
           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Children, type ReactNode, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -22,6 +22,12 @@ function pageBounds(page: number, pageSize: number, totalItems: number) {
     startItem: totalItems === 0 ? 0 : startIndex + 1,
     endItem: endIndex
   };
+}
+
+function matchesSearch(text: string, query: string) {
+  const normalizedText = text.toLocaleLowerCase();
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  return terms.every((term) => normalizedText.includes(term));
 }
 
 function PaginationControls({
@@ -138,7 +144,8 @@ export function PaginatedPanelTable({
   label,
   panelClassName,
   panelHeader,
-  pageSize
+  pageSize,
+  search
 }: {
   children: ReactNode;
   className?: string;
@@ -151,26 +158,70 @@ export function PaginatedPanelTable({
   panelClassName?: string;
   panelHeader: ReactNode;
   pageSize: number;
+  search?: {
+    ariaLabel: string;
+    noResultsText?: string;
+    placeholder: string;
+    texts: string[];
+  };
 }) {
   const rows = Children.toArray(children).filter(Boolean);
   const stickyRows = Children.toArray(footerRows).filter(Boolean);
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const [query, setQuery] = useState("");
+  const filteredRows = search && query.trim()
+    ? rows.filter((_row, index) => matchesSearch(search.texts[index] ?? "", query))
+    : rows;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const [page, setPage] = useState(1);
   const currentPage = Math.min(page, totalPages);
-  const bounds = pageBounds(currentPage, pageSize, rows.length);
-  const visibleRows = rows.slice(bounds.startIndex, bounds.endIndex);
+  const bounds = pageBounds(currentPage, pageSize, filteredRows.length);
+  const visibleRows = filteredRows.slice(bounds.startIndex, bounds.endIndex);
+  const noRowsText = rows.length === 0
+    ? emptyText
+    : search?.noResultsText ?? "검색 결과가 없습니다.";
 
   return (
     <>
       <section className={cx("panel", panelClassName)} id={id}>
-        {panelHeader}
+        {search ? (
+          <div className="paginated-panel-toolbar">
+            {panelHeader}
+            <div className="panel-table-search">
+              <Search aria-hidden="true" size={16} />
+              <input
+                aria-label={search.ariaLabel}
+                autoComplete="off"
+                placeholder={search.placeholder}
+                type="search"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+              />
+              {query ? (
+                <button
+                  aria-label="검색어 지우기"
+                  className="panel-table-search-clear"
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setPage(1);
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : panelHeader}
         <div className={cx("table-wrap", className)}>
           <table>
             <thead>{header}</thead>
             <tbody>
-              {rows.length > 0 ? visibleRows : (
+              {filteredRows.length > 0 ? visibleRows : (
                 <tr>
-                  <td colSpan={colSpan}>{emptyText}</td>
+                  <td colSpan={colSpan}>{noRowsText}</td>
                 </tr>
               )}
               {stickyRows}
@@ -182,7 +233,7 @@ export function PaginatedPanelTable({
         label={label}
         page={currentPage}
         pageSize={pageSize}
-        totalItems={rows.length}
+        totalItems={filteredRows.length}
         onPageChange={setPage}
       />
     </>
