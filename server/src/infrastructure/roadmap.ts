@@ -155,6 +155,16 @@ export function roadmapHorizonEndDate(fromDateKey = kstDateKey()) {
   return addDaysToDateKey(fromDateKey, ROADMAP_HORIZON_DAYS);
 }
 
+export function roadmapInitialStartDate(fromDateKey = kstDateKey()) {
+  return addDaysToDateKey(fromDateKey, -ROADMAP_HORIZON_DAYS);
+}
+
+export function isRoadmapQueryWindow(fromDateKey: string, throughDateKey: string) {
+  if (!isValidDateKey(fromDateKey) || !isValidDateKey(throughDateKey)) return false;
+  if (throughDateKey < fromDateKey) return false;
+  return throughDateKey <= addDaysToDateKey(fromDateKey, ROADMAP_HORIZON_DAYS - 1);
+}
+
 export function isRoadmapEventMoveDate(
   dateKey: string,
   fromDateKey = kstDateKey()
@@ -299,11 +309,19 @@ export function groupRoadmapEventsByDate(events: readonly RoadmapEvent[]): Roadm
   return groups;
 }
 
-export async function readRoadmapEvents(options: { through?: string } = {}) {
+export async function readRoadmapEvents(options: { from?: string; through?: string } = {}) {
+  if (options.from) assertDateKey(options.from);
   if (options.through) assertDateKey(options.through);
 
   const rows = await prisma.roadmapEvent.findMany({
-    where: options.through ? { eventDate: { lte: options.through } } : undefined,
+    where: options.from || options.through
+      ? {
+          eventDate: {
+            gte: options.from,
+            lte: options.through
+          }
+        }
+      : undefined,
     include: ROADMAP_EVENT_INCLUDE,
     orderBy: [{ eventDate: "asc" }, { createdAt: "asc" }, { id: "asc" }]
   });

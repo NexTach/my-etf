@@ -127,6 +127,10 @@ export function roadmapHorizonEndDate(fromDateKey = kstDateKey()) {
   return addDaysToDateKey(fromDateKey, ROADMAP_HORIZON_DAYS);
 }
 
+export function roadmapInitialStartDate(fromDateKey = kstDateKey()) {
+  return addDaysToDateKey(fromDateKey, -ROADMAP_HORIZON_DAYS);
+}
+
 export function isRoadmapEventMoveDate(
   dateKey: string,
   fromDateKey = kstDateKey()

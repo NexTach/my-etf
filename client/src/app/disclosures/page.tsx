@@ -29,6 +29,7 @@ export default async function DisclosuresPage() {
     items: disclosures,
     roadmapEvents,
     roadmapToday: todayDateKey,
+    roadmapStart: fromDateKey,
     roadmapHorizon: throughDateKey
   } = await getDisclosures();
 
@@ -47,6 +48,7 @@ export default async function DisclosuresPage() {
       <div id="roadmap">
         <RoadmapTimeline
           events={roadmapEvents}
+          fromDateKey={fromDateKey}
           todayDateKey={todayDateKey}
           throughDateKey={throughDateKey}
         />

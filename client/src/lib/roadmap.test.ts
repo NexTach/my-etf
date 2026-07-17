@@ -11,6 +11,7 @@ import {
   roadmapCategoryLabel,
   roadmapDateKeys,
   roadmapHorizonEndDate,
+  roadmapInitialStartDate,
   roadmapKindLabel,
   sortRoadmapEvents,
   stripDisclosureTag,
@@ -91,6 +92,14 @@ describe("roadmap date helpers", () => {
     assert.equal(isRoadmapEventMoveDate("2026-08-13", today), true);
     assert.equal(isRoadmapEventMoveDate("2026-08-14", today), false);
     assert.equal(isRoadmapEventMoveDate("2026-02-29", today), false);
+  });
+});
+
+describe("Given the roadmap viewer opens today", () => {
+  describe("When its initial date window is calculated", () => {
+    it("Then includes the previous 30 days", () => {
+      assert.equal(roadmapInitialStartDate("2026-07-18"), "2026-06-18");
+    });
   });
 });
 

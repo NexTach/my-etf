@@ -33,7 +33,8 @@ import { getManualPortfolioOverview } from "../infrastructure/portfolio-store.js
 import {
   kstDateKey,
   readRoadmapEvents,
-  roadmapHorizonEndDate
+  roadmapHorizonEndDate,
+  roadmapInitialStartDate
 } from "../infrastructure/roadmap.js";
 import { readCompletedNetInvestmentIntentAmount, readStore, readStoreForUser } from "../infrastructure/store.js";
 
@@ -134,12 +135,26 @@ export async function publicHomeReadModel() {
 
 export async function disclosuresReadModel() {
   const roadmapToday = kstDateKey();
+  const roadmapStart = roadmapInitialStartDate(roadmapToday);
   const roadmapHorizon = roadmapHorizonEndDate(roadmapToday);
   const [items, roadmapEvents] = await Promise.all([
     readDisclosures(),
-    readRoadmapEvents({ through: roadmapHorizon })
+    readRoadmapEvents({ from: roadmapStart, through: roadmapHorizon })
   ]);
-  return { items, total: items.length, page: 1, pageSize: items.length, roadmapEvents, roadmapToday, roadmapHorizon };
+  return {
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: items.length,
+    roadmapEvents,
+    roadmapToday,
+    roadmapStart,
+    roadmapHorizon
+  };
+}
+
+export async function roadmapEventsReadModel(from: string, through: string) {
+  return { events: await readRoadmapEvents({ from, through }) };
 }
 
 export async function disclosureReadModel(id: string) {

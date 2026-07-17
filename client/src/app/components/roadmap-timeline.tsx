@@ -2,23 +2,26 @@
 
 import Link from "next/link";
 import { ArrowUpRight, ChevronLeft, ChevronRight, LocateFixed } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyboardEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent
 } from "react";
 import {
+  addDaysToDateKey,
   groupRoadmapEventsByDate,
   roadmapCategoryLabel,
   roadmapDateKeys,
   roadmapKindLabel,
+  sortRoadmapEvents,
   stripDisclosureTag,
   type RoadmapEvent
 } from "@/lib/roadmap";
 
 type RoadmapTimelineProps = {
   events: RoadmapEvent[];
+  fromDateKey: string;
   todayDateKey: string;
   throughDateKey: string;
 };
@@ -34,6 +37,8 @@ const ROADMAP_FILTERS: Array<{ id: RoadmapFilter; label: string }> = [
 
 const COLLAPSED_EVENTS_PER_DATE = 1;
 const MOUSE_DRAG_THRESHOLD_PX = 5;
+const ROADMAP_PAGE_DAYS = 30;
+const LOAD_MORE_THRESHOLD_PX = 520;
 
 type MouseDragState = {
   pointerId: number;
@@ -90,20 +95,31 @@ function roadmapEventSummary(event: RoadmapEvent) {
   return summary.length > 86 ? `${summary.slice(0, 86)}…` : summary;
 }
 
-export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: RoadmapTimelineProps) {
+export function RoadmapTimeline({
+  events,
+  fromDateKey,
+  todayDateKey,
+  throughDateKey
+}: RoadmapTimelineProps) {
   const [activeFilter, setActiveFilter] = useState<RoadmapFilter>("ALL");
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(() => new Set());
   const [isDragging, setIsDragging] = useState(false);
+  const [timelineEvents, setTimelineEvents] = useState(() => sortRoadmapEvents(events));
+  const [rangeStart, setRangeStart] = useState(fromDateKey);
+  const [rangeEnd, setRangeEnd] = useState(throughDateKey);
   const viewportRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLLIElement>(null);
   const didInitialScrollRef = useRef(false);
   const mouseDragRef = useRef<MouseDragState | null>(null);
   const suppressClickRef = useRef(false);
   const suppressClickFrameRef = useRef<number | null>(null);
+  const loadInProgressRef = useRef(false);
+  const activeRequestRef = useRef<AbortController | null>(null);
+  const pendingPrependRef = useRef<{ scrollLeft: number; scrollWidth: number } | null>(null);
 
   const visibleEvents = useMemo(
-    () => events.filter((event) => eventMatchesFilter(event, activeFilter)),
-    [activeFilter, events]
+    () => timelineEvents.filter((event) => eventMatchesFilter(event, activeFilter)),
+    [activeFilter, timelineEvents]
   );
 
   const eventsByDate = useMemo(() => {
@@ -112,14 +128,10 @@ export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: Roadma
     );
   }, [visibleEvents]);
 
-  const dateKeys = useMemo(() => {
-    const pastEventDateKeys = Array.from(
-      new Set(visibleEvents.filter((event) => event.eventDate < todayDateKey).map((event) => event.eventDate))
-    ).sort();
-    const horizonDateKeys = roadmapDateKeys(todayDateKey, throughDateKey);
-
-    return [...pastEventDateKeys, ...horizonDateKeys];
-  }, [throughDateKey, todayDateKey, visibleEvents]);
+  const dateKeys = useMemo(
+    () => roadmapDateKeys(rangeStart, rangeEnd),
+    [rangeEnd, rangeStart]
+  );
 
   useEffect(() => {
     if (didInitialScrollRef.current) return;
@@ -141,11 +153,99 @@ export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: Roadma
 
   useEffect(() => {
     return () => {
+      activeRequestRef.current?.abort();
       if (suppressClickFrameRef.current !== null) {
         window.cancelAnimationFrame(suppressClickFrameRef.current);
       }
     };
   }, []);
+
+  useLayoutEffect(() => {
+    const pending = pendingPrependRef.current;
+    const viewport = viewportRef.current;
+    if (!pending || !viewport) return;
+
+    viewport.scrollLeft = pending.scrollLeft + viewport.scrollWidth - pending.scrollWidth;
+    pendingPrependRef.current = null;
+  }, [rangeStart]);
+
+  async function loadMoreDates(direction: -1 | 1) {
+    if (loadInProgressRef.current) return;
+
+    let from: string;
+    let through: string;
+    try {
+      if (direction < 0) {
+        through = addDaysToDateKey(rangeStart, -1);
+        from = addDaysToDateKey(through, -(ROADMAP_PAGE_DAYS - 1));
+      } else {
+        from = addDaysToDateKey(rangeEnd, 1);
+        through = addDaysToDateKey(from, ROADMAP_PAGE_DAYS - 1);
+      }
+    } catch {
+      return;
+    }
+
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
+    loadInProgressRef.current = true;
+
+    try {
+      const response = await fetch(
+        `/api/roadmap-events?from=${encodeURIComponent(from)}&through=${encodeURIComponent(through)}`,
+        {
+          cache: "no-store",
+          signal: controller.signal
+        }
+      );
+      if (!response.ok) throw new Error(`Roadmap request failed (${response.status})`);
+
+      const body = await response.json() as { events?: RoadmapEvent[] };
+      if (!Array.isArray(body.events)) throw new Error("Roadmap response is invalid");
+
+      if (direction < 0) {
+        const viewport = viewportRef.current;
+        if (viewport) {
+          pendingPrependRef.current = {
+            scrollLeft: viewport.scrollLeft,
+            scrollWidth: viewport.scrollWidth
+          };
+        }
+      }
+
+      setTimelineEvents((current) => {
+        const merged = new Map(current.map((event) => [event.id, event]));
+        for (const event of body.events ?? []) merged.set(event.id, event);
+        return sortRoadmapEvents([...merged.values()]);
+      });
+      if (direction < 0) setRangeStart(from);
+      else setRangeEnd(through);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        console.error("Roadmap window load failed", error);
+      }
+    } finally {
+      if (activeRequestRef.current === controller) {
+        activeRequestRef.current = null;
+        loadInProgressRef.current = false;
+      }
+    }
+  }
+
+  function handleViewportScroll() {
+    const viewport = viewportRef.current;
+    if (!viewport || loadInProgressRef.current) return;
+
+    if (viewport.scrollLeft <= LOAD_MORE_THRESHOLD_PX) {
+      void loadMoreDates(-1);
+      return;
+    }
+
+    const remaining = viewport.scrollWidth - viewport.clientWidth - viewport.scrollLeft;
+    if (remaining <= LOAD_MORE_THRESHOLD_PX) {
+      void loadMoreDates(1);
+    }
+  }
 
   function scrollTimeline(direction: -1 | 1) {
     const viewport = viewportRef.current;
@@ -284,29 +384,20 @@ export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: Roadma
     });
   }
 
-  const activeFilterLabel = ROADMAP_FILTERS.find((filter) => filter.id === activeFilter)?.label ?? "전체";
-  const visiblePastDateCount = dateKeys.filter((dateKey) => dateKey < todayDateKey).length;
-
   return (
     <section className="roadmap-board" aria-labelledby="roadmap-board-title">
       <div className="roadmap-board-heading">
         <div>
           <p className="roadmap-eyebrow">공시 기반 일정</p>
           <h2 id="roadmap-board-title">한눈에 보는 운용 계획</h2>
-          <p className="roadmap-board-description">
-            좌우로 끌어 탐색하고, 카드를 누르면 근거 공시를 확인할 수 있습니다.
-          </p>
         </div>
-        <p className="roadmap-horizon-label">
-          오늘부터 <strong>30일</strong>
-        </p>
       </div>
 
       <div className="roadmap-toolbar">
         <div className="roadmap-filter-list" role="group" aria-label="로드맵 상태 필터">
           {ROADMAP_FILTERS.map((filter) => {
             const isActive = activeFilter === filter.id;
-            const count = filterCount(events, filter.id);
+            const count = filterCount(timelineEvents, filter.id);
 
             return (
               <button
@@ -352,21 +443,15 @@ export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: Roadma
         </div>
       </div>
 
-      <p className="roadmap-live" role="status" aria-live="polite" aria-atomic="true">
-        {activeFilterLabel} 일정 {visibleEvents.length}개
-        {visiblePastDateCount > 0 ? ` · 지난 기록 ${visiblePastDateCount}일 포함` : ""}
-      </p>
-
       {visibleEvents.length === 0 ? (
-        <p className="roadmap-empty-message">
-          선택한 상태의 일정은 아직 없습니다. 날짜 축은 앞으로 30일까지 계속 표시됩니다.
-        </p>
+        <p className="roadmap-empty-message">선택한 상태의 일정이 없습니다.</p>
       ) : null}
 
       <div
         className={`roadmap-viewport${isDragging ? " is-dragging" : ""}`}
         ref={viewportRef}
         tabIndex={0}
+        onScroll={handleViewportScroll}
         onKeyDown={handleViewportKeyDown}
         onPointerDown={handleViewportPointerDown}
         onPointerMove={handleViewportPointerMove}
@@ -375,8 +460,7 @@ export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: Roadma
         onLostPointerCapture={handleViewportLostPointerCapture}
         onClickCapture={handleViewportClickCapture}
         onDragStart={(event) => event.preventDefault()}
-        aria-label="운용 로드맵. 마우스로 좌우로 끌거나 방향키로 날짜를 이동하고 Home 키로 오늘로 돌아올 수 있습니다."
-        aria-describedby="roadmap-keyboard-hint"
+        aria-label="운용 로드맵"
       >
         <ol className="roadmap-track">
           {dateKeys.map((dateKey) => {
@@ -473,9 +557,6 @@ export function RoadmapTimeline({ events, todayDateKey, throughDateKey }: Roadma
         </ol>
       </div>
 
-      <p className="roadmap-keyboard-hint" id="roadmap-keyboard-hint">
-        마우스로 좌우로 끌거나, 날짜 축에 초점을 둔 뒤 방향키로 이동할 수 있습니다.
-      </p>
     </section>
   );
 }

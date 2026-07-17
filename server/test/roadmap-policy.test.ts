@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   deriveRoadmapCategory,
   deriveRoadmapKind,
-  isRoadmapEventMoveDate
+  isRoadmapEventMoveDate,
+  isRoadmapQueryWindow,
+  roadmapInitialStartDate
 } from "../src/infrastructure/roadmap.js";
 
 describe("Given a roadmap event date", () => {
@@ -13,6 +15,24 @@ describe("Given a roadmap event date", () => {
     assert.equal(isRoadmapEventMoveDate("2025-01-01", today), true);
     assert.equal(isRoadmapEventMoveDate("2026-08-14", today), true);
     assert.equal(isRoadmapEventMoveDate("2026-08-15", today), false);
+  });
+});
+
+describe("Given a roadmap viewer date window", () => {
+  describe("when the initial window is created", () => {
+    it("then starts 30 days before today", () => {
+      assert.equal(roadmapInitialStartDate("2026-07-18"), "2026-06-18");
+    });
+  });
+
+  describe("when an additional window is requested", () => {
+    it("then accepts at most 30 chronological days", () => {
+      assert.equal(isRoadmapQueryWindow("2026-05-19", "2026-06-17"), true);
+      assert.equal(isRoadmapQueryWindow("2026-06-19", "2026-07-18"), true);
+      assert.equal(isRoadmapQueryWindow("2026-06-18", "2026-07-18"), false);
+      assert.equal(isRoadmapQueryWindow("2026-07-18", "2026-07-17"), false);
+      assert.equal(isRoadmapQueryWindow("2026-02-29", "2026-03-01"), false);
+    });
   });
 });
 

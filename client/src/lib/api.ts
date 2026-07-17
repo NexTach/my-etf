@@ -90,6 +90,7 @@ export type DisclosuresResponse = {
   pageSize: number;
   roadmapEvents: RoadmapEvent[];
   roadmapToday: string;
+  roadmapStart: string;
   roadmapHorizon: string;
 };
 

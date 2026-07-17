@@ -10,13 +10,16 @@ import {
   intentsReadModel,
   metricReadModel,
   publicHomeReadModel,
+  roadmapEventsReadModel,
   simulationReadModel,
   stockReadModel
 } from "../application/read-models.js";
+import { isRoadmapQueryWindow, isValidDateKey } from "../infrastructure/roadmap.js";
 
 export type ReadModels = {
   publicHome: typeof publicHomeReadModel;
   disclosures: typeof disclosuresReadModel;
+  roadmapEvents: typeof roadmapEventsReadModel;
   disclosure: typeof disclosureReadModel;
   stock: typeof stockReadModel;
   metric: typeof metricReadModel;
@@ -28,6 +31,7 @@ export type ReadModels = {
 export const defaultReadModels: ReadModels = {
   publicHome: publicHomeReadModel,
   disclosures: disclosuresReadModel,
+  roadmapEvents: roadmapEventsReadModel,
   disclosure: disclosureReadModel,
   stock: stockReadModel,
   metric: metricReadModel,
@@ -50,6 +54,17 @@ export async function registerReadRoutes(app: FastifyInstance, models: ReadModel
   app.get("/api/disclosures", async (request) => {
     const user = requestUser(request);
     return { user, ...(await models.disclosures()) };
+  });
+
+  app.get("/api/roadmap-events", async (request, reply) => {
+    const parsed = z.object({
+      from: z.string().refine(isValidDateKey),
+      through: z.string().refine(isValidDateKey)
+    }).strict().safeParse(request.query);
+    if (!parsed.success || !isRoadmapQueryWindow(parsed.data.from, parsed.data.through)) {
+      return reply.code(400).send({ error: "invalid_roadmap_window" });
+    }
+    return models.roadmapEvents(parsed.data.from, parsed.data.through);
   });
 
   app.get("/api/disclosures/:id", async (request, reply) => {
