@@ -2014,7 +2014,7 @@ tbody tr:last-child td {
 
 .monthly-dividend-table table {
   table-layout: fixed;
-  min-width: 760px;
+  min-width: 920px;
 }
 
 .monthly-dividend-table th,
@@ -2025,17 +2025,17 @@ tbody tr:last-child td {
 
 .monthly-dividend-table th:nth-child(1),
 .monthly-dividend-table td:nth-child(1) {
-  width: 16%;
+  width: 14%;
 }
 
 .monthly-dividend-table th:nth-child(2),
 .monthly-dividend-table td:nth-child(2) {
-  width: 22%;
+  width: 18%;
 }
 
 .monthly-dividend-table th:nth-child(3),
 .monthly-dividend-table td:nth-child(3) {
-  width: 38%;
+  width: 30%;
 }
 
 .monthly-dividend-table th:nth-child(4),
@@ -2046,16 +2046,739 @@ tbody tr:last-child td {
 .monthly-dividend-table th:nth-child(5),
 .monthly-dividend-table td:nth-child(5) {
   text-align: center;
+  width: 14%;
+}
+
+.monthly-dividend-table th:nth-child(6),
+.monthly-dividend-table td:nth-child(6) {
+  text-align: center;
   width: 8%;
 }
 
-.monthly-dividend-table td:nth-child(5) .api-mutation-form {
+.monthly-dividend-table td:nth-child(6) .api-mutation-form {
   display: flex;
   justify-content: center;
 }
 
+.monthly-dividend-certificate-link {
+  min-height: var(--tds-control-sm);
+  padding: 0 var(--tds-space-3);
+  white-space: nowrap;
+}
+
 .monthly-dividend-form {
   width: 100%;
+}
+
+.certificate-page {
+  background:
+    linear-gradient(rgba(25, 34, 60, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(25, 34, 60, 0.035) 1px, transparent 1px),
+    #eef0f4;
+  background-size: 24px 24px;
+  min-height: 100vh;
+  padding: 32px 16px 56px;
+}
+
+.certificate-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--tds-space-3);
+  justify-content: space-between;
+  margin: 0 auto 20px;
+  max-width: 210mm;
+}
+
+.certificate-actions .ghost {
+  background: rgba(255, 255, 255, 0.84);
+  color: #384158;
+}
+
+.certificate-sheet {
+  --certificate-ink: #19223c;
+  --certificate-muted: #667085;
+  --certificate-line: #c9ced8;
+  background: #fff;
+  box-shadow: 0 24px 72px rgba(28, 36, 55, 0.16);
+  color: var(--certificate-ink);
+  display: flex;
+  flex-direction: column;
+  height: 297mm;
+  margin: 0 auto;
+  overflow: hidden;
+  padding: 17mm 18mm 14mm;
+  position: relative;
+  width: 210mm;
+}
+
+.certificate-frame {
+  border: 1px solid #9fa8b8;
+  inset: 8mm;
+  pointer-events: none;
+  position: absolute;
+}
+
+.certificate-frame::before {
+  border: 3px double #293552;
+  content: "";
+  inset: 2.2mm;
+  position: absolute;
+}
+
+.certificate-document-header {
+  align-items: flex-start;
+  border-bottom: 2px solid var(--certificate-ink);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1mm 5mm;
+  position: relative;
+}
+
+.certificate-identity {
+  align-items: center;
+  display: flex;
+  gap: 3mm;
+}
+
+.certificate-monogram {
+  align-items: center;
+  background: var(--certificate-ink);
+  color: #fff;
+  display: inline-flex;
+  font-size: 10pt;
+  font-weight: 900;
+  height: 12mm;
+  justify-content: center;
+  letter-spacing: 0.04em;
+  width: 12mm;
+}
+
+.certificate-identity strong,
+.certificate-identity small {
+  display: block;
+}
+
+.certificate-identity strong {
+  font-size: 10pt;
+  letter-spacing: -0.02em;
+}
+
+.certificate-identity small {
+  color: var(--certificate-muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 6.6pt;
+  letter-spacing: 0.035em;
+  margin-top: 1mm;
+}
+
+.certificate-document-meta {
+  display: grid;
+  gap: 1.5mm;
+  margin: 0;
+  min-width: 67mm;
+}
+
+.certificate-document-meta div {
+  display: grid;
+  gap: 2mm;
+  grid-template-columns: 17mm 1fr;
+}
+
+.certificate-document-meta dt,
+.certificate-document-meta dd {
+  font-size: 7.4pt;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.certificate-document-meta dt {
+  color: var(--certificate-muted);
+  font-weight: 700;
+}
+
+.certificate-document-meta dd {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-weight: 700;
+  text-align: right;
+}
+
+.certificate-title-block {
+  margin-top: 22mm;
+  text-align: center;
+}
+
+.certificate-title-block p,
+.certificate-title-block span {
+  color: var(--certificate-muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  margin: 0;
+}
+
+.certificate-title-block h1 {
+  font-family: "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
+  font-size: 25pt;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  line-height: 1.3;
+  margin: 4mm 0 3mm;
+  padding-left: 0.17em;
+}
+
+.certificate-statement {
+  font-family: "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
+  font-size: 10.5pt;
+  line-height: 1.9;
+  margin: 15mm auto 9mm;
+  max-width: 144mm;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.certificate-records {
+  border-top: 2px solid var(--certificate-ink);
+  margin: 0;
+}
+
+.certificate-records > div {
+  align-items: stretch;
+  border-bottom: 1px solid var(--certificate-line);
+  display: grid;
+  grid-template-columns: 50mm 1fr;
+  min-height: 13mm;
+}
+
+.certificate-records dt,
+.certificate-records dd {
+  align-items: center;
+  display: flex;
+  margin: 0;
+  padding: 3mm 4mm;
+}
+
+.certificate-records dt {
+  background: #f4f5f7;
+  border-right: 1px solid var(--certificate-line);
+  font-size: 8.5pt;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.certificate-records dd {
+  font-size: 9.5pt;
+  font-weight: 650;
+}
+
+.certificate-records .certificate-amount-row {
+  min-height: 17mm;
+}
+
+.certificate-records .certificate-amount-row dd {
+  font-family: "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
+  font-size: 15pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.certificate-record-id {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 8.6pt !important;
+  letter-spacing: 0.015em;
+}
+
+.certificate-notice {
+  background: #f7f8fa;
+  border-left: 2px solid var(--certificate-ink);
+  display: grid;
+  gap: 2mm;
+  grid-template-columns: 22mm 1fr;
+  margin-top: 7mm;
+  padding: 3.5mm 4mm;
+}
+
+.certificate-notice strong,
+.certificate-notice p {
+  font-size: 7.5pt;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.certificate-notice p {
+  color: #4b5568;
+  word-break: keep-all;
+}
+
+.certificate-approval {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 62mm;
+  padding-top: 5mm;
+  position: relative;
+}
+
+.certificate-approval > p {
+  font-family: "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
+  font-size: 10pt;
+  margin: 0 0 6mm;
+}
+
+.certificate-approval time {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10pt;
+  letter-spacing: 0.09em;
+}
+
+.certificate-issuer {
+  align-items: baseline;
+  display: flex;
+  gap: 6mm;
+  margin-top: 8mm;
+  min-width: 75mm;
+  position: relative;
+}
+
+.certificate-issuer > span {
+  color: var(--certificate-muted);
+  font-size: 8pt;
+  font-weight: 700;
+}
+
+.certificate-issuer > strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15pt;
+  letter-spacing: 0.05em;
+}
+
+.certificate-seal {
+  align-items: center;
+  border: 2.5px solid #ad1f2a;
+  border-radius: 50%;
+  bottom: -12mm;
+  color: #ad1f2a;
+  display: flex;
+  flex-direction: column;
+  height: 23mm;
+  justify-content: center;
+  opacity: 0.88;
+  position: absolute;
+  right: -3mm;
+  rotate: -8deg;
+  width: 23mm;
+}
+
+.certificate-seal::before {
+  border: 1px solid #ad1f2a;
+  border-radius: 50%;
+  content: "";
+  inset: 1.2mm;
+  position: absolute;
+}
+
+.certificate-seal span,
+.certificate-seal strong {
+  position: relative;
+  z-index: 1;
+}
+
+.certificate-seal span {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 4.7pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-left: 0.12em;
+}
+
+.certificate-seal strong {
+  font-family: "Batang", "AppleMyungjo", serif;
+  font-size: 10.5pt;
+  letter-spacing: 0.08em;
+  margin-left: 0.08em;
+}
+
+.certificate-footer {
+  border-top: 1px solid var(--certificate-line);
+  color: var(--certificate-muted);
+  display: flex;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 6.8pt;
+  justify-content: space-between;
+  letter-spacing: 0.025em;
+  padding-top: 3mm;
+}
+
+@page {
+  margin: 0;
+  size: A4 portrait;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+    height: 297mm;
+    margin: 0;
+    min-height: 297mm;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .certificate-page {
+    background: #fff;
+    min-height: 297mm;
+    padding: 0;
+  }
+
+  .certificate-actions,
+  .tds-toast-viewport {
+    display: none !important;
+  }
+
+  .certificate-sheet {
+    box-shadow: none;
+    height: 297mm;
+    margin: 0;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Korean public-certificate layout: compact fields, ruled tables, issuer seal, and notices. */
+.certificate-page {
+  background: #e9ebef;
+}
+
+.certificate-sheet {
+  --certificate-ink: #151922;
+  --certificate-muted: #4f5663;
+  --certificate-line: #69717d;
+  color: var(--certificate-ink);
+  font-family:
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Noto Sans KR",
+    sans-serif;
+  padding: 12mm 14mm 9mm;
+}
+
+.certificate-form-header {
+  min-height: 0;
+  position: relative;
+}
+
+.certificate-form-reference {
+  color: var(--certificate-muted);
+  font-size: 7pt;
+  margin: 0;
+}
+
+.certificate-form-header .certificate-identity {
+  margin-top: 5mm;
+  position: static;
+}
+
+.certificate-form-header .certificate-identity strong {
+  font-size: 9pt;
+}
+
+.certificate-form-header .certificate-identity small {
+  font-size: 6pt;
+}
+
+.certificate-form-header h1 {
+  font-family: "Batang", "AppleMyungjo", serif;
+  font-size: 23pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  margin: 5mm 0 8mm;
+  padding-left: 0.12em;
+  text-align: center;
+}
+
+.certificate-issue-meta {
+  border-left: 1px solid var(--certificate-line);
+  border-top: 1px solid var(--certificate-line);
+  display: grid;
+  grid-template-columns: 1.7fr 0.8fr 0.75fr;
+  margin: 0;
+}
+
+.certificate-issue-meta > div {
+  border-bottom: 1px solid var(--certificate-line);
+  border-right: 1px solid var(--certificate-line);
+  display: grid;
+  grid-template-columns: 22mm minmax(0, 1fr);
+  min-height: 10mm;
+}
+
+.certificate-issue-meta dt,
+.certificate-issue-meta dd {
+  align-items: center;
+  display: flex;
+  font-size: 8pt;
+  margin: 0;
+  padding: 2mm 2.5mm;
+}
+
+.certificate-issue-meta dt {
+  background: #eceef1;
+  border-right: 1px solid var(--certificate-line);
+  font-weight: 700;
+  justify-content: center;
+}
+
+.certificate-issue-meta dd {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 7.4pt;
+  font-weight: 700;
+  justify-content: center;
+  overflow-wrap: anywhere;
+}
+
+.certificate-section {
+  margin-top: 8mm;
+}
+
+.certificate-section-heading {
+  align-items: flex-end;
+  display: flex;
+  justify-content: space-between;
+}
+
+.certificate-section-heading span {
+  font-size: 7.5pt;
+  margin-bottom: 1.8mm;
+}
+
+.certificate-section h2,
+.certificate-notice h2 {
+  font-size: 9pt;
+  font-weight: 800;
+  margin: 0 0 1.8mm;
+}
+
+.certificate-subject-grid {
+  border-left: 1px solid var(--certificate-line);
+  border-top: 1px solid var(--certificate-line);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.certificate-subject-grid > div {
+  border-bottom: 1px solid var(--certificate-line);
+  border-right: 1px solid var(--certificate-line);
+  display: grid;
+  grid-template-columns: 30mm minmax(0, 1fr);
+  min-height: 11mm;
+}
+
+.certificate-subject-grid dt,
+.certificate-subject-grid dd,
+.certificate-record-details dt,
+.certificate-record-details dd {
+  align-items: center;
+  display: flex;
+  font-size: 8.3pt;
+  margin: 0;
+  padding: 2.3mm 3mm;
+}
+
+.certificate-subject-grid dt,
+.certificate-record-details dt {
+  background: #f1f2f4;
+  border-right: 1px solid var(--certificate-line);
+  font-weight: 750;
+  justify-content: center;
+}
+
+.certificate-subject-grid dd,
+.certificate-record-details dd {
+  font-weight: 600;
+}
+
+.certificate-record-id {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 7.1pt !important;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.certificate-income-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.certificate-income-table th,
+.certificate-income-table td {
+  border: 1px solid var(--certificate-line);
+  color: var(--certificate-ink);
+  font-size: 9pt;
+  padding: 3.5mm 4mm;
+  text-align: center;
+  white-space: normal;
+}
+
+.certificate-income-table th {
+  background: #eceef1;
+  font-size: 8.2pt;
+  font-weight: 800;
+}
+
+.certificate-income-table th:nth-child(1) {
+  width: 29%;
+}
+
+.certificate-income-table th:nth-child(2) {
+  width: 27%;
+}
+
+.certificate-income-table th:nth-child(3) {
+  width: 44%;
+}
+
+.certificate-income-table td {
+  font-weight: 700;
+  height: 16mm;
+}
+
+.certificate-income-table tbody tr:last-child td {
+  border-bottom: 1px solid var(--certificate-line);
+}
+
+.certificate-income-table .certificate-income-amount {
+  font-family: "Batang", "AppleMyungjo", serif;
+  font-size: 15pt;
+  letter-spacing: 0.02em;
+  padding-right: 8mm;
+  text-align: right;
+}
+
+.certificate-record-details {
+  border-left: 1px solid var(--certificate-line);
+  border-top: 1px solid var(--certificate-line);
+  margin: 0;
+}
+
+.certificate-record-details > div {
+  border-bottom: 1px solid var(--certificate-line);
+  border-right: 1px solid var(--certificate-line);
+  display: grid;
+  grid-template-columns: 42mm minmax(0, 1fr);
+  min-height: 11mm;
+}
+
+.certificate-record-details dd {
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.certificate-approval {
+  display: block;
+  min-height: 0;
+  padding-top: 0;
+  text-align: center;
+}
+
+.certificate-approval > p {
+  font-family: "Batang", "AppleMyungjo", serif;
+  font-size: 10pt;
+  line-height: 1.9;
+  margin: 13mm auto 6mm;
+  max-width: 145mm;
+  word-break: keep-all;
+}
+
+.certificate-approval time {
+  font-family: inherit;
+  font-size: 9pt;
+  letter-spacing: 0.08em;
+}
+
+.certificate-issuer {
+  align-items: center;
+  gap: 3mm;
+  justify-content: center;
+  margin: 7mm auto 0;
+  min-height: 18mm;
+  min-width: 0;
+  width: 60mm;
+}
+
+.certificate-issuer > span {
+  color: var(--certificate-ink);
+  font-size: 8.5pt;
+}
+
+.certificate-issuer-signature {
+  display: block;
+  height: 16mm;
+  position: relative;
+  width: 27mm;
+}
+
+.certificate-signature-image {
+  height: auto;
+  left: 0;
+  mix-blend-mode: multiply;
+  position: absolute;
+  top: 50%;
+  transform: translate(-12.5mm, -50%);
+  width: 44mm;
+}
+
+.certificate-seal-image {
+  height: 13.5mm;
+  left: 10.5mm;
+  opacity: 0.88;
+  position: absolute;
+  rotate: -8deg;
+  top: 1.2mm;
+  width: 13.5mm;
+}
+
+.certificate-notice {
+  background: #f4f5f6;
+  border: 1px solid #9aa0a9;
+  display: block;
+  margin-top: auto;
+  padding: 3.2mm 4mm;
+}
+
+.certificate-notice h2 {
+  margin-bottom: 1.5mm;
+}
+
+.certificate-notice ul {
+  display: grid;
+  gap: 0.8mm;
+  margin: 0;
+  padding-left: 4.5mm;
+}
+
+.certificate-notice li {
+  color: #333943;
+  font-size: 7.2pt;
+  line-height: 1.55;
+  padding-left: 1mm;
+  word-break: keep-all;
+}
+
+.certificate-footer {
+  border-top: 0;
+  color: #666d78;
+  font-family: inherit;
+  font-size: 6.5pt;
+  margin-top: 3mm;
+  padding-top: 0;
 }
 
 .symbol-search {

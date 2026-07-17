@@ -1,4 +1,5 @@
 import { LockKeyhole } from "lucide-react";
+import Link from "next/link";
 import { AdminHoldingForm } from "./AdminHoldingForm";
 import { DisclosureForm } from "./DisclosureForm";
 import { DividendAllocationCalculator } from "./DividendAllocationCalculator";
@@ -365,11 +366,11 @@ export default async function AdminPage() {
 
       <PaginatedPanelTable
           className="monthly-dividend-table"
-          colSpan={5}
+          colSpan={6}
           emptyText="등록된 월별 실배당 합계가 없습니다."
           footerRows={
             <tr>
-              <td colSpan={5}>
+              <td colSpan={6}>
                 <MonthlyDividendRecordForm />
               </td>
             </tr>
@@ -380,6 +381,7 @@ export default async function AdminPage() {
               <th>실배당 합계</th>
               <th>기록 ID</th>
               <th>갱신일</th>
+              <th>확인서</th>
               <th>삭제</th>
             </tr>
           }
@@ -393,6 +395,17 @@ export default async function AdminPage() {
                 <td>{formatKrw(record.actualDividendKrw)}</td>
                 <td>{record.recordId}</td>
                 <td>{formatDateTime(record.updatedAt)}</td>
+                <td>
+                  <Link
+                    aria-label={`${formatDividendMonth(record.dividendMonth)} 운용수익 발생확인서 발급`}
+                    className="button secondary monthly-dividend-certificate-link"
+                    href={`/admin/dividends/monthly/${encodeURIComponent(record.recordId)}/certificate`}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    발급
+                  </Link>
+                </td>
                 <td>
                   <ApiMutationForm action="/api/admin/dividends/monthly/delete" method="post">
                     <input type="hidden" name="dividendMonth" value={record.dividendMonth} />
