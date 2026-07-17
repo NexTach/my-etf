@@ -10,7 +10,7 @@ export function IntentLink({ signedIn }: { signedIn: boolean }) {
   if (signedIn) {
     return (
       <Link className="button" href="/intents">
-        의향서 작성
+        투자 의향 남기기
       </Link>
     );
   }
@@ -26,12 +26,12 @@ export function IntentLink({ signedIn }: { signedIn: boolean }) {
           setMessage({
             id: `login-required-${Date.now()}`,
             title: "로그인이 필요합니다",
-            description: "DataGSM으로 로그인한 뒤 의향서를 작성해주세요.",
+            description: "DataGSM으로 로그인한 뒤 투자 의향서를 작성해주세요.",
             tone: "info"
           });
         }}
       >
-        의향서 작성
+        투자 의향 남기기
       </Link>
     </>
   );

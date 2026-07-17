@@ -71,14 +71,14 @@ export async function readStoreForUser(userId: string): Promise<AppStore> {
   };
 }
 
-export async function readAcceptedNetInvestmentIntentAmount() {
+export async function readCompletedNetInvestmentIntentAmount() {
   const [investments, withdrawals] = await Promise.all([
     prisma.investmentIntent.aggregate({
-      where: { status: "ACCEPTED" },
+      where: { status: "COMPLETED" },
       _sum: { amountKrw: true }
     }),
     prisma.withdrawalIntent.aggregate({
-      where: { status: "ACCEPTED" },
+      where: { status: "COMPLETED" },
       _sum: { amountKrw: true }
     })
   ]);
@@ -130,16 +130,16 @@ export async function createWithdrawalIntentSafely(
       await transaction.$queryRaw`SELECT id FROM tb_investment_intents WHERE userId = ${input.userId} FOR UPDATE`;
       await transaction.$queryRaw`SELECT id FROM tb_withdrawal_intents WHERE userId = ${input.userId} FOR UPDATE`;
       return work({
-        acceptedInvestmentIntentAmount: async () => {
+        completedInvestmentIntentAmount: async () => {
           const result = await transaction.investmentIntent.aggregate({
-            where: { userId: input.userId, status: "ACCEPTED" },
+            where: { userId: input.userId, status: "COMPLETED" },
             _sum: { amountKrw: true }
           });
           return result._sum.amountKrw ?? 0;
         },
-        acceptedWithdrawalIntentAmount: async () => {
+        completedWithdrawalIntentAmount: async () => {
           const result = await transaction.withdrawalIntent.aggregate({
-            where: { userId: input.userId, status: "ACCEPTED" },
+            where: { userId: input.userId, status: "COMPLETED" },
             _sum: { amountKrw: true }
           });
           return result._sum.amountKrw ?? 0;
@@ -200,16 +200,16 @@ export async function updateIntentStatus(params: {
           const row = await transaction.withdrawalIntent.findUnique({ where: { id: params.id } });
           return row ? { id: row.id, type: "WITHDRAWAL" as const, userId: row.userId, amountKrw: row.amountKrw, status: row.status } : null;
         },
-        acceptedInvestmentAmountExcluding: async (id) => {
+        completedInvestmentAmountExcluding: async (id) => {
           const result = await transaction.investmentIntent.aggregate({
-            where: { userId: owner.userId, status: "ACCEPTED", id: id ? { not: id } : undefined },
+            where: { userId: owner.userId, status: "COMPLETED", id: id ? { not: id } : undefined },
             _sum: { amountKrw: true }
           });
           return result._sum.amountKrw ?? 0;
         },
-        acceptedWithdrawalAmountExcluding: async (id) => {
+        completedWithdrawalAmountExcluding: async (id) => {
           const result = await transaction.withdrawalIntent.aggregate({
-            where: { userId: owner.userId, status: "ACCEPTED", id: id ? { not: id } : undefined },
+            where: { userId: owner.userId, status: "COMPLETED", id: id ? { not: id } : undefined },
             _sum: { amountKrw: true }
           });
           return result._sum.amountKrw ?? 0;
@@ -240,35 +240,18 @@ export async function withdrawNonbindingIntent(input: {
 }) {
   const locked = await withMysqlNamedLock(`nxdi:intents:${input.userId}`, () =>
     prisma.$transaction(async (transaction) => {
-      if (input.type === "INVESTMENT") {
-        const intent = await transaction.investmentIntent.findFirst({
-          where: { id: input.id, userId: input.userId }
-        });
-        if (!intent) return { status: "not_found" as const };
-        const source = await transaction.investorCapitalSource.findUnique({
-          where: { sourceIntentId: intent.id },
-          select: { id: true }
-        });
-        if (source) return { status: "downstream_exists" as const };
-        if (intent.status === "REJECTED" || intent.status === "WITHDRAWN") {
-          return { status: "already_terminal" as const };
-        }
-        await transaction.investmentIntent.update({ where: { id: intent.id }, data: { status: "WITHDRAWN" } });
-        return { status: "withdrawn" as const };
-      }
-      const intent = await transaction.withdrawalIntent.findFirst({
-        where: { id: input.id, userId: input.userId }
-      });
+      const intent = input.type === "INVESTMENT"
+        ? await transaction.investmentIntent.findFirst({ where: { id: input.id, userId: input.userId } })
+        : await transaction.withdrawalIntent.findFirst({ where: { id: input.id, userId: input.userId } });
       if (!intent) return { status: "not_found" as const };
-      const settlement = await transaction.investorWithdrawalSettlement.findUnique({
-        where: { withdrawalIntentId: intent.id },
-        select: { id: true }
-      });
-      if (settlement) return { status: "downstream_exists" as const };
       if (intent.status === "REJECTED" || intent.status === "WITHDRAWN") {
         return { status: "already_terminal" as const };
       }
-      await transaction.withdrawalIntent.update({ where: { id: intent.id }, data: { status: "WITHDRAWN" } });
+      if (input.type === "INVESTMENT") {
+        await transaction.investmentIntent.update({ where: { id: intent.id }, data: { status: "WITHDRAWN" } });
+      } else {
+        await transaction.withdrawalIntent.update({ where: { id: intent.id }, data: { status: "WITHDRAWN" } });
+      }
       return { status: "withdrawn" as const };
     }, { isolationLevel: "Serializable" })
   , 5);

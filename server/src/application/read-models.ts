@@ -1,3 +1,4 @@
+import { CalculateDividendPrincipalService } from "./calculate-dividend-principal-service.js";
 import { calculateExpectedInvestorDividend } from "../domain/dividend-allocation.js";
 import {
   candlesFromSnapshots,
@@ -17,11 +18,8 @@ import {
   PRODUCT_MIN_INVESTMENT_KRW,
   productPolicyDto
 } from "../domain/product-policy.js";
-import {
-  withdrawalIntentReferenceForUser
-} from "../domain/withdrawal-limit.js";
+import { withdrawalIntentReferenceForUser } from "../domain/withdrawal-limit.js";
 import { readDisclosure, readDisclosures } from "../infrastructure/disclosures.js";
-import { readCapitalLedgerOverview } from "../infrastructure/capital-ledger.js";
 import {
   forecastDividend,
   getDividendRecord,
@@ -37,7 +35,7 @@ import {
   readRoadmapEvents,
   roadmapHorizonEndDate
 } from "../infrastructure/roadmap.js";
-import { readAcceptedNetInvestmentIntentAmount, readStore, readStoreForUser } from "../infrastructure/store.js";
+import { readCompletedNetInvestmentIntentAmount, readStore, readStoreForUser } from "../infrastructure/store.js";
 
 function chartRecord(entries: Array<readonly [string, MarketChart | null]>) {
   return Object.fromEntries(entries) as Record<string, MarketChart | null>;
@@ -235,9 +233,9 @@ export async function simulationReadModel(requestedAmount: number) {
     PRODUCT_MAX_INVESTMENT_KRW,
     Math.max(PRODUCT_MIN_INVESTMENT_KRW, Number.isFinite(requestedAmount) ? requestedAmount : 100_000)
   );
-  const [portfolio, acceptedNetInvestmentIntentKrw] = await Promise.all([
+  const [portfolio, completedNetInvestmentIntentKrw] = await Promise.all([
     getManualPortfolioOverview(),
-    readAcceptedNetInvestmentIntentAmount()
+    readCompletedNetInvestmentIntentAmount()
   ]);
   const forecast = await forecastDividend(portfolio, amount);
   const annualPortfolioDividendYield =
@@ -248,7 +246,7 @@ export async function simulationReadModel(requestedAmount: number) {
     ? calculateExpectedInvestorDividend({
         investmentKrw: amount,
         currentPortfolioMarketValueKrw: portfolio.totalMarketValueKrw,
-        currentInvestorPrincipalKrw: acceptedNetInvestmentIntentKrw,
+        currentInvestorPrincipalKrw: completedNetInvestmentIntentKrw,
         annualPortfolioDividendYield
       })
     : undefined;
@@ -280,41 +278,55 @@ export async function intentsReadModel(userId: string) {
 export async function adminDashboardReadModel() {
   const roadmapToday = kstDateKey();
   const roadmapHorizon = roadmapHorizonEndDate(roadmapToday);
-  const [store, portfolio, dividendRecords, monthlyDividendRecords, disclosures, roadmapEvents, capitalLedger] = await Promise.all([
+  const [store, portfolio, dividendRecords, monthlyDividendRecords, disclosures, roadmapEvents] = await Promise.all([
     readStore(),
     getManualPortfolioOverview(),
     readDividendRecords(),
     readMonthlyDividendRecords(),
     readDisclosures(),
-    readRoadmapEvents({ through: roadmapHorizon }),
-    readCapitalLedgerOverview()
+    readRoadmapEvents({ through: roadmapHorizon })
   ]);
-  const dividendAllocationIntents = store.investmentIntents
-    .filter((intent) => intent.status === "ACCEPTED")
-    .map((intent) => {
-      const eligibleFromMonth = dividendEligibleFromMonth(intent.updatedAt);
-      if (!eligibleFromMonth) {
-        throw new Error(`Accepted investment intent ${intent.id} has an invalid updatedAt timestamp`);
-      }
-      return {
-        id: intent.id,
-        userId: intent.userId,
-        userName: intent.userName,
-        userEmail: intent.userEmail,
-        amountKrw: intent.amountKrw,
-        createdAt: intent.createdAt,
-        updatedAt: intent.updatedAt,
-        eligibleFromMonth
-      };
-    });
-  const dividendAllocationWithdrawals = store.withdrawalIntents
-    .filter((intent) => intent.status === "ACCEPTED")
-    .map((intent) => ({
-      id: intent.id,
-      userId: intent.userId,
-      amountKrw: intent.amountKrw,
-      acceptedAt: intent.updatedAt
-    }));
+  const completedInvestments = store.investmentIntents.filter((intent) => intent.status === "COMPLETED");
+  const completedWithdrawals = store.withdrawalIntents.filter((intent) => intent.status === "COMPLETED");
+  const investmentById = new Map(completedInvestments.map((intent) => [intent.id, intent]));
+  const principalService = new CalculateDividendPrincipalService();
+  const dividendPrincipalsByMonth = Object.fromEntries(
+    monthlyDividendRecords.map((record) => {
+      const principals = principalService.execute({
+        dividendMonth: record.dividendMonth,
+        investments: completedInvestments.map((intent) => ({
+          id: intent.id,
+          userId: intent.userId,
+          amountKrw: intent.amountKrw,
+          completedAt: intent.updatedAt
+        })),
+        withdrawals: completedWithdrawals.map((intent) => ({
+          id: intent.id,
+          userId: intent.userId,
+          amountKrw: intent.amountKrw,
+          completedAt: intent.updatedAt
+        }))
+      }).map((principal) => {
+        const intent = investmentById.get(principal.id);
+        if (!intent) throw new Error(`Completed investment intent ${principal.id} was not found`);
+        const eligibleFromMonth = dividendEligibleFromMonth(principal.completedAt);
+        if (!eligibleFromMonth) {
+          throw new Error(`Completed investment intent ${principal.id} has an invalid updatedAt timestamp`);
+        }
+        return {
+          id: intent.id,
+          userId: intent.userId,
+          userName: intent.userName,
+          userEmail: intent.userEmail,
+          amountKrw: principal.amountKrw,
+          createdAt: intent.createdAt,
+          updatedAt: principal.completedAt,
+          eligibleFromMonth
+        };
+      });
+      return [record.dividendMonth, principals];
+    })
+  );
   return {
     store,
     portfolio,
@@ -324,9 +336,7 @@ export async function adminDashboardReadModel() {
     roadmapEvents,
     roadmapToday,
     roadmapHorizon,
-    dividendAllocationIntents,
-    dividendAllocationWithdrawals,
-    capitalLedger,
+    dividendPrincipalsByMonth,
     policy: productPolicyDto()
   };
 }

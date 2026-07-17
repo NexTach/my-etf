@@ -1,5 +1,9 @@
+import type { Prisma } from "@prisma/client";
 import type { Holding, ManualPortfolioStore, MarketCode, PortfolioDailySnapshot, PortfolioOverview } from "../domain/types.js";
-import { ApplyHoldingTradeService } from "../application/apply-holding-trade-service.js";
+import {
+  ApplyHoldingTradeService,
+  type HoldingTradeExecution
+} from "../application/apply-holding-trade-service.js";
 import { PortfolioSnapshotService } from "../application/portfolio-snapshot-service.js";
 import { holdingCostBasisKrw } from "../domain/portfolio-math.js";
 import { mapWithConcurrency } from "./concurrency.js";
@@ -8,11 +12,25 @@ import { fetchUsdKrwExchangeRate } from "./exchange-rate.js";
 import { fetchMarketQuote } from "./market-data.js";
 import { withMysqlNamedLock } from "./mysql-named-lock.js";
 import { prisma } from "./prisma.js";
-import { portfolioCashBalance, recordPortfolioTradeExecution } from "./capital-ledger.js";
 
 const SNAPSHOT_TIMEZONE_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAILY_SNAPSHOT_LIMIT = 370;
+
+async function recordPortfolioTradeExecution(
+  transaction: Prisma.TransactionClient,
+  execution: HoldingTradeExecution
+) {
+  const executedAt = new Date(execution.executedAt);
+  if (Number.isNaN(executedAt.getTime())) throw new Error("Invalid portfolio trade date");
+  await transaction.portfolioTradeExecution.create({
+    data: {
+      ...execution,
+      exchangeRate: execution.exchangeRate,
+      executedAt
+    }
+  });
+}
 
 export function normalizeManualPortfolioStore(store: ManualPortfolioStore): ManualPortfolioStore {
   const exchangeRate = Number(store.exchangeRate);
@@ -330,13 +348,11 @@ export async function finalizePreviousPortfolioDailySnapshot(date = new Date()) 
 }
 
 export async function getManualPortfolioOverview(): Promise<PortfolioOverview> {
-  const [store, dailySnapshots, cashBalanceKrw] = await Promise.all([
+  const [store, dailySnapshots] = await Promise.all([
     readManualPortfolioStore(),
-    readPortfolioDailySnapshots(),
-    portfolioCashBalance()
+    readPortfolioDailySnapshots()
   ]);
-  const securitiesMarketValueKrw = store.holdings.reduce((sum, holding) => sum + holding.marketValueKrw, 0);
-  const totalMarketValueKrw = securitiesMarketValueKrw + cashBalanceKrw;
+  const totalMarketValueKrw = store.holdings.reduce((sum, holding) => sum + holding.marketValueKrw, 0);
 
   return {
     source: "manual",
@@ -344,69 +360,9 @@ export async function getManualPortfolioOverview(): Promise<PortfolioOverview> {
     exchangeRate: store.exchangeRate,
     exchangeRateFetchedAt: store.exchangeRateFetchedAt ?? new Date(0).toISOString(),
     exchangeRateSource: store.exchangeRateSource ?? "unavailable",
-    securitiesMarketValueKrw,
-    cashBalanceKrw,
     totalMarketValueKrw,
     dailySnapshots,
     holdings: store.holdings
-  };
-}
-
-export async function readMonthEndPortfolioNetAssets(dividendMonth: string) {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(dividendMonth)) return undefined;
-  const year = Number(dividendMonth.slice(0, 4));
-  const month = Number(dividendMonth.slice(5, 7));
-  const nextMonth = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
-  const lastCalendarDate = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-  const monthEndBoundary = new Date(`${nextMonth}-01T00:00:00+09:00`);
-  const [snapshot, latestTradeRecord, latestCashRecord] = await Promise.all([
-    prisma.portfolioDailySnapshot.findFirst({
-      where: {
-        snapshotDate: { startsWith: dividendMonth },
-        closedAt: { not: null }
-      },
-      orderBy: { snapshotDate: "desc" }
-    }),
-    prisma.portfolioTradeExecution.findFirst({
-      where: { executedAt: { lt: monthEndBoundary } },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true }
-    }),
-    prisma.portfolioCashEntry.findFirst({
-      where: { occurredAt: { lt: monthEndBoundary } },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true }
-    })
-  ]);
-  if (!snapshot?.closedAt || snapshot.snapshotDate !== lastCalendarDate || snapshot.closedAt < monthEndBoundary) {
-    return undefined;
-  }
-  const latestLedgerWrite = [latestTradeRecord?.createdAt, latestCashRecord?.createdAt]
-    .filter((value): value is Date => Boolean(value))
-    .sort((left, right) => right.getTime() - left.getTime())[0];
-  if (latestLedgerWrite && snapshot.closedAt < latestLedgerWrite) return undefined;
-  return snapshot.closeTotalMarketValueKrw ?? snapshot.totalMarketValueKrw;
-}
-
-export async function readLatestClosedPortfolioNetAssets() {
-  const [snapshot, latestTrade, latestCashEntry] = await Promise.all([
-    prisma.portfolioDailySnapshot.findFirst({
-      where: { closedAt: { not: null } },
-      orderBy: { snapshotDate: "desc" }
-    }),
-    prisma.portfolioTradeExecution.findFirst({ orderBy: { createdAt: "desc" } }),
-    prisma.portfolioCashEntry.findFirst({ orderBy: { createdAt: "desc" } })
-  ]);
-  if (!snapshot) return undefined;
-  return {
-    snapshotDate: snapshot.snapshotDate,
-    netAssetsKrw: snapshot.closeTotalMarketValueKrw ?? snapshot.totalMarketValueKrw,
-    closedAt: snapshot.closedAt?.toISOString(),
-    coversAllTrades: Boolean(
-      snapshot.closedAt &&
-      (!latestTrade || snapshot.closedAt >= latestTrade.createdAt) &&
-      (!latestCashEntry || snapshot.closedAt >= latestCashEntry.createdAt)
-    )
   };
 }
 

@@ -45,9 +45,6 @@ export async function registerIntentRoutes(app: FastifyInstance) {
     }).safeParse(request.body);
     if (!parsed.success) return redirectWithFlash(reply, "/intents", errorFlash("invalid_intent_cancel"));
     const result = await withdrawNonbindingIntent({ ...parsed.data, userId: user.id });
-    if (result.status === "downstream_exists") {
-      return redirectWithFlash(reply, "/intents", errorFlash("intent_cancel_downstream"));
-    }
     if (result.status !== "withdrawn") {
       return redirectWithFlash(reply, "/intents", errorFlash("invalid_intent_cancel"));
     }
@@ -98,6 +95,6 @@ export async function registerIntentRoutes(app: FastifyInstance) {
     if (result.status === "limit_exceeded") {
       return redirectWithFlash(reply, "/intents", errorFlash("withdrawal_limit"));
     }
-    return redirectWithFlash(reply, "/intents", successFlash("intent-submitted", "의향서가 제출되었습니다"));
+    return redirectWithFlash(reply, "/intents", successFlash("intent-submitted", "출금 의향서가 제출되었습니다"));
   });
 }

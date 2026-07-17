@@ -7,7 +7,7 @@ import {
 } from "../src/domain/dividend-eligibility.js";
 
 describe("DividendEligibilityPolicy", () => {
-  describe("given an investment accepted before the KST month boundary", () => {
+  describe("given an investment completed before the KST month boundary", () => {
     describe("when the first eligible dividend month is calculated", () => {
       it("then starts eligibility in the following calendar month", () => {
         assert.equal(dividendEligibleFromMonth("2026-07-31T14:59:59.000Z"), "2026-08");
@@ -17,7 +17,7 @@ describe("DividendEligibilityPolicy", () => {
     });
   });
 
-  describe("given an investment accepted after the UTC boundary into a new KST month", () => {
+  describe("given an investment completed after the UTC boundary into a new KST month", () => {
     describe("when eligibility is calculated", () => {
       it("then uses the KST acceptance month", () => {
         assert.equal(dividendEligibleFromMonth("2026-07-31T15:00:00.000Z"), "2026-09");
@@ -35,7 +35,7 @@ describe("DividendEligibilityPolicy", () => {
     });
   });
 
-  describe("given accepted intents and a payout month", () => {
+  describe("given completed intents and a payout month", () => {
     describe("when eligible intents are selected", () => {
       it("then excludes acceptance in the same KST month and invalid dates", () => {
         const intents = [

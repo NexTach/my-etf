@@ -56,7 +56,7 @@ export default async function SimulationPage({ searchParams }: SimulationPagePro
 
       <Top
         title="투자 의향 배당 시뮬레이션"
-        description="현재 구성종목과 수락된 의향 총액을 참고해 정책 적용 예상치를 계산합니다. 의향이나 계산값은 계약·원금·지급권을 만들지 않습니다."
+        description="현재 운용종목과 완료된 투자·출금 의향 잔액을 참고해 정책 적용 예상치를 계산합니다. 의향이나 계산값은 계약·원금·지급권을 만들지 않습니다."
         backLink={{ href: "/" }}
         actions={
           <ButtonLink href="#forecast-section">

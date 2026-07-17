@@ -1,5 +1,5 @@
 import {
-  dividendAcceptanceMonth,
+  dividendCompletionMonth,
   isEligibleForDividendMonth
 } from "../domain/dividend-eligibility.js";
 
@@ -7,7 +7,7 @@ type PrincipalEntry = {
   id: string;
   userId: string;
   amountKrw: number;
-  acceptedAt: string;
+  completedAt: string;
 };
 
 export type CalculateDividendPrincipalInput = {
@@ -19,13 +19,13 @@ export type CalculateDividendPrincipalInput = {
 export class CalculateDividendPrincipalService {
   execute(input: CalculateDividendPrincipalInput) {
     const eligibleInvestments = input.investments
-      .filter((investment) => isEligibleForDividendMonth(investment.acceptedAt, input.dividendMonth))
+      .filter((investment) => isEligibleForDividendMonth(investment.completedAt, input.dividendMonth))
       .map((investment) => ({ ...investment, amountKrw: Math.max(0, investment.amountKrw) }));
 
     const withdrawalsByUser = new Map<string, number>();
     for (const withdrawal of input.withdrawals) {
-      const acceptanceMonth = dividendAcceptanceMonth(withdrawal.acceptedAt);
-      if (!acceptanceMonth || acceptanceMonth > input.dividendMonth) continue;
+      const completionMonth = dividendCompletionMonth(withdrawal.completedAt);
+      if (!completionMonth || completionMonth > input.dividendMonth) continue;
       withdrawalsByUser.set(
         withdrawal.userId,
         (withdrawalsByUser.get(withdrawal.userId) ?? 0) + Math.max(0, withdrawal.amountKrw)
@@ -43,7 +43,7 @@ export class CalculateDividendPrincipalService {
     for (const [userId, investments] of investmentsByUser) {
       let remainingWithdrawal = withdrawalsByUser.get(userId) ?? 0;
       const fifoInvestments = investments.sort((left, right) =>
-        left.acceptedAt.localeCompare(right.acceptedAt) || left.id.localeCompare(right.id)
+        left.completedAt.localeCompare(right.completedAt) || left.id.localeCompare(right.id)
       );
       for (const investment of fifoInvestments) {
         const deducted = Math.min(investment.amountKrw, remainingWithdrawal);

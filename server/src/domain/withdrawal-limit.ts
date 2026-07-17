@@ -1,20 +1,20 @@
 import type { AppStore } from "./types.js";
 
 export type WithdrawalIntentReference = {
-  acceptedNetInvestmentIntentKrw: number;
+  completedNetInvestmentIntentKrw: number;
   pendingWithdrawalIntentKrw: number;
   maxRequestIntentKrw: number;
 };
 
-export function acceptedInvestmentIntentAmount(store: AppStore, userId: string) {
+export function completedInvestmentIntentAmount(store: AppStore, userId: string) {
   return store.investmentIntents
-    .filter((intent) => intent.userId === userId && intent.status === "ACCEPTED")
+    .filter((intent) => intent.userId === userId && intent.status === "COMPLETED")
     .reduce((sum, intent) => sum + intent.amountKrw, 0);
 }
 
-export function acceptedWithdrawalIntentAmount(store: AppStore, userId: string) {
+export function completedWithdrawalIntentAmount(store: AppStore, userId: string) {
   return store.withdrawalIntents
-    .filter((intent) => intent.userId === userId && intent.status === "ACCEPTED")
+    .filter((intent) => intent.userId === userId && intent.status === "COMPLETED")
     .reduce((sum, intent) => sum + intent.amountKrw, 0);
 }
 
@@ -25,25 +25,25 @@ export function pendingWithdrawalIntentAmount(store: AppStore, userId: string) {
 }
 
 export function withdrawalIntentReferenceFromAmounts(
-  acceptedNetInvestmentIntentKrw: number,
+  completedNetInvestmentIntentKrw: number,
   pendingWithdrawalIntentKrw = 0
 ): WithdrawalIntentReference {
-  const acceptedNet = Math.max(0, Math.floor(acceptedNetInvestmentIntentKrw));
+  const completedNet = Math.max(0, Math.floor(completedNetInvestmentIntentKrw));
   const pending = Math.max(0, Math.floor(pendingWithdrawalIntentKrw));
   return {
-    acceptedNetInvestmentIntentKrw: acceptedNet,
+    completedNetInvestmentIntentKrw: completedNet,
     pendingWithdrawalIntentKrw: pending,
-    maxRequestIntentKrw: Math.max(acceptedNet - pending, 0)
+    maxRequestIntentKrw: Math.max(completedNet - pending, 0)
   };
 }
 
 export function withdrawalIntentReferenceForUser(store: AppStore, userId: string) {
-  const acceptedNet = Math.max(
-    acceptedInvestmentIntentAmount(store, userId) - acceptedWithdrawalIntentAmount(store, userId),
+  const completedNet = Math.max(
+    completedInvestmentIntentAmount(store, userId) - completedWithdrawalIntentAmount(store, userId),
     0
   );
   return withdrawalIntentReferenceFromAmounts(
-    acceptedNet,
+    completedNet,
     pendingWithdrawalIntentAmount(store, userId)
   );
 }

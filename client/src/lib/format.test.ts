@@ -25,7 +25,7 @@ describe("number and status formatting", () => {
   });
 
   it("maps known intent statuses and defaults to pending", () => {
-    assert.equal(statusLabel("ACCEPTED"), "수락");
+    assert.equal(statusLabel("COMPLETED"), "완료");
     assert.equal(statusLabel("REJECTED"), "거절");
     assert.equal(statusLabel("PENDING"), "대기");
     assert.equal(statusLabel("UNKNOWN"), "대기");

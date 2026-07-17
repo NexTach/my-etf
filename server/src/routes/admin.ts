@@ -11,31 +11,15 @@ import {
 } from "../infrastructure/disclosures.js";
 import {
   deleteDividendRecord,
+  deleteMonthlyDividendRecord,
   upsertDividendRecord,
   upsertMonthlyDividendRecord
 } from "../infrastructure/dividends.js";
 import { fetchDividendRecordFromMarket } from "../infrastructure/market-data.js";
 import {
-  approveInvestorCompliance,
-  calculateMonthlyDistributionSettlement,
-  confirmInvestorDistributionPayout,
-  confirmContractDeposit,
-  deleteMonthlyDistributionDraft,
-  finalizeMonthlyDistributionSettlement,
-  readUnderlyingDistributionMonthTotal,
-  recordInvestorDistributionPayoutFailure,
-  recordUnderlyingDistributionReceipt,
-  reverseUnderlyingDistributionReceipt,
-  returnUndeployedCapital,
-  settleAcceptedWithdrawal
-} from "../infrastructure/capital-ledger.js";
-import {
   applyManualHoldingTrade,
   deleteManualHolding,
   finalizePortfolioDailySnapshot,
-  getManualPortfolioOverview,
-  readMonthEndPortfolioNetAssets,
-  readLatestClosedPortfolioNetAssets,
   refreshPortfolioMarketSnapshot,
   upsertManualHolding
 } from "../infrastructure/portfolio-store.js";
@@ -148,87 +132,18 @@ function prismaCode(error: unknown) {
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
-  app.get("/api/admin/dividends/receipts/summary", async (request, reply) => {
-    if (!admin(request)) return reply.code(403).send({ error: "관리자 권한이 필요합니다." });
-    const parsed = z.object({
-      dividendMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
-    }).strict().safeParse(request.query);
-    if (!parsed.success) return reply.code(400).send({ error: "배당 지급월을 확인해 주세요." });
-
-    reply.header("Cache-Control", "no-store");
-    return {
-      dividendMonth: parsed.data.dividendMonth,
-      ...(await readUnderlyingDistributionMonthTotal(parsed.data.dividendMonth))
-    };
-  });
-
   app.post("/api/admin/status", async (request, reply) => {
     if (!admin(request)) return rejectAdminForm(reply);
     const parsed = z.object({
       type: z.enum(["INVESTMENT", "WITHDRAWAL"]),
       id: z.string().cuid(),
-      status: z.enum(["PENDING", "ACCEPTED", "REJECTED"])
+      status: z.enum(["PENDING", "COMPLETED", "REJECTED"])
     }).safeParse(formBody(request));
     if (!parsed.success) return adminError(reply, "invalid_status");
     const result = await updateIntentStatus(parsed.data);
     if (result.status === "principal_invariant") return adminError(reply, "status_principal_invariant");
     if (result.status === "not_found") return adminError(reply, "invalid_status");
     return adminSuccess(reply, "admin-updated", "상태가 저장되었습니다");
-  });
-
-  app.post("/api/admin/capital/confirm", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      investmentIntentId: z.string().cuid(),
-      contractReference: z.string().trim().min(1).max(120),
-      contractVersion: z.string().trim().min(1).max(32),
-      depositReference: z.string().trim().min(1).max(120),
-      contractedAmountKrw: z.coerce.number().int().positive(),
-      receivedAmountKrw: z.coerce.number().int().positive(),
-      contractedAt: kstDateTimeSchema,
-      receivedAt: kstDateTimeSchema,
-      note: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional())
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_capital_source");
-    const result = await confirmContractDeposit(parsed.data);
-    if (result.status === "intent_not_accepted") return adminError(reply, "capital_intent_not_accepted");
-    if (result.status === "compliance_required") return adminError(reply, "compliance_required");
-    if (result.status === "invalid_amount") return adminError(reply, "invalid_capital_source");
-    if (result.status === "already_confirmed") return adminError(reply, "capital_already_confirmed");
-    return adminSuccess(reply, "capital-confirmed", "별도 계약·입금이 미편입 예수금으로 기록되었습니다");
-  });
-
-  app.post("/api/admin/compliance/approve", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      userId: z.string().trim().min(1).max(100),
-      userName: z.string().trim().min(1).max(100),
-      userEmail: z.string().trim().email().max(191),
-      riskGrade: z.enum(["CONSERVATIVE", "MODERATE", "AGGRESSIVE"]),
-      realNameVerified: z.literal("true").transform(() => true),
-      bankAccountVerified: z.literal("true").transform(() => true),
-      suitabilityCompleted: z.literal("true").transform(() => true),
-      amlCleared: z.literal("true").transform(() => true),
-      sanctionsChecked: z.literal("true").transform(() => true),
-      guardianVerified: z.preprocess((value) => value === "true", z.boolean()),
-      note: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional())
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_compliance");
-    await approveInvestorCompliance(parsed.data);
-    return adminSuccess(reply, "compliance-approved", "본인확인·적합성·AML 확인을 기록했습니다");
-  });
-
-  app.post("/api/admin/capital/return", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      sourceId: z.string().cuid(),
-      amountKrw: z.coerce.number().int().positive(),
-      reason: z.string().trim().min(1).max(160)
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_capital_return");
-    const result = await returnUndeployedCapital(parsed.data);
-    if (result.status !== "returned") return adminError(reply, "invalid_capital_return");
-    return adminSuccess(reply, "capital-returned", "미편입 자금 반환이 원장에 기록되었습니다");
   });
 
   app.post("/api/admin/portfolio/holding", async (request, reply) => {
@@ -341,150 +256,24 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!admin(request)) return rejectAdminForm(reply);
     const parsed = z.object({
       dividendMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-      withholdingRate: z.coerce.number().min(0).max(100).transform((value) => value / 100),
-      memo: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional())
+      actualDividendKrw: z.coerce.number().int().nonnegative(),
+      externalReference: z.string().trim().min(1).max(500)
     }).safeParse(formBody(request));
     if (!parsed.success) return adminError(reply, "invalid_monthly_dividend");
-    const portfolioNetAssetsKrw = await readMonthEndPortfolioNetAssets(parsed.data.dividendMonth);
-    if (!portfolioNetAssetsKrw || portfolioNetAssetsKrw <= 0) {
-      return adminError(reply, "month_end_snapshot_required");
-    }
-    const receiptSummary = await readUnderlyingDistributionMonthTotal(parsed.data.dividendMonth);
-    if (receiptSummary.receiptCount <= 0) return adminError(reply, "distribution_receipt_required");
     await upsertMonthlyDividendRecord({
       dividendMonth: parsed.data.dividendMonth,
-      actualDividendKrw: receiptSummary.actualDividendKrw,
-      referenceMarketValueKrw: portfolioNetAssetsKrw,
-      memo: parsed.data.memo
+      actualDividendKrw: parsed.data.actualDividendKrw,
+      memo: parsed.data.externalReference
     });
-    const settlement = await calculateMonthlyDistributionSettlement({
-      dividendMonth: parsed.data.dividendMonth,
-      actualDividendKrw: receiptSummary.actualDividendKrw,
-      portfolioNetAssetsKrw,
-      withholdingRate: parsed.data.withholdingRate
-    });
-    if (settlement.status === "already_finalized") return adminError(reply, "distribution_already_finalized");
-    return adminSuccess(reply, "monthly-dividend-updated", "실 배당과 월말 자동 정산안이 저장되었습니다");
-  });
-
-  app.post("/api/admin/dividends/receipt", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      symbol: z.string().trim().min(1).max(20),
-      currency: z.enum(["KRW", "USD"]),
-      grossAmountNative: z.coerce.number().positive(),
-      exchangeRate: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().positive().optional()),
-      foreignTaxKrw: z.coerce.number().int().nonnegative().default(0),
-      brokerageFeeKrw: z.coerce.number().int().nonnegative().default(0),
-      fxCostKrw: z.coerce.number().int().nonnegative().default(0),
-      receivedAt: kstDateTimeSchema,
-      note: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional())
-    }).superRefine((value, context) => {
-      if (value.currency === "USD" && value.exchangeRate === undefined) {
-        context.addIssue({ code: z.ZodIssueCode.custom, path: ["exchangeRate"], message: "required" });
-      }
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_distribution_receipt");
-    const result = await recordUnderlyingDistributionReceipt(parsed.data);
-    if (result.status === "duplicate") return adminError(reply, "duplicate_distribution_receipt");
-    if (result.status === "month_finalized") return adminError(reply, "distribution_already_finalized");
-    if (result.status !== "recorded") return adminError(reply, "invalid_distribution_receipt");
-    return adminSuccess(
-      reply,
-      "distribution-receipt-recorded",
-      `실분배금 원장을 기록했습니다 · ${result.receipt.statementReference}`
-    );
-  });
-
-  app.post("/api/admin/dividends/receipt/reverse", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      receiptId: z.string().cuid(),
-      reason: z.string().trim().min(1).max(500)
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_distribution_receipt_reversal");
-    const result = await reverseUnderlyingDistributionReceipt(parsed.data);
-    if (result.status === "month_finalized") return adminError(reply, "distribution_already_finalized");
-    if (result.status !== "reversed") return adminError(reply, "invalid_distribution_receipt_reversal");
-    return adminSuccess(reply, "distribution-receipt-reversed", "실분배금 오류를 반대분개로 기록했습니다");
-  });
-
-  app.post("/api/admin/dividends/monthly/finalize", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      dividendMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_monthly_dividend");
-    const result = await finalizeMonthlyDistributionSettlement(parsed.data.dividendMonth);
-    if (result.status === "not_found") return adminError(reply, "distribution_not_found");
-    if (result.status === "already_finalized") return adminError(reply, "distribution_already_finalized");
-    if (result.status === "receipt_changed") return adminError(reply, "distribution_receipt_changed");
-    return adminSuccess(reply, "distribution-finalized", "투자자별 귀속액과 재투자 대기금이 확정되었습니다. 실제 지급은 거래식별값 확인 후 기록됩니다");
-  });
-
-  app.post("/api/admin/dividends/payout/confirm", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      allocationId: z.string().cuid(),
-      payoutReference: z.string().trim().min(1).max(120),
-      taxRemittanceReference: z.string().trim().min(1).max(120)
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_distribution_payout");
-    const result = await confirmInvestorDistributionPayout(parsed.data);
-    if (result.status === "insufficient_liquidity") return adminError(reply, "withdrawal_liquidity");
-    if (result.status !== "paid") return adminError(reply, "invalid_distribution_payout");
-    return adminSuccess(reply, "distribution-payout-confirmed", "투자자별 지급·원천세 현금원장을 기록했습니다");
-  });
-
-  app.post("/api/admin/dividends/payout/fail", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      allocationId: z.string().cuid(),
-      reason: z.string().trim().min(1).max(500)
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_distribution_payout_failure");
-    const result = await recordInvestorDistributionPayoutFailure(parsed.data);
-    if (result.status !== "recorded") return adminError(reply, "invalid_distribution_payout_failure");
-    return adminSuccess(reply, "distribution-payout-failed", "지급 실패사유를 기록하고 미지급 상태를 유지했습니다");
-  });
-
-  app.post("/api/admin/withdrawals/settle", async (request, reply) => {
-    if (!admin(request)) return rejectAdminForm(reply);
-    const parsed = z.object({
-      withdrawalIntentId: z.string().cuid(),
-      instructionReference: z.string().trim().min(1).max(120),
-      instructionSignedAt: kstDateTimeSchema,
-      payoutReference: z.string().trim().min(1).max(120),
-      note: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(500).optional())
-    }).safeParse(formBody(request));
-    if (!parsed.success) return adminError(reply, "invalid_withdrawal_settlement");
-    await getManualPortfolioOverview();
-    const closedValuation = await readLatestClosedPortfolioNetAssets();
-    if (!closedValuation || closedValuation.netAssetsKrw <= 0 || !closedValuation.coversAllTrades) {
-      return adminError(reply, "month_end_snapshot_required");
-    }
-    const result = await settleAcceptedWithdrawal({
-      ...parsed.data,
-      portfolioNetAssetsKrw: closedValuation.netAssetsKrw
-    });
-    if (result.status === "intent_not_accepted") return adminError(reply, "withdrawal_not_accepted");
-    if (result.status === "principal_exceeded") return adminError(reply, "withdrawal_principal_exceeded");
-    if (result.status === "insufficient_liquidity") return adminError(reply, "withdrawal_liquidity");
-    if (result.status === "already_settled") return adminError(reply, "withdrawal_already_settled");
-    if (result.status === "compliance_required") return adminError(reply, "compliance_required");
-    if (result.status === "invalid_instruction" || result.status === "duplicate_reference") {
-      return adminError(reply, "invalid_withdrawal_instruction");
-    }
-    return adminSuccess(reply, "withdrawal-settled", "실제 출금 정산과 원금 차감이 기록되었습니다");
+    return adminSuccess(reply, "monthly-dividend-updated", "증권사 기준 월별 실배당 합계가 저장되었습니다");
   });
 
   app.post("/api/admin/dividends/monthly/delete", async (request, reply) => {
     if (!admin(request)) return rejectAdminForm(reply);
     const parsed = z.object({ dividendMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) }).safeParse(formBody(request));
     if (!parsed.success) return adminError(reply, "invalid_monthly_dividend_delete");
-    const result = await deleteMonthlyDistributionDraft(parsed.data.dividendMonth);
-    if (result.status === "already_finalized") return adminError(reply, "distribution_already_finalized");
-    return adminSuccess(reply, "monthly-dividend-deleted", "실 배당 기록이 삭제되었습니다");
+    await deleteMonthlyDividendRecord(parsed.data.dividendMonth);
+    return adminSuccess(reply, "monthly-dividend-deleted", "월별 외부 원장 합계가 삭제되었습니다");
   });
 
   app.post("/api/admin/disclosures", async (request, reply) => {

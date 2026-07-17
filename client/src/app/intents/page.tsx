@@ -14,7 +14,6 @@ import {
   Grid,
   List,
   ListRow,
-  Metric,
   Navigation,
   Notice,
   Panel,
@@ -26,10 +25,9 @@ import { getMyIntents } from "@/lib/api";
 import { formatDateTime, formatKrw, statusLabel } from "@/lib/format";
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { TermsAgreement } from "./TermsAgreement";
-import { WithdrawalAmountSlider } from "./WithdrawalAmountSlider";
 
 function statusClass(status: string): "accepted" | "rejected" | "pending" {
-  if (status === "ACCEPTED") return "accepted";
+  if (status === "COMPLETED") return "accepted";
   if (status === "REJECTED" || status === "WITHDRAWN") return "rejected";
   return "pending";
 }
@@ -55,12 +53,12 @@ function IntentGate({ messages }: { messages: ToastMessage[] }) {
 
       <Top
         title="로그인이 필요해요"
-        description="투자 의향서와 출금 의향서는 DataGSM 인증 후 작성할 수 있습니다."
+        description="투자·출금 의향서는 DataGSM 인증 후 작성할 수 있습니다."
         backLink={{ href: "/" }}
       />
 
       <Notice>
-        이 화면의 제출과 수락·거절 상태는 의향 확인 기능이며 계약 체결, 입금 승인, 실제 투자원금, 분배금 또는 출금 지급의 법적 권리를 만들지 않습니다.
+        이 화면의 제출과 완료·거절 상태는 의향 관리 기능이며 계약 체결, 입금 승인, 실제 투자원금 또는 분배금의 법적 권리를 만들지 않습니다.
       </Notice>
 
       <CtaPanel className="max-w-gate">
@@ -101,14 +99,8 @@ export default async function IntentsPage() {
       <Top
         backLink={{ href: "/", label: "포트폴리오" }}
         title="의향서 작성"
-        description="투자 의향과 출금 의향을 각각 제출할 수 있습니다. 제출된 내용은 관리자가 검토한 뒤 상태를 변경합니다."
+        description="투자·출금 의향을 제출할 수 있습니다. 관리자가 완료한 금액만 배당 계산에 반영됩니다."
       />
-
-      <Grid columns={3} className="mt-16">
-        <Metric label="내 수락 투자 의향 잔액" value={formatKrw(withdrawalReference.acceptedNetInvestmentIntentKrw)} />
-        <Metric label="대기 중 출금 의향" value={formatKrw(withdrawalReference.pendingWithdrawalIntentKrw)} />
-        <Metric label="추가 출금 의향 참고상한" value={formatKrw(withdrawalReference.maxRequestIntentKrw)} />
-      </Grid>
 
       <SectionHeader title="의향서 제출" description="연락처에는 전화번호 또는 이메일을 입력해주세요." />
 
@@ -163,24 +155,30 @@ export default async function IntentsPage() {
             <ArrowDownToLine size={18} /> 출금 의향서
           </h2>
           <p className="lede">
-            수락된 투자 의향액에서 수락·대기 출금 의향액을 뺀 참고 범위 안에서 제출합니다. 이 값은 실제 투자원금이나 지급 가능액이 아닙니다.
+            완료된 투자 의향 잔액 범위에서 출금 의향을 제출할 수 있습니다.
           </p>
           <ApiMutationForm action="/api/intents/withdraw" className="form" method="post" resetOnSuccess>
-            <WithdrawalAmountSlider
-              disabled={!canRequestWithdrawal}
-              maxAmountKrw={withdrawalReference.maxRequestIntentKrw}
-            />
+            <Field htmlFor="withdrawAmount" label="출금 의향 금액 (원화)">
+              <FormattedNumberInput
+                disabled={!canRequestWithdrawal}
+                id="withdrawAmount"
+                max={withdrawalReference.maxRequestIntentKrw}
+                min="1"
+                name="amountKrw"
+                required
+              />
+            </Field>
             {!canRequestWithdrawal ? (
-              <Notice className="compact-notice">현재 상태값을 기준으로 추가 출금 의향을 입력할 참고 잔액이 없습니다.</Notice>
+              <Notice className="compact-notice">현재 완료된 투자 의향 잔액이 없습니다.</Notice>
             ) : null}
             <Field htmlFor="bankName" label="은행">
-              <input id="bankName" name="bankName" required disabled={!canRequestWithdrawal} />
+              <input disabled={!canRequestWithdrawal} id="bankName" name="bankName" required />
             </Field>
             <Field htmlFor="accountNumber" label="계좌번호">
-              <input id="accountNumber" name="accountNumber" inputMode="numeric" required disabled={!canRequestWithdrawal} />
+              <input disabled={!canRequestWithdrawal} id="accountNumber" inputMode="numeric" name="accountNumber" required />
             </Field>
             <Field htmlFor="accountHolder" label="예금주">
-              <input id="accountHolder" name="accountHolder" defaultValue={user.name} required disabled={!canRequestWithdrawal} />
+              <input disabled={!canRequestWithdrawal} id="accountHolder" name="accountHolder" defaultValue={user.name} required />
             </Field>
             <Field htmlFor="withdrawContact" label="전화번호 또는 이메일">
               <input
@@ -192,17 +190,15 @@ export default async function IntentsPage() {
               />
             </Field>
             <Field htmlFor="withdrawNote" label="메모">
-              <textarea id="withdrawNote" name="note" disabled={!canRequestWithdrawal} />
+              <textarea disabled={!canRequestWithdrawal} id="withdrawNote" name="note" />
             </Field>
             <TermsAgreement markdown={termsMarkdown} disabled={!canRequestWithdrawal} />
-            <button type="submit" disabled={!canRequestWithdrawal}>
-              제출
-            </button>
+            <button disabled={!canRequestWithdrawal} type="submit">제출</button>
           </ApiMutationForm>
         </Panel>
       </Grid>
 
-      <SectionHeader title="내 제출 내역" description="투자와 출금 의향서 상태를 한곳에서 확인합니다." />
+      <SectionHeader title="내 제출 내역" description="투자·출금 의향서의 처리 상태를 확인합니다." />
 
       <List>
         {myIntents.map((intent) => (
@@ -215,7 +211,7 @@ export default async function IntentsPage() {
                 {formatKrw(intent.amountKrw)}
                 <RowMeta>
                   <Badge tone={statusClass(intent.status)}>{statusLabel(intent.status)}</Badge>
-                  {intent.status === "PENDING" || intent.status === "ACCEPTED" ? (
+                  {intent.status === "PENDING" || intent.status === "COMPLETED" ? (
                     <ApiMutationForm action="/api/intents/cancel" method="post">
                       <input name="type" type="hidden" value={intent.type} />
                       <input name="id" type="hidden" value={intent.id} />

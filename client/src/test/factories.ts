@@ -26,8 +26,6 @@ export function makePortfolio(overrides: Partial<PortfolioOverview> = {}): Portf
     exchangeRate: 1300,
     exchangeRateFetchedAt: "2026-07-09T00:00:00.000Z",
     exchangeRateSource: "test",
-    securitiesMarketValueKrw: 0,
-    cashBalanceKrw: 0,
     dailySnapshots: [],
     ...overrides,
     totalMarketValueKrw,

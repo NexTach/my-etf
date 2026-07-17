@@ -161,19 +161,7 @@ describe("Fastify route smoke tests", () => {
           requestedUserId = userId;
           return {
             store: { investmentIntents: [], withdrawalIntents: [] },
-            portfolio: {
-              source: "manual" as const,
-              fetchedAt: new Date().toISOString(),
-              exchangeRate: 1380,
-              exchangeRateFetchedAt: new Date().toISOString(),
-              exchangeRateSource: "test",
-              securitiesMarketValueKrw: 0,
-              cashBalanceKrw: 0,
-              totalMarketValueKrw: 0,
-              dailySnapshots: [],
-              holdings: []
-            },
-            withdrawalReference: { acceptedNetInvestmentIntentKrw: 0, pendingWithdrawalIntentKrw: 0, maxRequestIntentKrw: 0 },
+            withdrawalReference: { completedNetInvestmentIntentKrw: 0, pendingWithdrawalIntentKrw: 0, maxRequestIntentKrw: 0 },
             policy: productPolicyDto()
           };
         }) as ReadModels["intents"];

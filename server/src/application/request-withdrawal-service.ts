@@ -13,8 +13,8 @@ export type WithdrawalRequestInput = {
 };
 
 export interface WithdrawalTransaction {
-  acceptedInvestmentIntentAmount(): Promise<number>;
-  acceptedWithdrawalIntentAmount(): Promise<number>;
+  completedInvestmentIntentAmount(): Promise<number>;
+  completedWithdrawalIntentAmount(): Promise<number>;
   pendingWithdrawalIntentAmount(): Promise<number>;
   save(input: WithdrawalRequestInput): Promise<unknown>;
 }
@@ -32,15 +32,15 @@ export class RequestWithdrawalService {
   execute(input: WithdrawalRequestInput) {
     return this.repository.withUserTransaction(input.userId, async (transaction) => {
       const [invested, withdrawn, pending] = await Promise.all([
-        transaction.acceptedInvestmentIntentAmount(),
-        transaction.acceptedWithdrawalIntentAmount(),
+        transaction.completedInvestmentIntentAmount(),
+        transaction.completedWithdrawalIntentAmount(),
         transaction.pendingWithdrawalIntentAmount()
       ]);
       const reference = withdrawalIntentReferenceFromAmounts(
         Math.max(invested - withdrawn, 0),
         pending
       );
-      if (reference.acceptedNetInvestmentIntentKrw <= 0 || input.amountKrw > reference.maxRequestIntentKrw) {
+      if (reference.completedNetInvestmentIntentKrw <= 0 || input.amountKrw > reference.maxRequestIntentKrw) {
         return { status: "limit_exceeded" as const, reference };
       }
       const intent = await transaction.save(input);

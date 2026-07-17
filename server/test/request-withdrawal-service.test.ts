@@ -22,8 +22,8 @@ function repository(values: { invested: number; withdrawn?: number; pending?: nu
   const fake: WithdrawalRepository = {
     async withUserTransaction(_userId, work) {
       return work({
-        async acceptedInvestmentIntentAmount() { return values.invested; },
-        async acceptedWithdrawalIntentAmount() { return values.withdrawn ?? 0; },
+        async completedInvestmentIntentAmount() { return values.invested; },
+        async completedWithdrawalIntentAmount() { return values.withdrawn ?? 0; },
         async pendingWithdrawalIntentAmount() { return values.pending ?? 0; },
         async save(input) { saved.push(input); return input; }
       });
@@ -33,7 +33,7 @@ function repository(values: { invested: number; withdrawn?: number; pending?: nu
 }
 
 describe("RequestWithdrawalService", () => {
-  describe("given accepted investment intentions and pending withdrawal intentions", () => {
+  describe("given completed investment intentions and pending withdrawal intentions", () => {
     describe("when a new non-binding withdrawal intention exceeds the reference amount", () => {
       it("then rejects the site input without treating the reference as an actual payout right", async () => {
         const { fake, saved } = repository({ invested: 100_000, pending: 20_000 });
@@ -46,7 +46,7 @@ describe("RequestWithdrawalService", () => {
     });
   });
 
-  describe("given accepted investment and withdrawal intention amounts", () => {
+  describe("given completed investment and withdrawal intention amounts", () => {
     describe("when a new intention is within the remaining reference amount", () => {
       it("then stores exactly one non-binding withdrawal intention", async () => {
         const { fake, saved } = repository({ invested: 200_000, withdrawn: 20_000, pending: 10_000 });

@@ -29,7 +29,7 @@ export type AppUser = {
   userType: "student" | "alumni";
 };
 
-export type IntentStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+export type IntentStatus = "PENDING" | "COMPLETED" | "REJECTED" | "WITHDRAWN";
 
 export type InvestmentIntent = {
   id: string;
@@ -110,8 +110,6 @@ export type PortfolioOverview = {
   exchangeRate: number;
   exchangeRateFetchedAt: string;
   exchangeRateSource: string;
-  securitiesMarketValueKrw: number;
-  cashBalanceKrw: number;
   totalMarketValueKrw: number;
   dailySnapshots: PortfolioDailySnapshot[];
   holdings: Holding[];
