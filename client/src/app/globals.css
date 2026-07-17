@@ -2576,15 +2576,10 @@ button.holding-modal-close {
 }
 
 .holding-trade-result {
-  align-items: stretch;
+  align-items: center;
   display: grid;
   gap: var(--tds-space-2);
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-}
-
-.holding-trade-result button {
-  align-self: stretch;
-  min-height: var(--tds-control-md);
 }
 
 .holding-modal-actions {

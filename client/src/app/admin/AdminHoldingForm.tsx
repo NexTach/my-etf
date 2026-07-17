@@ -719,7 +719,6 @@ export function AdminHoldingForm({
                   />
                 ) : null}
                 <button
-                  className="secondary"
                   disabled={!tradePreview.isValid}
                   formAction="/api/admin/portfolio/trade"
                   formMethod="post"
