@@ -15,7 +15,7 @@ import { getSession } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "상품 설명 | NXDI",
-  description: "NXDI 상품 설명 Markdown 문서"
+  description: "NXDI의 운용 개요, 배당 배분 계산 방식과 주요 위험을 안내합니다."
 };
 
 async function readProductDescription() {

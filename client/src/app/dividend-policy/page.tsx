@@ -15,7 +15,7 @@ import { getSession } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "배당 정책 | NXDI",
-  description: "NXDI 배당 정책 Markdown 문서"
+  description: "NXDI의 월별 실배당금 배분 기준과 지급액 계산 방식을 안내합니다."
 };
 
 async function readDividendPolicy() {
