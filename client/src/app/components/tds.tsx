@@ -258,11 +258,6 @@ export function InlineFields({
 }) {
   return <div className={cx("inline-fields", variant)}>{children}</div>;
 }
-
-export function CheckboxField({ children }: { children: ReactNode }) {
-  return <label className="checkbox">{children}</label>;
-}
-
 export function ComputedValue({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
     <div className="computed-rate">
@@ -335,15 +330,6 @@ export function MutedText({
   const Component = as ?? "span";
   return <Component className={cx("tds-muted", className)}>{children}</Component>;
 }
-
-export function TableSurface({ children, className }: WithChildren) {
-  return <div className={cx("table-wrap", className)}>{children}</div>;
-}
-
-export function Stack({ children, className }: WithChildren) {
-  return <div className={cx("stack", className)}>{children}</div>;
-}
-
 export function CompositionChart({
   items,
   label,
