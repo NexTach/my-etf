@@ -368,6 +368,11 @@ export async function getManualPortfolioOverview(): Promise<PortfolioOverview> {
   };
 }
 
+export async function readPortfolioMarketValueKrw() {
+  const store = await readManualPortfolioStore();
+  return store.holdings.reduce((sum, holding) => sum + holding.marketValueKrw, 0);
+}
+
 async function writePortfolioDailySnapshot(portfolio: PortfolioOverview, snapshotDate = portfolioSnapshotDate()) {
   const dividendSummary = await summarizePortfolioDividend(portfolio);
 

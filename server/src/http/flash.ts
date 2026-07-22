@@ -8,6 +8,7 @@ const errors: Record<string, string> = {
   dividend_policy_required: "배당 정책 확인 동의가 필요합니다",
   invalid_monthly_dividend: "배당월, 증권사 월 실배당 합계와 외부 기록 근거를 확인해주세요",
   invalid_intent_cancel: "철회할 수 있는 본인 의향서를 확인해주세요",
+  investment_intake_paused: "현재 외부 투자 접수를 일시 중단했습니다",
   login_required: "로그인이 필요합니다",
   admin_required: "관리자 권한이 필요합니다",
   trade_not_found: "조정을 적용할 종목을 찾을 수 없습니다",

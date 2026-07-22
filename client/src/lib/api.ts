@@ -129,10 +129,18 @@ export type ExpectedPayout = {
 export type ProductPolicyDto = {
   minInvestmentKrw: number;
   maxInvestmentKrw: number;
+  externalInvestmentLimitRate: number;
   companyDividendTransferRate: number;
   managementFeeRate: number;
   annualInvestorDividendCapRate: number;
   monthlyInvestorDividendCapRate: number;
+};
+
+export type InvestmentIntentAvailabilityDto = {
+  completedInvestmentIntentKrw: number;
+  portfolioMarketValueKrw: number;
+  maxCompletedInvestmentIntentKrw: number;
+  isPaused: boolean;
 };
 
 export type DividendAllocationIntentDto = {
@@ -159,6 +167,7 @@ export type IntentsResponse = {
   user: AppUser;
   store: AppStore;
   withdrawalReference: WithdrawalIntentReference;
+  investmentAvailability: InvestmentIntentAvailabilityDto;
   policy: ProductPolicyDto;
 };
 

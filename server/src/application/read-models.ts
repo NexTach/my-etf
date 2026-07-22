@@ -13,6 +13,7 @@ import {
   samplePoints
 } from "../domain/chart-metrics.js";
 import { dividendEligibleFromMonth } from "../domain/dividend-eligibility.js";
+import { investmentIntentAvailabilityFromAmounts } from "../domain/investment-intent-availability.js";
 import {
   PRODUCT_MAX_INVESTMENT_KRW,
   PRODUCT_MIN_INVESTMENT_KRW,
@@ -29,14 +30,19 @@ import {
 } from "../infrastructure/dividends.js";
 import { mapWithConcurrency } from "../infrastructure/concurrency.js";
 import { fetchMarketCandles, type MarketChart } from "../infrastructure/market-data.js";
-import { getManualPortfolioOverview } from "../infrastructure/portfolio-store.js";
+import { getManualPortfolioOverview, readPortfolioMarketValueKrw } from "../infrastructure/portfolio-store.js";
 import {
   kstDateKey,
   readRoadmapEvents,
   roadmapHorizonEndDate,
   roadmapInitialStartDate
 } from "../infrastructure/roadmap.js";
-import { readCompletedNetInvestmentIntentAmount, readStore, readStoreForUser } from "../infrastructure/store.js";
+import {
+  readCompletedInvestmentIntentAmount,
+  readCompletedNetInvestmentIntentAmount,
+  readStore,
+  readStoreForUser
+} from "../infrastructure/store.js";
 
 function chartRecord(entries: Array<readonly [string, MarketChart | null]>) {
   return Object.fromEntries(entries) as Record<string, MarketChart | null>;
@@ -282,10 +288,18 @@ export async function simulationReadModel(requestedAmount: number) {
 }
 
 export async function intentsReadModel(userId: string) {
-  const store = await readStoreForUser(userId);
+  const [store, completedInvestmentIntentKrw, portfolioMarketValueKrw] = await Promise.all([
+    readStoreForUser(userId),
+    readCompletedInvestmentIntentAmount(),
+    readPortfolioMarketValueKrw()
+  ]);
   return {
     store,
     withdrawalReference: withdrawalIntentReferenceForUser(store, userId),
+    investmentAvailability: investmentIntentAvailabilityFromAmounts(
+      completedInvestmentIntentKrw,
+      portfolioMarketValueKrw
+    ),
     policy: productPolicyDto()
   };
 }

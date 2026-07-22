@@ -11,6 +11,7 @@ describe("ProductPolicyDto", () => {
         assert.deepEqual(policy, {
           minInvestmentKrw: 10_000,
           maxInvestmentKrw: 1_000_000,
+          externalInvestmentLimitRate: 0.1,
           companyDividendTransferRate: 0.2,
           managementFeeRate: 0.05,
           annualInvestorDividendCapRate: 0.18,

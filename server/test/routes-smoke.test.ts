@@ -162,6 +162,12 @@ describe("Fastify route smoke tests", () => {
           return {
             store: { investmentIntents: [], withdrawalIntents: [] },
             withdrawalReference: { completedNetInvestmentIntentKrw: 0, pendingWithdrawalIntentKrw: 0, maxRequestIntentKrw: 0 },
+            investmentAvailability: {
+              completedInvestmentIntentKrw: 0,
+              portfolioMarketValueKrw: 10_000_000,
+              maxCompletedInvestmentIntentKrw: 1_000_000,
+              isPaused: false
+            },
             policy: productPolicyDto()
           };
         }) as ReadModels["intents"];

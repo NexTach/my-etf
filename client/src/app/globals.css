@@ -1687,6 +1687,13 @@ tbody tr:last-child td {
   justify-self: stretch;
 }
 
+button.investment-intake-paused:disabled {
+  background: var(--danger-soft);
+  color: var(--danger);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .form.compact {
   gap: var(--tds-space-2);
 }

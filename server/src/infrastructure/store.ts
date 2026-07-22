@@ -1,5 +1,9 @@
 import type { AppStore, InvestmentIntent, IntentStatus, WithdrawalIntent } from "../domain/types.js";
 import {
+  RequestInvestmentService,
+  type InvestmentRequestInput
+} from "../application/request-investment-service.js";
+import {
   RequestWithdrawalService,
   type WithdrawalRequestInput
 } from "../application/request-withdrawal-service.js";
@@ -11,6 +15,7 @@ import {
   PRODUCT_DOCUMENT_VERSION
 } from "../domain/document-policy.js";
 import { withMysqlNamedLock } from "./mysql-named-lock.js";
+import { readPortfolioMarketValueKrw } from "./portfolio-store.js";
 import { prisma } from "./prisma.js";
 import { decryptSensitive, encryptSensitive, maskAccountNumber } from "./sensitive-data.js";
 
@@ -89,6 +94,14 @@ export async function readCompletedNetInvestmentIntentAmount() {
   );
 }
 
+export async function readCompletedInvestmentIntentAmount() {
+  const result = await prisma.investmentIntent.aggregate({
+    where: { status: "COMPLETED" },
+    _sum: { amountKrw: true }
+  });
+  return result._sum.amountKrw ?? 0;
+}
+
 export async function createInvestmentIntent(
   input: Omit<InvestmentIntent, "id" | "type" | "status" | "createdAt" | "updatedAt" | "productDocumentVersion" | "productDocumentHash" | "dividendPolicyVersion" | "dividendPolicyHash" | "agreedAt">
 ) {
@@ -104,6 +117,15 @@ export async function createInvestmentIntent(
     }
   });
   return toInvestmentIntent(row);
+}
+
+export async function createInvestmentIntentSafely(input: InvestmentRequestInput) {
+  const service = new RequestInvestmentService({
+    completedInvestmentIntentAmount: readCompletedInvestmentIntentAmount,
+    portfolioMarketValueKrw: readPortfolioMarketValueKrw,
+    create: createInvestmentIntent
+  });
+  return service.execute(input);
 }
 
 export async function createWithdrawalIntent(

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requestUser } from "../auth/session.js";
 import { PRODUCT_MAX_INVESTMENT_KRW, PRODUCT_MIN_INVESTMENT_KRW } from "../domain/product-policy.js";
 import {
-  createInvestmentIntent,
+  createInvestmentIntentSafely,
   createWithdrawalIntentSafely,
   withdrawNonbindingIntent
 } from "../infrastructure/store.js";
@@ -59,7 +59,7 @@ export async function registerIntentRoutes(app: FastifyInstance) {
       const issue = parsed.error.issues.find((item) => item.path[0] === "termsAgreed" || item.path[0] === "dividendPolicyAgreed");
       return redirectWithFlash(reply, "/intents", errorFlash(String(issue?.path[0] === "termsAgreed" ? "terms_required" : issue ? "dividend_policy_required" : "invalid_investment")));
     }
-    await createInvestmentIntent({
+    const result = await createInvestmentIntentSafely({
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
@@ -70,6 +70,9 @@ export async function registerIntentRoutes(app: FastifyInstance) {
       dividendPolicyAgreed: true,
       note: parsed.data.note
     });
+    if (result.status === "paused") {
+      return redirectWithFlash(reply, "/intents", errorFlash("investment_intake_paused"));
+    }
     return redirectWithFlash(reply, "/intents", successFlash("intent-submitted", "의향서가 제출되었습니다"));
   });
 

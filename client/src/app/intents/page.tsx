@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { ArrowDownToLine, ArrowUpRight, CircleDollarSign, LockKeyhole } from "lucide-react";
+import { ArrowDownToLine, ArrowUpRight, LockKeyhole } from "lucide-react";
 import { AuthNavActions, DataGsmLoginButton } from "@/app/components/auth-actions";
 import { ApiMutationForm } from "@/app/components/api-mutation-form";
 import { FormattedNumberInput } from "@/app/components/formatted-number-input";
@@ -22,7 +22,7 @@ import {
   Top
 } from "@/app/components/tds";
 import { getMyIntents } from "@/lib/api";
-import { formatDateTime, formatKrw, statusLabel } from "@/lib/format";
+import { formatDateTime, formatKrw, formatNumber, statusLabel } from "@/lib/format";
 import { FLASH_COOKIE_NAME, getFlashMessages } from "@/lib/flash";
 import { TermsAgreement } from "./TermsAgreement";
 
@@ -77,7 +77,7 @@ function IntentGate({ messages }: { messages: ToastMessage[] }) {
 export default async function IntentsPage() {
   const [data, flashMessages] = await Promise.all([getMyIntents(), getFlashMessages()]);
   if (!data) return <IntentGate messages={flashMessages} />;
-  const { user, store, withdrawalReference, policy } = data;
+  const { user, store, withdrawalReference, investmentAvailability, policy } = data;
 
   const [termsMarkdown, dividendPolicyMarkdown] = await Promise.all([
     readProductDescription(),
@@ -87,6 +87,8 @@ export default async function IntentsPage() {
   const myWithdrawals = store.withdrawalIntents;
   const myIntents = [...myInvestments, ...myWithdrawals];
   const canRequestWithdrawal = withdrawalReference.maxRequestIntentKrw > 0;
+  const isInvestmentPaused = investmentAvailability.isPaused;
+  const investmentLimitPercent = formatNumber(policy.externalInvestmentLimitRate * 100, 0);
 
   return (
     <AppShell>
@@ -143,9 +145,17 @@ export default async function IntentsPage() {
             <Field htmlFor="investNote" label="메모">
               <textarea id="investNote" name="note" />
             </Field>
-            <button type="submit">
-              <CircleDollarSign size={17} />
-              제출
+            {isInvestmentPaused ? (
+              <Notice className="compact-notice">
+                완료된 외부 투자 의향 합계가 현재 포트폴리오 평가금액의 {investmentLimitPercent}%를 초과해 신규 접수를 일시 중단했습니다.
+              </Notice>
+            ) : null}
+            <button
+              className={isInvestmentPaused ? "investment-intake-paused" : undefined}
+              disabled={isInvestmentPaused}
+              type="submit"
+            >
+              {isInvestmentPaused ? "외부 투자 접수 일시 중단" : "제출"}
             </button>
           </ApiMutationForm>
         </Panel>
