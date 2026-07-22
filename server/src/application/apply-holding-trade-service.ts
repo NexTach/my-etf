@@ -16,6 +16,8 @@ export type HoldingTradeUpdate = {
   profitLossRate?: number | null;
 };
 
+export type HoldingAdjustmentType = "BUY" | "SELL" | "GIFT_IN";
+
 export interface HoldingTradeTransaction {
   find(): Promise<HoldingTradeState | null>;
   update(values: HoldingTradeUpdate): Promise<void>;
@@ -25,7 +27,7 @@ export interface HoldingTradeTransaction {
 
 export type HoldingTradeExecution = {
   symbol: string;
-  side: "BUY" | "SELL";
+  side: HoldingAdjustmentType;
   currency: string;
   quantity: number;
   orderPrice: number;
@@ -55,7 +57,7 @@ export class ApplyHoldingTradeService {
 
   execute(input: {
     symbol: string;
-    side: "BUY" | "SELL";
+    side: HoldingAdjustmentType;
     quantity: number;
     orderPrice: number;
     exchangeRate?: number;
@@ -70,9 +72,10 @@ export class ApplyHoldingTradeService {
       if (holding.currency === "USD" && !input.exchangeRate) {
         return { status: "missing_exchange_rate" };
       }
-      if (input.side === "BUY" && !holding.riskLevel) return { status: "risk_unclassified" };
-      const feeKrw = Math.max(0, Math.round(input.feeKrw ?? 0));
-      const taxKrw = Math.max(0, Math.round(input.taxKrw ?? 0));
+      if (input.side !== "SELL" && !holding.riskLevel) return { status: "risk_unclassified" };
+      const isGift = input.side === "GIFT_IN";
+      const feeKrw = isGift ? 0 : Math.max(0, Math.round(input.feeKrw ?? 0));
+      const taxKrw = isGift ? 0 : Math.max(0, Math.round(input.taxKrw ?? 0));
       const grossAmountKrw = Math.round(
         input.quantity * input.orderPrice * (holding.currency === "USD" ? input.exchangeRate ?? 0 : 1)
       );
@@ -86,9 +89,11 @@ export class ApplyHoldingTradeService {
         grossAmountKrw,
         feeKrw,
         taxKrw,
-        cashAmountKrw: input.side === "BUY"
-          ? grossAmountKrw + feeKrw + taxKrw
-          : Math.max(grossAmountKrw - feeKrw - taxKrw, 0),
+        cashAmountKrw: isGift
+          ? 0
+          : input.side === "BUY"
+            ? grossAmountKrw + feeKrw + taxKrw
+            : Math.max(grossAmountKrw - feeKrw - taxKrw, 0),
         executedAt: input.executedAt ?? new Date().toISOString()
       } satisfies HoldingTradeExecution;
 
@@ -109,12 +114,13 @@ export class ApplyHoldingTradeService {
       }
 
       if (holding.quantity <= MIN_REMAINING_QUANTITY) {
+        const nextLastPrice = isGift ? holding.lastPrice : input.orderPrice;
         await transaction.update({
           quantity: input.quantity,
-          lastPrice: input.orderPrice,
+          lastPrice: nextLastPrice,
           averagePurchasePrice: input.orderPrice,
           purchaseExchangeRate: holding.currency === "USD" ? input.exchangeRate : null,
-          profitLossRate: 0
+          profitLossRate: (nextLastPrice - input.orderPrice) / input.orderPrice
         });
         await transaction.recordExecution(execution);
         return { status: "updated" };
@@ -137,12 +143,14 @@ export class ApplyHoldingTradeService {
           (currentNativeCost + tradeNativeCost);
       }
 
+      const nextLastPrice = isGift ? holding.lastPrice : input.orderPrice;
+
       await transaction.update({
         quantity: nextQuantity,
-        lastPrice: input.orderPrice,
+        lastPrice: nextLastPrice,
         averagePurchasePrice: nextAveragePurchasePrice,
         purchaseExchangeRate: holding.currency === "USD" ? nextPurchaseExchangeRate : null,
-        profitLossRate: (input.orderPrice - nextAveragePurchasePrice) / nextAveragePurchasePrice
+        profitLossRate: (nextLastPrice - nextAveragePurchasePrice) / nextAveragePurchasePrice
       });
       await transaction.recordExecution(execution);
       return { status: "updated" };

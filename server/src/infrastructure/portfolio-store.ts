@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { Holding, ManualPortfolioStore, MarketCode, PortfolioDailySnapshot, PortfolioOverview } from "../domain/types.js";
 import {
   ApplyHoldingTradeService,
+  type HoldingAdjustmentType,
   type HoldingTradeExecution
 } from "../application/apply-holding-trade-service.js";
 import { PortfolioSnapshotService } from "../application/portfolio-snapshot-service.js";
@@ -411,7 +412,7 @@ export async function upsertManualHolding(input: Omit<Holding, "marketValue" | "
 
 export async function applyManualHoldingTrade(input: {
   symbol: string;
-  side: "BUY" | "SELL";
+  side: HoldingAdjustmentType;
   quantity: number;
   orderPrice: number;
   exchangeRate?: number;

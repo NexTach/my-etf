@@ -47,11 +47,19 @@ type HoldingFormState = {
   riskLevel: "" | "LOW" | "HIGH";
 };
 
+type HoldingAdjustmentType = TradeSide | "GIFT_IN";
+
 type TradeFormState = {
-  side: TradeSide;
+  side: HoldingAdjustmentType;
   quantity: string;
   orderPrice: string;
   exchangeRate: string;
+};
+
+const adjustmentLabels: Record<HoldingAdjustmentType, string> = {
+  BUY: "매수",
+  SELL: "매도",
+  GIFT_IN: "증여받음"
 };
 
 function currentKstDateTimeLocal() {
@@ -101,6 +109,40 @@ function marketLabel(market?: MarketCode) {
   return "나스닥";
 }
 
+function adjustmentCopy(side: HoldingAdjustmentType, currency: "KRW" | "USD") {
+  const unitSymbol = currencySymbol(currency);
+  const priceExample = currency === "USD" ? "78.5" : "12,000";
+
+  if (side === "GIFT_IN") {
+    return {
+      description: "증여받은 주식을 현금 이동 없이 입고하고, 입력한 취득가로 평단을 다시 계산합니다.",
+      quantityLabel: "증여받은 수량",
+      quantityPlaceholder: "예: 3",
+      priceLabel: `1주당 취득가 (${unitSymbol})`,
+      pricePlaceholder: `주당 취득가 (예: ${priceExample})`,
+      exchangeLabel: "취득 기준환율 (₩)",
+      exchangePlaceholder: "증여일 적용환율 (예: 1,380)",
+      occurredAtLabel: "증여받은 일시 (KST)",
+      submitLabel: "증여 반영"
+    };
+  }
+
+  const action = side === "BUY" ? "매수" : "매도";
+  return {
+    description: side === "BUY"
+      ? "실제 매수 체결값으로 수량과 취득원가, 현금 지출을 함께 반영합니다."
+      : "실제 매도 체결값으로 수량과 매도대금을 반영하고 기존 평단은 유지합니다.",
+    quantityLabel: `${action} 수량`,
+    quantityPlaceholder: "예: 3",
+    priceLabel: `${action} 체결가 (${unitSymbol})`,
+    pricePlaceholder: `예: ${priceExample}`,
+    exchangeLabel: "실제 체결환율 (₩)",
+    exchangePlaceholder: "증권사 체결환율 (예: 1,380)",
+    occurredAtLabel: "실제 체결시각 (KST)",
+    submitLabel: `${action} 반영`
+  };
+}
+
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
@@ -133,15 +175,17 @@ function createHoldingFormState({
   };
 }
 
-function createTradeFormState({
-  lastPrice,
-  purchaseExchangeRate
-}: Pick<AdminHoldingFormProps, "lastPrice" | "purchaseExchangeRate">): TradeFormState {
+function createTradeFormState(
+  { lastPrice, purchaseExchangeRate }: Pick<AdminHoldingFormProps, "lastPrice" | "purchaseExchangeRate">,
+  side: HoldingAdjustmentType = "BUY"
+): TradeFormState {
+  const isGift = side === "GIFT_IN";
+
   return {
-    side: "BUY",
+    side,
     quantity: "",
-    orderPrice: lastPrice?.toString() ?? "",
-    exchangeRate: purchaseExchangeRate?.toString() ?? ""
+    orderPrice: isGift ? "" : lastPrice?.toString() ?? "",
+    exchangeRate: isGift ? "" : purchaseExchangeRate?.toString() ?? ""
   };
 }
 
@@ -186,6 +230,7 @@ export function AdminHoldingForm({
     [lastPrice, purchaseExchangeRate]
   );
   const [tradeForm, setTradeForm] = useState<TradeFormState>(initialTradeForm);
+  const activeAdjustmentCopy = adjustmentCopy(tradeForm.side, currency ?? "USD");
 
   const computedRate = useMemo(
     () => profitLossRate(Number(form.lastPrice), Number(form.averagePurchasePrice)),
@@ -194,10 +239,16 @@ export function AdminHoldingForm({
   const tradePreview = useMemo(() => {
     const tradeQuantity = positiveNumber(tradeForm.quantity);
     const tradePrice = positiveNumber(tradeForm.orderPrice);
+    const tradeExchangeRate = positiveNumber(tradeForm.exchangeRate);
     const currentQuantity = quantity ?? 0;
     const currentAveragePrice = averagePurchasePrice && averagePurchasePrice > 0 ? averagePurchasePrice : lastPrice;
 
-    if (!tradeQuantity || !tradePrice || (tradeForm.side === "SELL" && !currentQuantity)) {
+    if (
+      !tradeQuantity ||
+      !tradePrice ||
+      (currency === "USD" && (!tradeExchangeRate || tradeExchangeRate < 500 || tradeExchangeRate > 3000)) ||
+      (tradeForm.side === "SELL" && !currentQuantity)
+    ) {
       return {
         isValid: false,
         quantity: undefined,
@@ -208,8 +259,10 @@ export function AdminHoldingForm({
 
     if (tradeForm.side === "SELL") {
       const nextQuantity = currentQuantity - tradeQuantity;
+      const hasInsufficientQuantity = nextQuantity < -0.0000001;
       return {
-        isValid: nextQuantity >= -0.0000001,
+        isValid: !hasInsufficientQuantity,
+        error: hasInsufficientQuantity ? "INSUFFICIENT_QUANTITY" as const : undefined,
         quantity: Math.max(0, nextQuantity),
         averagePurchasePrice,
         purchaseExchangeRate
@@ -220,17 +273,7 @@ export function AdminHoldingForm({
     const tradeNativeCost = tradePrice * tradeQuantity;
     const nextQuantity = currentQuantity + tradeQuantity;
     const nextAveragePurchasePrice = (currentNativeCost + tradeNativeCost) / nextQuantity;
-    const tradeExchangeRate = positiveNumber(tradeForm.exchangeRate);
     let nextPurchaseExchangeRate = purchaseExchangeRate;
-
-    if (currency === "USD" && !tradeExchangeRate) {
-      return {
-        isValid: false,
-        quantity: nextQuantity,
-        averagePurchasePrice: nextAveragePurchasePrice,
-        purchaseExchangeRate
-      };
-    }
 
     if (currency === "USD" && tradeExchangeRate) {
       const currentExchangeRate = purchaseExchangeRate ?? tradeExchangeRate;
@@ -424,7 +467,7 @@ export function AdminHoldingForm({
   }
 
   const modalTitle = symbol ? "운영 종목 수정" : "운영 종목 추가";
-  const submitLabel = symbol ? "변경 저장" : "종목 추가";
+  const submitLabel = symbol ? "기본 정보 저장" : "종목 추가";
   const hasOpeningQuantity = !symbol && Boolean(positiveNumber(form.quantity));
 
   return (
@@ -437,7 +480,7 @@ export function AdminHoldingForm({
             <h3 id={`holding-modal-title-${symbol ?? "new"}`}>{modalTitle}</h3>
             <p>
               {symbol
-                ? `${stockPrimaryLabel({ symbol, name, alias, marketCountry, currency })} · 보유값은 아래 거래 적용으로 조정합니다.`
+                ? `${stockPrimaryLabel({ symbol, name, alias, marketCountry, currency })} · 보유값은 아래 수량 조정으로 변경합니다.`
                 : "검색 결과를 선택하고 현재 초기 보유값을 입력합니다."}
             </p>
           </div>
@@ -582,7 +625,7 @@ export function AdminHoldingForm({
                 <option value="KRW">KRW</option>
               </TdsSelect>
             </Field>
-            <Field htmlFor={`quantity-${symbol ?? "new"}`} label={symbol ? "보유 수량(거래로 변경)" : "초기 보유 수량"}>
+            <Field htmlFor={`quantity-${symbol ?? "new"}`} label={symbol ? "보유 수량(아래에서 조정)" : "초기 보유 수량"}>
               <input
                 id={`quantity-${symbol ?? "new"}`}
                 name="quantity"
@@ -609,7 +652,7 @@ export function AdminHoldingForm({
             </Field>
             <Field
               htmlFor={`avg-${symbol ?? "new"}`}
-              label={`${symbol ? "평단(거래로 변경)" : "초기 평단"} (${currencySymbol(form.currency)})`}
+              label={`${symbol ? "평단(아래에서 조정)" : "초기 평단"} (${currencySymbol(form.currency)})`}
             >
               <FormattedNumberInput
                 allowDecimal
@@ -643,81 +686,90 @@ export function AdminHoldingForm({
             <section className="holding-trade-panel" aria-labelledby={`holding-trade-title-${symbol}`}>
               <input name="tradeSymbol" type="hidden" value={symbol} />
               <header>
-                <h4 id={`holding-trade-title-${symbol}`}>거래 적용</h4>
-                <div className="trade-side-toggle" role="radiogroup" aria-label="거래 구분">
-                  {(["BUY", "SELL"] as TradeSide[]).map((side) => (
+                <div>
+                  <h4 id={`holding-trade-title-${symbol}`}>보유 수량 조정</h4>
+                  <p className="holding-adjustment-description">{activeAdjustmentCopy.description}</p>
+                </div>
+                <div className="trade-side-toggle" role="radiogroup" aria-label="조정 유형">
+                  {(["BUY", "SELL", "GIFT_IN"] as HoldingAdjustmentType[]).map((side) => (
                     <label className={tradeForm.side === side ? "selected" : undefined} key={side}>
                       <input
                         checked={tradeForm.side === side}
                         name="side"
                         type="radio"
                         value={side}
-                        onChange={() => setTradeForm((current) => ({ ...current, side }))}
+                        onChange={() => setTradeForm(createTradeFormState({ lastPrice, purchaseExchangeRate }, side))}
                       />
-                      <span>{side === "BUY" ? "매수" : "매도"}</span>
+                      <span>{adjustmentLabels[side]}</span>
                     </label>
                   ))}
                 </div>
               </header>
               <div className="holding-trade-grid">
-                <Field htmlFor={`trade-quantity-${symbol}`} label="거래 수량">
+                <Field htmlFor={`trade-quantity-${symbol}`} label={activeAdjustmentCopy.quantityLabel}>
                   <FormattedNumberInput
                     allowDecimal
                     id={`trade-quantity-${symbol}`}
                     name="tradeQuantity"
                     step="0.000001"
                     min="0"
-                    placeholder="예: 3"
+                    placeholder={activeAdjustmentCopy.quantityPlaceholder}
                     value={tradeForm.quantity}
                     onValueChange={(value) => setTradeForm((current) => ({ ...current, quantity: value }))}
                   />
                 </Field>
-                <Field htmlFor={`trade-price-${symbol}`} label={`거래가 (${currencySymbol(currency ?? "USD")})`}>
+                <Field htmlFor={`trade-price-${symbol}`} label={activeAdjustmentCopy.priceLabel}>
                   <FormattedNumberInput
                     allowDecimal
                     id={`trade-price-${symbol}`}
                     name="orderPrice"
                     step="0.000001"
                     min="0"
-                    placeholder={currency === "USD" ? "예: 78.5" : "예: 12,000"}
+                    placeholder={activeAdjustmentCopy.pricePlaceholder}
                     value={tradeForm.orderPrice}
                     onValueChange={(value) => setTradeForm((current) => ({ ...current, orderPrice: value }))}
                   />
                 </Field>
-                <Field htmlFor={`trade-fx-${symbol}`} label="거래환율 (₩)">
-                  <FormattedNumberInput
-                    allowDecimal
-                    id={`trade-fx-${symbol}`}
-                    name="exchangeRate"
-                    step="0.01"
-                    min="500"
-                    max="3000"
-                    placeholder={currency === "USD" ? "증권사 실제 체결환율" : "원화 거래는 입력하지 않음"}
-                    value={tradeForm.exchangeRate}
-                    disabled={currency !== "USD"}
-                    onValueChange={(value) => setTradeForm((current) => ({ ...current, exchangeRate: value }))}
-                    required={currency === "USD"}
-                  />
-                </Field>
-                <Field htmlFor={`trade-fee-${symbol}`} label="거래 수수료 (₩)">
-                  <FormattedNumberInput
-                    id={`trade-fee-${symbol}`}
-                    name="feeKrw"
-                    min="0"
-                    defaultValue="0"
-                  />
-                </Field>
-                <Field htmlFor={`trade-tax-${symbol}`} label="거래 세금 (₩)">
-                  <FormattedNumberInput
-                    id={`trade-tax-${symbol}`}
-                    name="taxKrw"
-                    min="0"
-                    defaultValue="0"
-                  />
-                </Field>
-                <Field htmlFor={`trade-executed-at-${symbol}`} label="실제 체결시각 (KST)">
+                {currency === "USD" ? (
+                  <Field htmlFor={`trade-fx-${symbol}`} label={activeAdjustmentCopy.exchangeLabel}>
+                    <FormattedNumberInput
+                      allowDecimal
+                      id={`trade-fx-${symbol}`}
+                      name="exchangeRate"
+                      step="0.01"
+                      min="500"
+                      max="3000"
+                      placeholder={activeAdjustmentCopy.exchangePlaceholder}
+                      value={tradeForm.exchangeRate}
+                      onValueChange={(value) => setTradeForm((current) => ({ ...current, exchangeRate: value }))}
+                      required
+                    />
+                  </Field>
+                ) : null}
+                {tradeForm.side !== "GIFT_IN" ? (
+                  <>
+                    <Field htmlFor={`trade-fee-${symbol}`} label="거래 수수료 (₩)">
+                      <FormattedNumberInput
+                        id={`trade-fee-${symbol}`}
+                        name="feeKrw"
+                        min="0"
+                        defaultValue="0"
+                      />
+                    </Field>
+                    <Field htmlFor={`trade-tax-${symbol}`} label="거래 세금 (₩)">
+                      <FormattedNumberInput
+                        id={`trade-tax-${symbol}`}
+                        name="taxKrw"
+                        min="0"
+                        defaultValue="0"
+                      />
+                    </Field>
+                  </>
+                ) : null}
+                <Field htmlFor={`trade-executed-at-${symbol}`} label={activeAdjustmentCopy.occurredAtLabel}>
                   <input
                     id={`trade-executed-at-${symbol}`}
+                    key={tradeForm.side}
                     name="executedAt"
                     type="datetime-local"
                     defaultValue={currentKstDateTimeLocal()}
@@ -727,22 +779,22 @@ export function AdminHoldingForm({
               </div>
               <div className="holding-trade-result">
                 <ComputedValue
-                  label="적용 후 수량"
+                  label="반영 후 수량"
                   value={
                     tradePreview.isValid
                       ? `${formatHoldingNumber(tradePreview.quantity)}주`
-                      : tradeForm.side === "SELL"
+                      : tradePreview.error === "INSUFFICIENT_QUANTITY"
                         ? "수량 부족"
                         : "-"
                   }
                 />
                 <ComputedValue
-                  label="적용 후 평단"
+                  label="반영 후 평단"
                   value={formatHoldingCurrency(tradePreview.averagePurchasePrice, currency, 6)}
                 />
                 {currency === "USD" ? (
                   <ComputedValue
-                    label="적용 후 환율"
+                    label="반영 후 환율"
                     value={formatHoldingCurrency(tradePreview.purchaseExchangeRate, "KRW", 2)}
                   />
                 ) : null}
@@ -752,7 +804,7 @@ export function AdminHoldingForm({
                   formMethod="post"
                   type="submit"
                 >
-                  거래 적용
+                  {activeAdjustmentCopy.submitLabel}
                 </button>
               </div>
             </section>
@@ -773,7 +825,7 @@ export function AdminHoldingForm({
               <button className="secondary" type="button" onClick={closeModal}>
                 취소
               </button>
-              <button type="submit">{submitLabel}</button>
+              <button formNoValidate={Boolean(symbol)} type="submit">{submitLabel}</button>
             </div>
           </footer>
         </ApiMutationForm>
@@ -798,7 +850,7 @@ export function AdminHoldingForm({
             </header>
             <div className="holding-delete-warning">
               현재 보유 수량 {formatHoldingNumber(quantity)}주를 포함해 활성 포트폴리오에서 제거합니다.
-              기존 매수·매도 체결 이력은 감사 기록으로 유지됩니다.
+              기존 매수·매도·증여 조정 이력은 감사 기록으로 유지됩니다.
             </div>
             <ApiMutationForm
               action="/api/admin/portfolio/delete"

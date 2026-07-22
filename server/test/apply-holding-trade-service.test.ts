@@ -12,7 +12,7 @@ function serialRepository(initial: HoldingTradeState) {
   let state: HoldingTradeState | null = { ...initial };
   let queue = Promise.resolve();
   const updates: HoldingTradeUpdate[] = [];
-  const executions: Array<{ cashAmountKrw: number; side: string }> = [];
+  const executions: HoldingTradeExecution[] = [];
   const repository: HoldingTradeRepository = {
     withSymbolTransaction(_symbol, work) {
       const operation = queue.then(() => work({
@@ -23,7 +23,7 @@ function serialRepository(initial: HoldingTradeState) {
           state = { ...state, ...values };
         },
         async delete() { state = null; },
-        async recordExecution(values) { executions.push({ side: values.side, cashAmountKrw: values.cashAmountKrw }); }
+        async recordExecution(values) { executions.push(values); }
       }));
       queue = operation.then(() => undefined, () => undefined);
       return operation;
@@ -122,7 +122,107 @@ describe("ApplyHoldingTradeService", () => {
         assert.equal(fake.state()?.quantity, 20);
         assert.equal(fake.state()?.averagePurchasePrice, 15);
         assert.equal(fake.state()?.purchaseExchangeRate, 400_000 / 300);
-        assert.deepEqual(fake.executions, [{ side: "BUY", cashAmountKrw: 300_600 }]);
+        assert.equal(fake.executions[0]?.side, "BUY");
+        assert.equal(fake.executions[0]?.cashAmountKrw, 300_600);
+      });
+    });
+  });
+
+  describe("Given an existing classified USD holding", () => {
+    describe("When gifted shares are received with an acquisition value", () => {
+      it("Then updates cost basis without cash movement or replacing the market price", async () => {
+        const fake = serialRepository({
+          symbol: "SCHD",
+          currency: "USD",
+          quantity: 10,
+          lastPrice: 25,
+          averagePurchasePrice: 10,
+          purchaseExchangeRate: 1000,
+          riskLevel: "LOW"
+        });
+
+        const result = await new ApplyHoldingTradeService(fake.repository).execute({
+          symbol: "SCHD",
+          side: "GIFT_IN",
+          quantity: 5,
+          orderPrice: 20,
+          exchangeRate: 1500,
+          feeKrw: 500,
+          taxKrw: 100,
+          executedAt: "2026-07-22T01:00:00.000Z"
+        });
+
+        assert.equal(result.status, "updated");
+        assert.equal(fake.state()?.quantity, 15);
+        assert.equal(fake.state()?.lastPrice, 25);
+        assert.equal(fake.state()?.averagePurchasePrice, 200 / 15);
+        assert.equal(fake.state()?.purchaseExchangeRate, 1250);
+        assert.ok(Math.abs((fake.updates.at(-1)?.profitLossRate ?? 0) - 0.875) < 1e-12);
+        assert.equal(fake.executions[0]?.side, "GIFT_IN");
+        assert.equal(fake.executions[0]?.grossAmountKrw, 150_000);
+        assert.equal(fake.executions[0]?.cashAmountKrw, 0);
+        assert.equal(fake.executions[0]?.feeKrw, 0);
+        assert.equal(fake.executions[0]?.taxKrw, 0);
+        assert.equal(fake.executions[0]?.executedAt, "2026-07-22T01:00:00.000Z");
+      });
+    });
+  });
+
+  describe("Given a classified metadata-only holding", () => {
+    describe("When its opening balance is received as a gift", () => {
+      it("Then initializes cost basis while preserving its current market price", async () => {
+        const fake = serialRepository({
+          symbol: "005930",
+          currency: "KRW",
+          quantity: 0,
+          lastPrice: 10_000,
+          averagePurchasePrice: null,
+          purchaseExchangeRate: null,
+          riskLevel: "LOW"
+        });
+
+        const result = await new ApplyHoldingTradeService(fake.repository).execute({
+          symbol: "005930",
+          side: "GIFT_IN",
+          quantity: 4,
+          orderPrice: 9_000
+        });
+
+        assert.equal(result.status, "updated");
+        assert.equal(fake.state()?.quantity, 4);
+        assert.equal(fake.state()?.lastPrice, 10_000);
+        assert.equal(fake.state()?.averagePurchasePrice, 9_000);
+        assert.equal(fake.state()?.purchaseExchangeRate, null);
+        assert.equal(fake.executions[0]?.cashAmountKrw, 0);
+      });
+    });
+  });
+
+  describe("Given an existing holding without a risk classification", () => {
+    describe("When gifted shares are received", () => {
+      it("Then rejects the increased exposure without changing the holding", async () => {
+        const fake = serialRepository({
+          symbol: "SCHD",
+          currency: "USD",
+          quantity: 10,
+          lastPrice: 25,
+          averagePurchasePrice: 10,
+          purchaseExchangeRate: 1000,
+          riskLevel: null
+        });
+
+        const result = await new ApplyHoldingTradeService(fake.repository).execute({
+          symbol: "SCHD",
+          side: "GIFT_IN",
+          quantity: 5,
+          orderPrice: 20,
+          exchangeRate: 1500
+        });
+
+        assert.equal(result.status, "risk_unclassified");
+        assert.equal(fake.state()?.quantity, 10);
+        assert.equal(fake.updates.length, 0);
+        assert.equal(fake.executions.length, 0);
       });
     });
   });

@@ -112,7 +112,7 @@ function normalizeHoldingSymbol(symbol: string, currency: "KRW" | "USD", market:
 
 const tradeSchema = z.object({
   tradeSymbol: z.string().trim().min(1).max(20),
-  side: z.enum(["BUY", "SELL"]),
+  side: z.enum(["BUY", "SELL", "GIFT_IN"]),
   tradeQuantity: z.coerce.number().positive(),
   orderPrice: z.coerce.number().positive(),
   exchangeRate: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().min(500).max(3000).optional()),
@@ -212,7 +212,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     };
     const code = errors[result.status];
     if (code) return adminError(reply, code);
-    return adminSuccess(reply, "portfolio-traded", "거래가 포트폴리오에 반영되었습니다");
+    return adminSuccess(
+      reply,
+      "portfolio-traded",
+      parsed.data.side === "GIFT_IN"
+        ? "증여받은 주식이 포트폴리오에 반영되었습니다"
+        : "거래가 포트폴리오에 반영되었습니다"
+    );
   });
 
   app.post("/api/admin/portfolio/delete", async (request, reply) => {
